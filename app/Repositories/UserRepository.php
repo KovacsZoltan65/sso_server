@@ -5,7 +5,9 @@ namespace App\Repositories;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Prettus\Repository\Eloquent\Repository;
+use Spatie\Permission\Models\Role;
 
 class UserRepository extends Repository implements UserRepositoryInterface
 {
@@ -71,5 +73,33 @@ class UserRepository extends Repository implements UserRepositoryInterface
         $query->orderBy($column, $direction);
 
         return $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+    }
+
+    public function getRoleNames(): Collection
+    {
+        /** @var Collection<int, string> $roles */
+        $roles = Role::query()
+            ->orderBy('name')
+            ->pluck('name');
+
+        return $roles;
+    }
+
+    public function createWithRoles(array $attributes, array $roles = []): User
+    {
+        /** @var User $user */
+        $user = $this->getModel()->newQuery()->create($attributes);
+        $user->syncRoles($roles);
+
+        return $user->load('roles');
+    }
+
+    public function updateWithRoles(User $user, array $attributes, array $roles = []): User
+    {
+        $user->fill($attributes);
+        $user->save();
+        $user->syncRoles($roles);
+
+        return $user->load('roles');
     }
 }

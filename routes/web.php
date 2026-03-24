@@ -16,6 +16,14 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:users.view')
             ->name('users.index');
 
+        Route::post('/users', [UserController::class, 'store'])
+            ->middleware('permission:users.manage')
+            ->name('users.store');
+
+        Route::put('/users/{user}', [UserController::class, 'update'])
+            ->middleware('permission:users.manage')
+            ->name('users.update');
+
         Route::get('/roles', [PlaceholderPageController::class, 'roles'])
             ->middleware('permission:roles.view')
             ->name('roles.index');

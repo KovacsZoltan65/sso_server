@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\UserSummaryData;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 
 class UserService
@@ -32,6 +33,8 @@ class UserService
                 ->map(fn (User $user) => UserSummaryData::fromModel($user))
                 ->values()
                 ->all(),
+            'roleOptions' => $this->roleOptions(),
+            'canManageUsers' => auth()->user()?->can('users.manage') ?? false,
             'filters' => [
                 'global' => $filters['global'] ?? null,
                 'name' => $filters['name'] ?? null,
@@ -53,5 +56,42 @@ class UserService
                 'first' => ($paginator->currentPage() - 1) * $paginator->perPage(),
             ],
         ];
+    }
+
+    /**
+     * @return array<int, array{label: string, value: string}>
+     */
+    public function roleOptions(): array
+    {
+        return $this->users->getRoleNames()
+            ->map(fn (string $role) => [
+                'label' => ucfirst($role),
+                'value' => $role,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function createUser(array $payload): User
+    {
+        return $this->users->createWithRoles(
+            attributes: Arr::only($payload, ['name', 'email', 'password']),
+            roles: array_values($payload['roles'] ?? []),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function updateUser(User $user, array $payload): User
+    {
+        return $this->users->updateWithRoles(
+            user: $user,
+            attributes: Arr::only($payload, ['name', 'email']),
+            roles: array_values($payload['roles'] ?? []),
+        );
     }
 }

@@ -1,9 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import CreateModal from '@/Pages/Admin/Users/CreateModal.vue';
-import EditModal from '@/Pages/Admin/Users/EditModal.vue';
 import PageHeader from '@/Components/PageHeader.vue';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
 import { useToast } from 'primevue/usetoast';
 import Button from 'primevue/button';
@@ -11,51 +9,55 @@ import Card from 'primevue/card';
 import Column from 'primevue/column';
 import DataTable from 'primevue/datatable';
 import IconField from 'primevue/iconfield';
-import InputText from 'primevue/inputtext';
 import InputIcon from 'primevue/inputicon';
-import Select from 'primevue/select';
+import InputText from 'primevue/inputtext';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
-import { reactive, ref } from 'vue';
+import { onMounted, reactive, ref } from 'vue';
 
 const props = defineProps({
     rows: {
         type: Array,
-        required: true,
-    },
-    roleOptions: {
-        type: Array,
         default: () => [],
-    },
-    canManageUsers: {
-        type: Boolean,
-        default: false,
     },
     filters: {
         type: Object,
-        required: true,
+        default: () => ({
+            global: null,
+            name: null,
+        }),
     },
     pagination: {
         type: Object,
-        required: true,
+        default: () => ({
+            currentPage: 1,
+            lastPage: 1,
+            perPage: 10,
+            total: 0,
+            from: 0,
+            to: 0,
+            first: 0,
+        }),
     },
     sorting: {
         type: Object,
-        required: true,
+        default: () => ({
+            field: 'name',
+            order: 1,
+        }),
+    },
+    canManageRoles: {
+        type: Boolean,
+        default: false,
     },
 });
 
+const page = usePage();
 const toast = useToast();
-
-const isCreateModalOpen = ref(false);
-const isEditModalOpen = ref(false);
-const selectedUser = ref(null);
 
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
     name: { value: props.filters.name ?? null, matchMode: FilterMatchMode.CONTAINS },
-    email: { value: props.filters.email ?? null, matchMode: FilterMatchMode.CONTAINS },
-    emailVerifiedAt: { value: props.filters.verified ?? null, matchMode: FilterMatchMode.EQUALS },
 });
 
 const tableState = reactive({
@@ -67,17 +69,9 @@ const tableState = reactive({
 
 const perPageOptions = [5, 10, 15, 25];
 
-const verifiedOptions = [
-    { label: 'All', value: null },
-    { label: 'Verified', value: 'verified' },
-    { label: 'Pending', value: 'pending' },
-];
-
 const buildParams = (overrides = {}) => ({
     global: tableFilters.value.global.value || undefined,
     name: tableFilters.value.name.value || undefined,
-    email: tableFilters.value.email.value || undefined,
-    verified: tableFilters.value.emailVerifiedAt.value || undefined,
     page: tableState.page,
     perPage: tableState.perPage,
     sortField: tableState.sortField || undefined,
@@ -86,7 +80,7 @@ const buildParams = (overrides = {}) => ({
 });
 
 const reload = (overrides = {}) => {
-    router.get(route('admin.users.index'), buildParams(overrides), {
+    router.get(route('admin.roles.index'), buildParams(overrides), {
         preserveState: true,
         replace: true,
         preserveScroll: true,
@@ -109,8 +103,6 @@ const onFilter = (event) => {
         page: 1,
         global: event.filters.global?.value || undefined,
         name: event.filters.name?.value || undefined,
-        email: event.filters.email?.value || undefined,
-        verified: event.filters.emailVerifiedAt?.value || undefined,
     });
 };
 
@@ -134,52 +126,52 @@ const onPage = (event) => {
     });
 };
 
-const openCreateModal = () => {
-    isCreateModalOpen.value = true;
+const visitCreate = () => {
+    router.get(route('admin.roles.create'));
 };
 
-const openEditModal = (user) => {
-    selectedUser.value = user;
-    isEditModalOpen.value = true;
+const visitEdit = (role) => {
+    router.get(route('admin.roles.edit', role.id));
 };
 
-const closeEditModal = () => {
-    isEditModalOpen.value = false;
-    selectedUser.value = null;
-};
-
-const handleEditVisibilityChange = (value) => {
-    if (value) {
-        isEditModalOpen.value = true;
-        return;
+const permissionTags = (role) => {
+    if (Array.isArray(role.permissions) && role.permissions.length) {
+        return role.permissions;
     }
 
-    closeEditModal();
+    return [];
 };
 
-const handleSaved = ({ message }) => {
-    toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: message,
-        life: 3000,
-    });
+onMounted(() => {
+    if (page.props.flash?.success) {
+        toast.add({
+            severity: 'success',
+            summary: 'Success',
+            detail: page.props.flash.success,
+            life: 3000,
+        });
+    }
 
-    closeEditModal();
-    isCreateModalOpen.value = false;
-    reload();
-};
+    if (page.props.flash?.error) {
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: page.props.flash.error,
+            life: 4000,
+        });
+    }
+});
 </script>
 
 <template>
-    <Head title="Users" />
+    <Head title="Roles" />
 
     <AuthenticatedLayout>
         <Toast />
 
         <PageHeader
-            title="Users"
-            description="Example read flow using Controller -> Service -> Repository -> Data. This page is intentionally simple but production-oriented for future user and operator modules."
+            title="Roles"
+            description="Manage application roles with the same admin list flow used in the Users module."
         />
 
         <Card class="surface-card">
@@ -216,20 +208,18 @@ const handleSaved = ({ message }) => {
                                 />
                             </IconField>
 
-                            <div class="flex items-center justify-end gap-3">
-                                <Button
-                                    label="Repository-backed read model"
-                                    icon="pi pi-database"
-                                    severity="secondary"
-                                    outlined
-                                />
-                                <Button
-                                    v-if="canManageUsers"
-                                    label="Create User"
-                                    icon="pi pi-plus"
-                                    @click="openCreateModal"
-                                />
-                            </div>
+                            <Button
+                                v-if="canManageRoles"
+                                label="Create Role"
+                                icon="pi pi-plus"
+                                @click="visitCreate"
+                            />
+                        </div>
+                    </template>
+
+                    <template #empty>
+                        <div class="py-8 text-center text-sm text-slate-500">
+                            No roles found for the current filters.
                         </div>
                     </template>
 
@@ -250,67 +240,33 @@ const handleSaved = ({ message }) => {
                             />
                         </template>
                     </Column>
-                    <Column
-                        field="email"
-                        header="Email"
-                        sortable
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #filter="{ filterModel, filterCallback }">
-                            <InputText
-                                v-model="filterModel.value"
-                                placeholder="Filter email"
-                                class="w-full"
-                                @input="filterCallback()"
-                            />
-                        </template>
-                    </Column>
-                    <Column header="Roles">
+
+                    <Column header="Permissions">
                         <template #body="{ data }">
-                            <div class="flex flex-wrap gap-2">
+                            <div v-if="permissionTags(data).length" class="flex flex-wrap gap-2">
                                 <Tag
-                                    v-for="role in data.roles"
-                                    :key="role"
-                                    :value="role"
+                                    v-for="permission in permissionTags(data)"
+                                    :key="permission"
+                                    :value="permission"
                                     severity="info"
                                 />
                             </div>
+                            <span v-else class="text-sm text-slate-500">
+                                {{ data.permissionsCount ?? 0 }} permissions
+                            </span>
                         </template>
                     </Column>
-                    <Column
-                        field="emailVerifiedAt"
-                        header="Verified"
-                        sortable
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #body="{ data }">
-                            <Tag :value="data.emailVerifiedAt ? 'Verified' : 'Pending'" :severity="data.emailVerifiedAt ? 'success' : 'warn'" />
-                        </template>
-                        <template #filter="{ filterModel, filterCallback }">
-                            <Select
-                                v-model="filterModel.value"
-                                :options="verifiedOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="All"
-                                class="w-full"
-                                @change="filterCallback()"
-                            />
-                        </template>
-                    </Column>
+
                     <Column field="createdAt" header="Created At" sortable />
-                    <Column v-if="canManageUsers" header="Actions" :exportable="false" style="width: 8rem">
+
+                    <Column v-if="canManageRoles" header="Actions" :exportable="false" style="width: 8rem">
                         <template #body="{ data }">
                             <Button
                                 label="Edit"
                                 icon="pi pi-pencil"
                                 size="small"
                                 outlined
-                                @click="openEditModal(data)"
+                                @click="visitEdit(data)"
                             />
                         </template>
                     </Column>
@@ -318,25 +274,11 @@ const handleSaved = ({ message }) => {
 
                 <div class="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} users
+                        Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} roles
                     </div>
                     <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
                 </div>
             </template>
         </Card>
-
-        <CreateModal
-            v-model:visible="isCreateModalOpen"
-            :roleOptions="roleOptions"
-            @saved="handleSaved"
-        />
-
-        <EditModal
-            v-model:visible="isEditModalOpen"
-            :user="selectedUser"
-            :roleOptions="roleOptions"
-            @saved="handleSaved"
-            @update:visible="handleEditVisibilityChange"
-        />
     </AuthenticatedLayout>
 </template>
