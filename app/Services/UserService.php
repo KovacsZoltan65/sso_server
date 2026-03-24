@@ -17,9 +17,15 @@ class UserService
     /**
      * @return array<string, mixed>
      */
-    public function getIndexPayload(?string $search, int $perPage = 10): array
+    public function getIndexPayload(
+        array $filters,
+        int $perPage = 10,
+        ?string $sortField = null,
+        ?int $sortOrder = null,
+        int $page = 1,
+    ): array
     {
-        $paginator = $this->users->paginateForAdminIndex($search, $perPage);
+        $paginator = $this->users->paginateForAdminIndex($filters, $sortField, $sortOrder, $perPage, $page);
 
         return [
             'rows' => Collection::make($paginator->items())
@@ -27,8 +33,15 @@ class UserService
                 ->values()
                 ->all(),
             'filters' => [
-                'search' => $search,
+                'global' => $filters['global'] ?? null,
+                'name' => $filters['name'] ?? null,
+                'email' => $filters['email'] ?? null,
+                'verified' => $filters['verified'] ?? null,
                 'perPage' => $perPage,
+            ],
+            'sorting' => [
+                'field' => $sortField ?? 'name',
+                'order' => $sortOrder ?? 1,
             ],
             'pagination' => [
                 'currentPage' => $paginator->currentPage(),
@@ -37,6 +50,7 @@ class UserService
                 'total' => $paginator->total(),
                 'from' => $paginator->firstItem(),
                 'to' => $paginator->lastItem(),
+                'first' => ($paginator->currentPage() - 1) * $paginator->perPage(),
             ],
         ];
     }

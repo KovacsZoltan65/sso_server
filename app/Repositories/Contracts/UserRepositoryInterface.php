@@ -6,5 +6,14 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 interface UserRepositoryInterface
 {
-    public function paginateForAdminIndex(?string $search, int $perPage = 10): LengthAwarePaginator;
+    /**
+     * @param array<string, mixed> $filters
+     */
+    public function paginateForAdminIndex(
+        array $filters,
+        ?string $sortField,
+        ?int $sortOrder,
+        int $perPage = 10,
+        int $page = 1,
+    ): LengthAwarePaginator;
 }

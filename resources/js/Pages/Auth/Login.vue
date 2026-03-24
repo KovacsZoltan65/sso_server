@@ -1,11 +1,11 @@
 <script setup>
-import GuestLayout from '@/Layouts/GuestLayout.vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import Button from 'primevue/button';
-import Checkbox from 'primevue/checkbox';
-import InputText from 'primevue/inputtext';
-import Message from 'primevue/message';
-import Password from 'primevue/password';
+import GuestLayout from "@/Layouts/GuestLayout.vue";
+import { Head, Link, useForm } from "@inertiajs/vue3";
+import Button from "primevue/button";
+import Checkbox from "primevue/checkbox";
+import InputText from "primevue/inputtext";
+import Message from "primevue/message";
+import Password from "primevue/password";
 
 defineProps({
     canResetPassword: {
@@ -19,14 +19,14 @@ defineProps({
 });
 
 const form = useForm({
-    email: '',
-    password: '',
+    email: "superadmin@sso.test",
+    password: "password",
     remember: false,
 });
 
 const submit = () => {
-    form.post(route('login'), {
-        onFinish: () => form.reset('password'),
+    form.post(route("login"), {
+        onFinish: () => form.reset("password"),
     });
 };
 </script>
@@ -42,13 +42,26 @@ const submit = () => {
 
         <form class="space-y-5" @submit.prevent="submit">
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-700" for="email">Email</label>
-                <InputText id="email" v-model="form.email" type="email" class="w-full" autofocus autocomplete="username" />
-                <small v-if="form.errors.email" class="text-red-600">{{ form.errors.email }}</small>
+                <label class="text-sm font-semibold text-slate-700" for="email"
+                    >Email</label
+                >
+                <InputText
+                    id="email"
+                    v-model="form.email"
+                    type="email"
+                    class="w-full"
+                    autofocus
+                    autocomplete="username"
+                />
+                <small v-if="form.errors.email" class="text-red-600">{{
+                    form.errors.email
+                }}</small>
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-700" for="password">Password</label>
+                <label class="text-sm font-semibold text-slate-700" for="password"
+                    >Password</label
+                >
                 <Password
                     id="password"
                     v-model="form.password"
@@ -58,7 +71,9 @@ const submit = () => {
                     toggle-mask
                     autocomplete="current-password"
                 />
-                <small v-if="form.errors.password" class="text-red-600">{{ form.errors.password }}</small>
+                <small v-if="form.errors.password" class="text-red-600">{{
+                    form.errors.password
+                }}</small>
             </div>
 
             <div class="flex items-center justify-between gap-3">
@@ -67,15 +82,26 @@ const submit = () => {
                     Remember me
                 </label>
 
-                <Link v-if="canResetPassword" :href="route('password.request')" class="text-sm font-medium text-sky-700">
+                <Link
+                    v-if="canResetPassword"
+                    :href="route('password.request')"
+                    class="text-sm font-medium text-sky-700"
+                >
                     Forgot password?
                 </Link>
             </div>
 
-            <Button type="submit" label="Log in" icon="pi pi-sign-in" class="w-full justify-center" :loading="form.processing" />
+            <Button
+                type="submit"
+                label="Log in"
+                icon="pi pi-sign-in"
+                class="w-full justify-center"
+                :loading="form.processing"
+            />
 
             <div class="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                Seeded accounts: `superadmin@sso.test` / `password`, `admin@sso.test` / `password`.
+                Seeded accounts: `superadmin@sso.test` / `password`, `admin@sso.test` /
+                `password`.
             </div>
         </form>
     </GuestLayout>
