@@ -48,7 +48,7 @@ const props = defineProps({
             order: 1,
         }),
     },
-    canManageRoles: {
+    canManagePermissions: {
         type: Boolean,
         default: false,
     },
@@ -83,7 +83,7 @@ const buildParams = (overrides = {}) => ({
 });
 
 const reload = (overrides = {}) => {
-    router.get(route('admin.roles.index'), buildParams(overrides), {
+    router.get(route('admin.permissions.index'), buildParams(overrides), {
         preserveState: true,
         replace: true,
         preserveScroll: true,
@@ -130,23 +130,23 @@ const onPage = (event) => {
 };
 
 const visitCreate = () => {
-    router.get(route('admin.roles.create'));
+    router.get(route('admin.permissions.create'));
 };
 
-const visitEdit = (role) => {
-    router.get(route('admin.roles.edit', role.id));
+const visitEdit = (permission) => {
+    router.get(route('admin.permissions.edit', permission.id));
 };
 
-const confirmDelete = (role) => {
+const confirmDelete = (permission) => {
     confirm.require({
-        message: `Delete "${role.name}"? This action cannot be undone.`,
-        header: 'Delete Role',
+        message: `Delete "${permission.name}"? This action cannot be undone.`,
+        header: 'Delete Permission',
         icon: 'pi pi-exclamation-triangle',
         acceptLabel: 'Delete',
         rejectLabel: 'Cancel',
         acceptClass: 'p-button-danger',
         accept: () => {
-            router.delete(route('admin.roles.destroy', role.id), {
+            router.delete(route('admin.permissions.destroy', permission.id), {
                 preserveScroll: true,
             });
         },
@@ -179,15 +179,15 @@ watch(
 </script>
 
 <template>
-    <Head title="Roles" />
+    <Head title="Permissions" />
 
     <AuthenticatedLayout>
         <Toast />
         <ConfirmDialog />
 
         <PageHeader
-            title="Roles"
-            description="Manage application roles with the same admin list flow used in the Users and Permissions modules."
+            title="Permissions"
+            description="Manage application permissions with the same admin list flow used in the Users module."
         />
 
         <Card class="surface-card">
@@ -225,8 +225,8 @@ watch(
                             </IconField>
 
                             <Button
-                                v-if="canManageRoles"
-                                label="Create Role"
+                                v-if="canManagePermissions"
+                                label="Create Permission"
                                 icon="pi pi-plus"
                                 @click="visitCreate"
                             />
@@ -235,7 +235,7 @@ watch(
 
                     <template #empty>
                         <div class="py-8 text-center text-sm text-slate-500">
-                            No roles found for the current filters.
+                            No permissions found for the current filters.
                         </div>
                     </template>
 
@@ -263,31 +263,10 @@ watch(
                         </template>
                     </Column>
 
-                    <Column header="Permissions">
-                        <template #body="{ data }">
-                            <div v-if="data.permissions?.length" class="flex flex-wrap gap-2">
-                                <Tag
-                                    v-for="permission in data.permissions.slice(0, 3)"
-                                    :key="permission"
-                                    :value="permission"
-                                    severity="info"
-                                />
-                                <Tag
-                                    v-if="data.permissions.length > 3"
-                                    :value="`+${data.permissions.length - 3}`"
-                                    severity="contrast"
-                                />
-                            </div>
-                            <span v-else class="text-sm text-slate-500">
-                                No permissions
-                            </span>
-                        </template>
-                    </Column>
-
-                    <Column field="usersCount" header="Assigned Users" />
+                    <Column field="rolesCount" header="Assigned Roles" />
                     <Column field="createdAt" header="Created At" sortable />
 
-                    <Column v-if="canManageRoles" header="Actions" :exportable="false" style="width: 12rem">
+                    <Column v-if="canManagePermissions" header="Actions" :exportable="false" style="width: 12rem">
                         <template #body="{ data }">
                             <div class="flex items-center gap-2">
                                 <Button
@@ -312,7 +291,7 @@ watch(
 
                 <div class="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                     <div>
-                        Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} roles
+                        Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} permissions
                     </div>
                     <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
                 </div>

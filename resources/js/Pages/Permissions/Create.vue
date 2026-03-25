@@ -1,7 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PageHeader from '@/Components/PageHeader.vue';
-import RoleFormFields from '@/Pages/Roles/Partials/RoleFormFields.vue';
+import PermissionFormFields from '@/Pages/Permissions/Partials/PermissionFormFields.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Card from 'primevue/card';
@@ -11,44 +11,38 @@ const props = defineProps({
         type: String,
         default: 'web',
     },
-    permissionOptions: {
-        type: Array,
-        default: () => [],
-    },
 });
 
 const form = useForm({
     name: '',
-    permissions: [],
 });
 
 const submit = () => {
-    form.post(route('admin.roles.store'), {
+    form.post(route('admin.permissions.store'), {
         preserveScroll: true,
     });
 };
 
 const cancel = () => {
-    router.get(route('admin.roles.index'));
+    router.get(route('admin.permissions.index'));
 };
 </script>
 
 <template>
-    <Head title="Create Role" />
+    <Head title="Create Permission" />
 
     <AuthenticatedLayout>
         <PageHeader
-            title="Create Role"
-            description="Create a new role using the same admin form rhythm as the Users module."
+            title="Create Permission"
+            description="Create a new permission using the same admin form rhythm as the Users module."
         />
 
         <Card class="surface-card">
             <template #content>
                 <form class="grid gap-6" @submit.prevent="submit">
-                    <RoleFormFields
+                    <PermissionFormFields
                         :form="form"
                         :guardName="guardName"
-                        :permissionOptions="permissionOptions"
                         :disabled="form.processing"
                     />
 
@@ -63,7 +57,7 @@ const cancel = () => {
                         />
                         <Button
                             type="submit"
-                            label="Create Role"
+                            label="Create Permission"
                             icon="pi pi-check"
                             :loading="form.processing"
                             :disabled="form.processing"

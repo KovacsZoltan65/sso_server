@@ -1,7 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PlaceholderPageController;
+use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -24,13 +26,53 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:users.manage')
             ->name('users.update');
 
-        Route::get('/roles', [PlaceholderPageController::class, 'roles'])
+        Route::get('/roles', [RoleController::class, 'index'])
             ->middleware('permission:roles.view')
             ->name('roles.index');
 
-        Route::get('/permissions', [PlaceholderPageController::class, 'permissions'])
+        Route::get('/roles/create', [RoleController::class, 'create'])
+            ->middleware('permission:roles.manage')
+            ->name('roles.create');
+
+        Route::post('/roles', [RoleController::class, 'store'])
+            ->middleware('permission:roles.manage')
+            ->name('roles.store');
+
+        Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])
+            ->middleware('permission:roles.manage')
+            ->name('roles.edit');
+
+        Route::put('/roles/{role}', [RoleController::class, 'update'])
+            ->middleware('permission:roles.manage')
+            ->name('roles.update');
+
+        Route::delete('/roles/{role}', [RoleController::class, 'destroy'])
+            ->middleware('permission:roles.manage')
+            ->name('roles.destroy');
+
+        Route::get('/permissions', [PermissionController::class, 'index'])
             ->middleware('permission:permissions.view')
             ->name('permissions.index');
+
+        Route::get('/permissions/create', [PermissionController::class, 'create'])
+            ->middleware('permission:permissions.manage')
+            ->name('permissions.create');
+
+        Route::post('/permissions', [PermissionController::class, 'store'])
+            ->middleware('permission:permissions.manage')
+            ->name('permissions.store');
+
+        Route::get('/permissions/{permission}/edit', [PermissionController::class, 'edit'])
+            ->middleware('permission:permissions.manage')
+            ->name('permissions.edit');
+
+        Route::put('/permissions/{permission}', [PermissionController::class, 'update'])
+            ->middleware('permission:permissions.manage')
+            ->name('permissions.update');
+
+        Route::delete('/permissions/{permission}', [PermissionController::class, 'destroy'])
+            ->middleware('permission:permissions.manage')
+            ->name('permissions.destroy');
 
         Route::get('/sso-clients', [PlaceholderPageController::class, 'clients'])
             ->middleware('permission:sso-clients.view')

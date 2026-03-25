@@ -11,6 +11,10 @@ const props = defineProps({
         type: Object,
         required: true,
     },
+    guardName: {
+        type: String,
+        default: 'web',
+    },
     permissionOptions: {
         type: Array,
         default: () => [],
@@ -47,6 +51,7 @@ const cancel = () => {
                 <form class="grid gap-6" @submit.prevent="submit">
                     <RoleFormFields
                         :form="form"
+                        :guardName="guardName"
                         :permissionOptions="permissionOptions"
                         :disabled="form.processing"
                     />

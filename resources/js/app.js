@@ -8,6 +8,7 @@ import { definePreset } from '@primeuix/themes';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { createApp, h } from 'vue';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
+import ConfirmationService from 'primevue/confirmationservice';
 import ToastService from 'primevue/toastservice';
 import 'primeicons/primeicons.css';
 
@@ -49,6 +50,7 @@ createInertiaApp({
                     },
                 },
             })
+            .use(ConfirmationService)
             .use(ToastService)
             .use(ZiggyVue)
             .mount(el);

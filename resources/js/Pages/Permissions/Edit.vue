@@ -1,54 +1,52 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PageHeader from '@/Components/PageHeader.vue';
-import RoleFormFields from '@/Pages/Roles/Partials/RoleFormFields.vue';
+import PermissionFormFields from '@/Pages/Permissions/Partials/PermissionFormFields.vue';
 import { Head, router, useForm } from '@inertiajs/vue3';
 import Button from 'primevue/button';
 import Card from 'primevue/card';
 
 const props = defineProps({
+    permission: {
+        type: Object,
+        required: true,
+    },
     guardName: {
         type: String,
         default: 'web',
     },
-    permissionOptions: {
-        type: Array,
-        default: () => [],
-    },
 });
 
 const form = useForm({
-    name: '',
-    permissions: [],
+    name: props.permission.name ?? '',
 });
 
 const submit = () => {
-    form.post(route('admin.roles.store'), {
+    form.put(route('admin.permissions.update', props.permission.id), {
         preserveScroll: true,
     });
 };
 
 const cancel = () => {
-    router.get(route('admin.roles.index'));
+    router.get(route('admin.permissions.index'));
 };
 </script>
 
 <template>
-    <Head title="Create Role" />
+    <Head title="Edit Permission" />
 
     <AuthenticatedLayout>
         <PageHeader
-            title="Create Role"
-            description="Create a new role using the same admin form rhythm as the Users module."
+            title="Edit Permission"
+            description="Update permission details with the same card-based admin form flow used elsewhere in the module."
         />
 
         <Card class="surface-card">
             <template #content>
                 <form class="grid gap-6" @submit.prevent="submit">
-                    <RoleFormFields
+                    <PermissionFormFields
                         :form="form"
                         :guardName="guardName"
-                        :permissionOptions="permissionOptions"
                         :disabled="form.processing"
                     />
 
@@ -63,8 +61,8 @@ const cancel = () => {
                         />
                         <Button
                             type="submit"
-                            label="Create Role"
-                            icon="pi pi-check"
+                            label="Save Changes"
+                            icon="pi pi-save"
                             :loading="form.processing"
                             :disabled="form.processing"
                         />

@@ -1,0 +1,40 @@
+<?php
+
+namespace App\Data;
+
+use Spatie\LaravelData\Data;
+use Spatie\Permission\Models\Role;
+
+class RoleSummaryData extends Data
+{
+    /**
+     * @param array<int, string> $permissions
+     */
+    public function __construct(
+        public int $id,
+        public string $name,
+        public string $guardName,
+        public array $permissions,
+        public int $permissionsCount,
+        public int $usersCount,
+        public string $createdAt,
+    ) {
+    }
+
+    public static function fromModel(Role $role): self
+    {
+        $permissions = $role->relationLoaded('permissions')
+            ? $role->permissions->pluck('name')->values()->all()
+            : $role->permissions()->pluck('name')->values()->all();
+
+        return new self(
+            id: $role->id,
+            name: $role->name,
+            guardName: $role->guard_name,
+            permissions: $permissions,
+            permissionsCount: (int) ($role->permissions_count ?? count($permissions)),
+            usersCount: (int) ($role->users_count ?? 0),
+            createdAt: $role->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
+        );
+    }
+}
