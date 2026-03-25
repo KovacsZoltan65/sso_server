@@ -1,5 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import CreateModal from '@/Pages/Roles/CreateModal.vue';
+import EditModal from '@/Pages/Roles/EditModal.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
@@ -19,6 +21,10 @@ import { reactive, ref, watch } from 'vue';
 
 const props = defineProps({
     rows: {
+        type: Array,
+        default: () => [],
+    },
+    permissionOptions: {
         type: Array,
         default: () => [],
     },
@@ -57,6 +63,10 @@ const props = defineProps({
 const page = usePage();
 const toast = useToast();
 const confirm = useConfirm();
+
+const isCreateModalOpen = ref(false);
+const isEditModalOpen = ref(false);
+const selectedRole = ref(null);
 
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
@@ -129,12 +139,40 @@ const onPage = (event) => {
     });
 };
 
-const visitCreate = () => {
-    router.get(route('admin.roles.create'));
+const openCreateModal = () => {
+    isCreateModalOpen.value = true;
 };
 
-const visitEdit = (role) => {
-    router.get(route('admin.roles.edit', role.id));
+const openEditModal = (role) => {
+    selectedRole.value = role;
+    isEditModalOpen.value = true;
+};
+
+const closeEditModal = () => {
+    isEditModalOpen.value = false;
+    selectedRole.value = null;
+};
+
+const handleEditVisibilityChange = (value) => {
+    if (value) {
+        isEditModalOpen.value = true;
+        return;
+    }
+
+    closeEditModal();
+};
+
+const handleSaved = ({ message }) => {
+    toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: message,
+        life: 3000,
+    });
+
+    closeEditModal();
+    isCreateModalOpen.value = false;
+    reload();
 };
 
 const confirmDelete = (role) => {
@@ -148,33 +186,47 @@ const confirmDelete = (role) => {
         accept: () => {
             router.delete(route('admin.roles.destroy', role.id), {
                 preserveScroll: true,
+                onSuccess: () => {
+                    const success = page.props.flash?.success ?? 'Role deleted successfully.';
+                    const error = page.props.flash?.error;
+
+                    if (error) {
+                        toast.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: error,
+                            life: 4000,
+                        });
+
+                        return;
+                    }
+
+                    toast.add({
+                        severity: 'success',
+                        summary: 'Success',
+                        detail: success,
+                        life: 3000,
+                    });
+                },
             });
         },
     });
 };
 
 watch(
-    () => [page.props.flash?.success, page.props.flash?.error],
-    ([success, error]) => {
-        if (success) {
-            toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: success,
-                life: 3000,
-            });
+    () => page.props.flash?.error,
+    (error) => {
+        if (!error) {
+            return;
         }
 
-        if (error) {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error,
-                life: 4000,
-            });
-        }
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error,
+            life: 4000,
+        });
     },
-    { immediate: true },
 );
 </script>
 
@@ -228,7 +280,7 @@ watch(
                                 v-if="canManageRoles"
                                 label="Create Role"
                                 icon="pi pi-plus"
-                                @click="visitCreate"
+                                @click="openCreateModal"
                             />
                         </div>
                     </template>
@@ -295,7 +347,7 @@ watch(
                                     icon="pi pi-pencil"
                                     size="small"
                                     outlined
-                                    @click="visitEdit(data)"
+                                    @click="openEditModal(data)"
                                 />
                                 <Button
                                     label="Delete"
@@ -318,5 +370,19 @@ watch(
                 </div>
             </template>
         </Card>
+
+        <CreateModal
+            v-model:visible="isCreateModalOpen"
+            :permissionOptions="permissionOptions"
+            @saved="handleSaved"
+        />
+
+        <EditModal
+            v-model:visible="isEditModalOpen"
+            :role="selectedRole"
+            :permissionOptions="permissionOptions"
+            @saved="handleSaved"
+            @update:visible="handleEditVisibilityChange"
+        />
     </AuthenticatedLayout>
 </template>

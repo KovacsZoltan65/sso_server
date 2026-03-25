@@ -1,5 +1,7 @@
 <script setup>
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import CreateModal from '@/Pages/Permissions/CreateModal.vue';
+import EditModal from '@/Pages/Permissions/EditModal.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
@@ -57,6 +59,10 @@ const props = defineProps({
 const page = usePage();
 const toast = useToast();
 const confirm = useConfirm();
+
+const isCreateModalOpen = ref(false);
+const isEditModalOpen = ref(false);
+const selectedPermission = ref(null);
 
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
@@ -129,12 +135,40 @@ const onPage = (event) => {
     });
 };
 
-const visitCreate = () => {
-    router.get(route('admin.permissions.create'));
+const openCreateModal = () => {
+    isCreateModalOpen.value = true;
 };
 
-const visitEdit = (permission) => {
-    router.get(route('admin.permissions.edit', permission.id));
+const openEditModal = (permission) => {
+    selectedPermission.value = permission;
+    isEditModalOpen.value = true;
+};
+
+const closeEditModal = () => {
+    isEditModalOpen.value = false;
+    selectedPermission.value = null;
+};
+
+const handleEditVisibilityChange = (value) => {
+    if (value) {
+        isEditModalOpen.value = true;
+        return;
+    }
+
+    closeEditModal();
+};
+
+const handleSaved = ({ message }) => {
+    toast.add({
+        severity: 'success',
+        summary: 'Success',
+        detail: message,
+        life: 3000,
+    });
+
+    closeEditModal();
+    isCreateModalOpen.value = false;
+    reload();
 };
 
 const confirmDelete = (permission) => {
@@ -148,33 +182,47 @@ const confirmDelete = (permission) => {
         accept: () => {
             router.delete(route('admin.permissions.destroy', permission.id), {
                 preserveScroll: true,
+                onSuccess: () => {
+                    const success = page.props.flash?.success ?? 'Permission deleted successfully.';
+                    const error = page.props.flash?.error;
+
+                    if (error) {
+                        toast.add({
+                            severity: 'error',
+                            summary: 'Error',
+                            detail: error,
+                            life: 4000,
+                        });
+
+                        return;
+                    }
+
+                    toast.add({
+                        severity: 'success',
+                        summary: 'Success',
+                        detail: success,
+                        life: 3000,
+                    });
+                },
             });
         },
     });
 };
 
 watch(
-    () => [page.props.flash?.success, page.props.flash?.error],
-    ([success, error]) => {
-        if (success) {
-            toast.add({
-                severity: 'success',
-                summary: 'Success',
-                detail: success,
-                life: 3000,
-            });
+    () => page.props.flash?.error,
+    (error) => {
+        if (!error) {
+            return;
         }
 
-        if (error) {
-            toast.add({
-                severity: 'error',
-                summary: 'Error',
-                detail: error,
-                life: 4000,
-            });
-        }
+        toast.add({
+            severity: 'error',
+            summary: 'Error',
+            detail: error,
+            life: 4000,
+        });
     },
-    { immediate: true },
 );
 </script>
 
@@ -228,7 +276,7 @@ watch(
                                 v-if="canManagePermissions"
                                 label="Create Permission"
                                 icon="pi pi-plus"
-                                @click="visitCreate"
+                                @click="openCreateModal"
                             />
                         </div>
                     </template>
@@ -274,7 +322,7 @@ watch(
                                     icon="pi pi-pencil"
                                     size="small"
                                     outlined
-                                    @click="visitEdit(data)"
+                                    @click="openEditModal(data)"
                                 />
                                 <Button
                                     label="Delete"
@@ -297,5 +345,17 @@ watch(
                 </div>
             </template>
         </Card>
+
+        <CreateModal
+            v-model:visible="isCreateModalOpen"
+            @saved="handleSaved"
+        />
+
+        <EditModal
+            v-model:visible="isEditModalOpen"
+            :permission="selectedPermission"
+            @saved="handleSaved"
+            @update:visible="handleEditVisibilityChange"
+        />
     </AuthenticatedLayout>
 </template>

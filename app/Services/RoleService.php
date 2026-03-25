@@ -39,6 +39,7 @@ class RoleService
                 ->map(fn (Role $role) => RoleSummaryData::fromModel($role))
                 ->values()
                 ->all(),
+            'permissionOptions' => $this->permissionOptions(),
             'canManageRoles' => auth()->user()?->can('roles.manage') ?? false,
             'filters' => [
                 'global' => $filters['global'] ?? null,

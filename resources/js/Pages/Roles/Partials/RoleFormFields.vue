@@ -7,10 +7,6 @@ defineProps({
         type: Object,
         required: true,
     },
-    guardName: {
-        type: String,
-        default: 'web',
-    },
     permissionOptions: {
         type: Array,
         default: () => [],
@@ -36,16 +32,6 @@ defineProps({
             <small v-if="form.errors.name" class="text-red-500">
                 {{ form.errors.name }}
             </small>
-        </div>
-
-        <div class="grid gap-2">
-            <label for="role-guard" class="text-sm font-medium text-slate-700">Guard</label>
-            <InputText
-                id="role-guard"
-                :modelValue="guardName"
-                disabled
-                fluid
-            />
         </div>
 
         <div v-if="permissionOptions.length" class="grid gap-2">
