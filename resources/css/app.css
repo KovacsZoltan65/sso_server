@@ -21,15 +21,18 @@
         background:
             radial-gradient(circle at top left, rgba(47, 132, 255, 0.12), transparent 30%),
             linear-gradient(180deg, #f7fafc 0%, #eef3f8 100%);
+        height: 100%;
         min-height: 100%;
     }
 
     body {
         color: var(--text-main);
+        height: 100%;
         min-height: 100vh;
     }
 
     #app {
+        height: 100%;
         min-height: 100vh;
     }
 }
@@ -72,7 +75,7 @@
     }
 
     .shell-grid {
-        @apply min-h-screen lg:grid lg:grid-cols-[18rem_minmax(0,1fr)];
+        @apply h-screen overflow-hidden lg:grid lg:grid-cols-[18rem_minmax(0,1fr)];
     }
 
     .admin-table-page {

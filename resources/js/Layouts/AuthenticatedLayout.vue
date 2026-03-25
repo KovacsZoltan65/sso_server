@@ -20,7 +20,7 @@ const logout = () => {
             <AppSidebar :items="items" />
         </div>
 
-        <div class="relative flex min-h-screen flex-col bg-transparent px-4 py-4 sm:px-6 lg:px-8">
+        <div class="relative flex min-h-0 h-screen flex-col overflow-hidden bg-transparent px-4 py-4 sm:px-6 lg:px-8">
             <div
                 v-if="showMobileNav"
                 class="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
@@ -39,6 +39,7 @@ const logout = () => {
             </div>
 
             <AppTopbar
+                class="flex-none"
                 :user="user"
                 @logout="logout"
                 @toggle-navigation="showMobileNav = !showMobileNav"
