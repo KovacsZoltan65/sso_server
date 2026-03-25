@@ -2,19 +2,53 @@
 
 namespace App\Support;
 
+use App\Models\Scope;
+use Illuminate\Support\Facades\Schema;
+
 class ClientOptions
 {
+    /**
+     * @return array<int, array{name: string, code: string, description: string, is_active: bool}>
+     */
+    public static function defaultScopeDefinitions(): array
+    {
+        return [
+            [
+                'name' => 'OpenID',
+                'code' => 'openid',
+                'description' => 'Authenticate the subject and issue an ID token.',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Profile',
+                'code' => 'profile',
+                'description' => 'Access standard profile claims for the subject.',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Email',
+                'code' => 'email',
+                'description' => 'Access verified email claims for the subject.',
+                'is_active' => true,
+            ],
+            [
+                'name' => 'Offline Access',
+                'code' => 'offline_access',
+                'description' => 'Allow refresh-token based session continuation.',
+                'is_active' => true,
+            ],
+        ];
+    }
+
     /**
      * @return array<int, string>
      */
     public static function scopeValues(): array
     {
-        return [
-            'openid',
-            'profile',
-            'email',
-            'offline_access',
-        ];
+        return array_map(
+            fn (array $scope) => $scope['code'],
+            self::availableScopes(),
+        );
     }
 
     /**
@@ -22,44 +56,27 @@ class ClientOptions
      */
     public static function scopeOptions(): array
     {
-        return [
-            [
-                'label' => 'openid',
-                'value' => 'openid',
-                'groupKey' => 'identity',
-                'groupLabel' => 'Identity',
-                'action' => 'openid',
-                'itemLabel' => 'OpenID',
-                'helper' => 'Authenticate the subject and issue an ID token.',
-            ],
-            [
-                'label' => 'profile',
-                'value' => 'profile',
-                'groupKey' => 'identity',
-                'groupLabel' => 'Identity',
-                'action' => 'profile',
-                'itemLabel' => 'Profile',
-                'helper' => 'Access standard profile claims for the subject.',
-            ],
-            [
-                'label' => 'email',
-                'value' => 'email',
-                'groupKey' => 'identity',
-                'groupLabel' => 'Identity',
-                'action' => 'email',
-                'itemLabel' => 'Email',
-                'helper' => 'Access verified email claims for the subject.',
-            ],
-            [
-                'label' => 'offline_access',
-                'value' => 'offline_access',
-                'groupKey' => 'session',
-                'groupLabel' => 'Session',
-                'action' => 'offlineAccess',
-                'itemLabel' => 'Offline Access',
-                'helper' => 'Allow refresh-token based session continuation.',
-            ],
-        ];
+        return array_map(function (array $scope): array {
+            $groupKey = str_contains($scope['code'], '.')
+                ? explode('.', $scope['code'])[0]
+                : 'identity';
+            $groupLabel = str_contains($scope['code'], '.')
+                ? str($groupKey)->replace('-', ' ')->title()->value()
+                : (in_array($scope['code'], ['openid', 'profile', 'email'], true) ? 'Identity' : 'Session');
+            $action = str_contains($scope['code'], '.')
+                ? explode('.', $scope['code'], 2)[1]
+                : $scope['code'];
+
+            return [
+                'label' => $scope['code'],
+                'value' => $scope['code'],
+                'groupKey' => $groupKey,
+                'groupLabel' => $groupLabel,
+                'action' => $action,
+                'itemLabel' => $scope['name'],
+                'helper' => $scope['description'],
+            ];
+        }, self::availableScopes());
     }
 
     /**
@@ -68,5 +85,30 @@ class ClientOptions
     public static function tokenPolicies(): array
     {
         return [];
+    }
+
+    /**
+     * @return array<int, array{name: string, code: string, description: string, is_active: bool}>
+     */
+    private static function availableScopes(): array
+    {
+        if (! Schema::hasTable('scopes')) {
+            return self::defaultScopeDefinitions();
+        }
+
+        $scopes = Scope::query()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get(['name', 'code', 'description', 'is_active'])
+            ->map(fn (Scope $scope) => [
+                'name' => $scope->name,
+                'code' => $scope->code,
+                'description' => $scope->description ?? '',
+                'is_active' => (bool) $scope->is_active,
+            ])
+            ->values()
+            ->all();
+
+        return $scopes !== [] ? $scopes : self::defaultScopeDefinitions();
     }
 }

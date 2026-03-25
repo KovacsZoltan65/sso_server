@@ -157,6 +157,7 @@ All PrimeVue-based admin lists must follow one consistent table pattern across c
 - If a form contains many fields, relation-heavy assignment, or large selectors, it must not stay in a modal
 - Role and permission-heavy administration should default to separate-page Create/Edit flows
 - Client administration with redirect URIs, scopes, or token policy editing must use separate Create/Edit pages, not modal variants
+- Scope catalog management must use page-based Create/Edit with a shared ScopeForm, and scope codes must remain unique technical identifiers
 - Large relation selectors must not use MultiSelect
 - Role-permission editing must use a grouped, searchable, resource-sectioned checkbox editor
 - Client scopes selectors must reuse the shared grouped checkbox editor pattern instead of introducing a separate implementation

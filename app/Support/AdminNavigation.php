@@ -58,7 +58,7 @@ class AdminNavigation
                 'label' => 'Scopes',
                 'route' => 'admin.scopes.index',
                 'icon' => 'pi pi-sitemap',
-                'permission' => 'scopes.view',
+                'permission' => 'scopes.viewAny',
                 'description' => 'Scope catalog and consent policy definitions.',
             ],
             [

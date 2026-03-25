@@ -284,6 +284,7 @@ vi.mock('primevue/menu', () => ({ default: passthroughStub }));
 vi.mock('primevue/password', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/select', () => ({ default: makeFieldComponent('select') }));
 vi.mock('primevue/tag', () => ({ default: TagStub }));
+vi.mock('primevue/textarea', () => ({ default: makeFieldComponent('textarea') }));
 vi.mock('primevue/toast', () => ({ default: passthroughStub }));
 vi.mock('primevue/confirmdialog', () => ({ default: passthroughStub }));
 vi.mock('@primevue/core/api', () => ({

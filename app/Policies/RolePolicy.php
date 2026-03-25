@@ -4,6 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use Spatie\Permission\Models\Role;
+use App\Support\Permissions\RolePermissions;
 
 class RolePolicy
 {
@@ -14,26 +15,26 @@ class RolePolicy
 
     public function view(User $user, Role $role): bool
     {
-        return $user->can('roles.view');
+        return $user->can(RolePermissions::VIEW);
     }
 
     public function create(User $user): bool
     {
-        return $user->can('roles.manage');
+        return $user->can(RolePermissions::CREATE);
     }
 
     public function update(User $user, Role $role): bool
     {
-        return $user->can('roles.manage');
+        return $user->can(RolePermissions::UPDATE);
     }
 
     public function delete(User $user, Role $role): bool
     {
-        return $user->can('roles.manage');
+        return $user->can(RolePermissions::DELETE);
     }
 
     public function bulkDelete(User $user): bool
     {
-        return $user->can('roles.manage');
+        return $user->can(RolePermissions::DELETE_ANY);
     }
 }
