@@ -2,16 +2,24 @@
 import AppSidebar from '@/Components/AppSidebar.vue';
 import AppTopbar from '@/Components/AppTopbar.vue';
 import { useNavigation } from '@/Composables/useNavigation';
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import Button from 'primevue/button';
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 
 const showMobileNav = ref(false);
+const page = usePage();
 const { items, user } = useNavigation();
 
 const logout = () => {
     router.post(route('logout'));
 };
+
+watch(
+    () => page.url,
+    () => {
+        showMobileNav.value = false;
+    },
+);
 </script>
 
 <template>

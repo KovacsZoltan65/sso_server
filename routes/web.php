@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PlaceholderPageController;
 use App\Http\Controllers\Admin\RoleController;
@@ -90,9 +91,29 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:permissions.manage')
             ->name('permissions.destroy');
 
-        Route::get('/sso-clients', [PlaceholderPageController::class, 'clients'])
+        Route::get('/sso-clients', [ClientController::class, 'index'])
             ->middleware('permission:sso-clients.view')
             ->name('sso-clients.index');
+
+        Route::get('/sso-clients/create', [ClientController::class, 'create'])
+            ->middleware('permission:sso-clients.manage')
+            ->name('sso-clients.create');
+
+        Route::post('/sso-clients', [ClientController::class, 'store'])
+            ->middleware('permission:sso-clients.manage')
+            ->name('sso-clients.store');
+
+        Route::get('/sso-clients/{ssoClient}/edit', [ClientController::class, 'edit'])
+            ->middleware('permission:sso-clients.manage')
+            ->name('sso-clients.edit');
+
+        Route::put('/sso-clients/{ssoClient}', [ClientController::class, 'update'])
+            ->middleware('permission:sso-clients.manage')
+            ->name('sso-clients.update');
+
+        Route::delete('/sso-clients/{ssoClient}', [ClientController::class, 'destroy'])
+            ->middleware('permission:sso-clients.manage')
+            ->name('sso-clients.destroy');
 
         Route::get('/scopes', [PlaceholderPageController::class, 'scopes'])
             ->middleware('permission:scopes.view')

@@ -67,6 +67,7 @@ LÉPÉSEK
 
 8. Commit message generálás (diff alapján)
 
+- A commit üzenet magyar nyelvű legyen
 - Gyűjts rövid leírást a módosított fájlokból:
     - frontend (resources/js): “frontend: ...”
     - backend (app/\*): “backend: ...”

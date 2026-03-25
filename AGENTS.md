@@ -162,6 +162,9 @@ All PrimeVue-based admin lists must follow one consistent table pattern across c
 - Create and Edit admin pages with larger forms must use a full-height flex layout with a fixed header, a scrollable form content area, and fixed action buttons
 - The body must not be the primary scroll container for larger admin forms; scrolling must stay inside the card content area
 - A form card that overflows the viewport and pushes primary actions off-screen is a layout bug and must be fixed in the shared page/card structure
+- Create and Edit form logic must live in a shared form component when the same entity supports both page and modal flows
+- Modal and page variants must reuse the same form fields and validation rendering; duplicated form logic is not acceptable
+- Secrets may only be shown once at creation time and must never be returned again in plain text from edit or read flows
 
 Implementation expectations:
 
