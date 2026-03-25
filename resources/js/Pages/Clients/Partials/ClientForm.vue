@@ -1,8 +1,8 @@
 <script setup>
+import GroupedCheckboxSelector from '@/Components/Admin/GroupedCheckboxSelector.vue';
 import Checkbox from 'primevue/checkbox';
 import Button from 'primevue/button';
 import InputText from 'primevue/inputtext';
-import MultiSelect from 'primevue/multiselect';
 import Select from 'primevue/select';
 import { computed } from 'vue';
 
@@ -43,9 +43,15 @@ const props = defineProps({
         type: String,
         default: 'Cancel',
     },
+    layoutMode: {
+        type: String,
+        default: 'page',
+    },
 });
 
 const emit = defineEmits(['submit', 'cancel']);
+
+const isModalLayout = computed(() => props.layoutMode === 'modal');
 
 const redirectUris = computed(() => {
     if (!Array.isArray(props.form.redirect_uris) || props.form.redirect_uris.length === 0) {
@@ -70,9 +76,16 @@ const removeRedirectUri = (index) => {
 </script>
 
 <template>
-    <form :id="formId" class="grid gap-6" @submit.prevent="emit('submit')">
-        <div class="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,0.6fr)]">
-            <div class="grid gap-4">
+    <form :id="formId" class="flex min-h-0 flex-col gap-6" @submit.prevent="emit('submit')">
+        <div
+            :class="[
+                'grid min-h-0 gap-6',
+                isModalLayout
+                    ? 'grid-cols-1 xl:grid-cols-3'
+                    : 'grid-cols-1 xl:grid-cols-3',
+            ]"
+        >
+            <div class="grid min-w-0 gap-4 xl:col-span-2">
                 <div class="grid gap-2">
                     <label for="client-name" class="text-sm font-medium text-slate-700">Name</label>
                     <InputText
@@ -149,20 +162,24 @@ const removeRedirectUri = (index) => {
                 </div>
             </div>
 
-            <div class="grid gap-4 self-start rounded-3xl border border-slate-200 bg-slate-50/80 p-4">
+            <div
+                :class="[
+                    'grid min-w-0 gap-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4 xl:col-span-1',
+                    isModalLayout ? 'self-auto xl:self-start' : 'self-start',
+                ]"
+            >
                 <div class="grid gap-2">
                     <label for="client-scopes" class="text-sm font-medium text-slate-700">Scopes</label>
-                    <MultiSelect
-                        id="client-scopes"
+                    <GroupedCheckboxSelector
                         v-model="form.scopes"
                         :options="scopeOptions"
-                        optionLabel="label"
-                        optionValue="value"
+                        fieldLabel="Scopes"
+                        searchPlaceholder="Search scopes by group or name"
+                        emptyMessage="No scopes match the current search."
+                        groupCountLabel="scopes"
+                        :allowInternalScroll="!isModalLayout"
+                        :denseGrid="isModalLayout"
                         :disabled="loading"
-                        display="chip"
-                        filter
-                        placeholder="Select scopes"
-                        class="w-full"
                     />
                     <small v-if="form.errors.scopes" class="text-red-500">{{ form.errors.scopes }}</small>
                 </div>

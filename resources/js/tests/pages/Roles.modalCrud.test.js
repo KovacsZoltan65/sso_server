@@ -1,7 +1,7 @@
 import { nextTick } from 'vue';
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
-import PermissionGroupEditor from '@/Components/Roles/PermissionGroupEditor.vue';
+import GroupedCheckboxSelector from '@/Components/Admin/GroupedCheckboxSelector.vue';
 import Create from '@/Pages/Roles/Create.vue';
 import Edit from '@/Pages/Roles/Edit.vue';
 import Index from '@/Pages/Roles/Index.vue';
@@ -167,7 +167,7 @@ describe('Roles page CRUD frontend', () => {
     });
 
     it('groups permissions by resource, supports search, and updates checkbox selection', async () => {
-        const wrapper = mount(PermissionGroupEditor, {
+        const wrapper = mount(GroupedCheckboxSelector, {
             props: {
                 modelValue: ['users.view'],
                 options: [

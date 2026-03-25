@@ -4,20 +4,48 @@ import { describe, expect, it } from 'vitest';
 import Create from '@/Pages/Clients/Create.vue';
 import Edit from '@/Pages/Clients/Edit.vue';
 import Index from '@/Pages/Clients/Index.vue';
-import CreateModal from '@/Pages/Clients/CreateModal.vue';
-import EditModal from '@/Pages/Clients/EditModal.vue';
 import ClientForm from '@/Pages/Clients/Partials/ClientForm.vue';
 import { axiosDelete } from '@/tests/mocks/axios';
 import { getLastForm, router, setPageProps } from '@/tests/mocks/inertia';
 import { confirmRequire, toastAdd } from '@/tests/mocks/primevue';
 import { mountPage } from '@/tests/testUtils';
 
+const scopeOptions = [
+    {
+        label: 'openid',
+        value: 'openid',
+        groupKey: 'identity',
+        groupLabel: 'Identity',
+        action: 'openid',
+        itemLabel: 'OpenID',
+        helper: 'Authenticate the subject and issue an ID token.',
+    },
+    {
+        label: 'email',
+        value: 'email',
+        groupKey: 'identity',
+        groupLabel: 'Identity',
+        action: 'email',
+        itemLabel: 'Email',
+        helper: 'Access verified email claims for the subject.',
+    },
+    {
+        label: 'offline_access',
+        value: 'offline_access',
+        groupKey: 'session',
+        groupLabel: 'Session',
+        action: 'offlineAccess',
+        itemLabel: 'Offline Access',
+        helper: 'Allow refresh-token based session continuation.',
+    },
+];
+
 describe('Clients CRUD frontend', () => {
-    it('supports both page create navigation and modal create from the index page', async () => {
+    it('navigates to the create page from the index page', async () => {
         const wrapper = mountPage(Index, {
             props: {
                 rows: [{ id: 1, name: 'Portal', clientId: 'client_portal', redirectUris: ['https://portal.example.com/callback'], redirectUriCount: 1, isActive: true, scopes: ['openid'], scopesCount: 1, createdAt: '2026-03-25 10:00:00' }],
-                scopeOptions: [{ label: 'openid', value: 'openid' }],
+                scopeOptions,
                 tokenPolicies: [],
                 filters: { global: null, name: null, status: null },
                 pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
@@ -28,19 +56,15 @@ describe('Clients CRUD frontend', () => {
 
         await nextTick();
 
-        const createPageButton = wrapper.findAll('button').find((button) => button.text() === 'Create Client Page');
-        await createPageButton.trigger('click');
-        expect(router.get).toHaveBeenCalledWith(route('admin.sso-clients.create'));
-
         await wrapper.find('[data-toolbar-action="create"]').trigger('click');
-        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('true');
+        expect(router.get).toHaveBeenCalledWith(route('admin.sso-clients.create'));
     });
 
-    it('supports page edit and quick edit modal from the index page', async () => {
+    it('navigates to edit from the index page', async () => {
         const wrapper = mountPage(Index, {
             props: {
                 rows: [{ id: 7, name: 'Portal', clientId: 'client_portal', redirectUris: ['https://portal.example.com/callback'], redirectUriCount: 1, isActive: true, scopes: ['openid'], scopesCount: 1, createdAt: '2026-03-25 10:00:00' }],
-                scopeOptions: [{ label: 'openid', value: 'openid' }],
+                scopeOptions,
                 tokenPolicies: [],
                 filters: { global: null, name: null, status: null },
                 pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
@@ -51,18 +75,14 @@ describe('Clients CRUD frontend', () => {
 
         await nextTick();
 
-        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('false');
         await wrapper.find('[data-row-action="Edit"]').trigger('click');
         expect(router.get).toHaveBeenCalledWith(route('admin.sso-clients.edit', 7));
-
-        await wrapper.find('[data-row-action="Quick Edit"]').trigger('click');
-        expect(wrapper.find('[data-edit-modal]').attributes('data-visible')).toBe('true');
     });
 
     it('submits the create page form', async () => {
         const wrapper = mount(Create, {
             props: {
-                scopeOptions: [{ label: 'openid', value: 'openid' }],
+                scopeOptions,
                 tokenPolicies: [],
             },
             global: {
@@ -78,6 +98,8 @@ describe('Clients CRUD frontend', () => {
         });
 
         const form = getLastForm();
+        expect(wrapper.text()).toContain('Identity');
+        expect(wrapper.text()).toContain('OpenID');
         await wrapper.find('form').trigger('submit.prevent');
 
         expect(form.post).toHaveBeenCalledTimes(1);
@@ -95,7 +117,7 @@ describe('Clients CRUD frontend', () => {
                     isActive: true,
                     tokenPolicyId: null,
                 },
-                scopeOptions: [{ label: 'openid', value: 'openid' }, { label: 'email', value: 'email' }],
+                scopeOptions,
                 tokenPolicies: [],
             },
             global: {
@@ -122,54 +144,6 @@ describe('Clients CRUD frontend', () => {
         expect(form.put).toHaveBeenCalledTimes(1);
     });
 
-    it('submits the create modal and closes on success', async () => {
-        const wrapper = mount(CreateModal, {
-            props: {
-                visible: true,
-                scopeOptions: [{ label: 'openid', value: 'openid' }],
-                tokenPolicies: [],
-            },
-        });
-
-        const form = getLastForm();
-        await wrapper.find('form').trigger('submit.prevent');
-
-        expect(form.post).toHaveBeenCalledTimes(1);
-        expect(wrapper.emitted('created')?.[0]?.[0]).toEqual({
-            message: 'SSO client created successfully.',
-            type: 'create',
-        });
-        expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false]);
-    });
-
-    it('prefills and submits the edit modal', async () => {
-        const wrapper = mount(EditModal, {
-            props: {
-                visible: true,
-                client: {
-                    id: 9,
-                    name: 'Portal',
-                    clientId: 'client_portal',
-                    redirectUris: ['https://portal.example.com/callback'],
-                    scopes: ['openid'],
-                    isActive: false,
-                    tokenPolicyId: null,
-                },
-                scopeOptions: [{ label: 'openid', value: 'openid' }],
-                tokenPolicies: [],
-            },
-        });
-
-        const form = getLastForm();
-
-        expect(form.name).toBe('Portal');
-        expect(form.client_id).toBe('client_portal');
-        expect(form.redirect_uris).toEqual(['https://portal.example.com/callback']);
-
-        await wrapper.find('form').trigger('submit.prevent');
-        expect(form.put).toHaveBeenCalledTimes(1);
-    });
-
     it('allows redirect uri row add/remove and renders field errors', async () => {
         const form = {
             name: '',
@@ -185,7 +159,7 @@ describe('Clients CRUD frontend', () => {
         const wrapper = mount(ClientForm, {
             props: {
                 form,
-                scopeOptions: [{ label: 'openid', value: 'openid' }],
+                scopeOptions,
                 tokenPolicies: [],
             },
         });
@@ -199,6 +173,42 @@ describe('Clients CRUD frontend', () => {
 
         await buttons[1].trigger('click');
         expect(form.redirect_uris).toHaveLength(1);
+    });
+
+    it('renders grouped scopes, supports search, and updates checkbox selection', async () => {
+        const form = {
+            name: 'Portal',
+            redirect_uris: ['https://portal.example.com/callback'],
+            scopes: ['openid'],
+            is_active: true,
+            errors: {},
+        };
+
+        const wrapper = mount(ClientForm, {
+            props: {
+                form,
+                scopeOptions,
+                tokenPolicies: [],
+            },
+        });
+
+        expect(wrapper.text()).toContain('Identity');
+        expect(wrapper.text()).toContain('Session');
+        expect(wrapper.text()).toContain('OpenID');
+        expect(wrapper.text()).toContain('Offline Access');
+
+        const searchInput = wrapper.find('input[type="search"]');
+        await searchInput.setValue('offline');
+
+        expect(wrapper.text()).not.toContain('OpenID');
+        expect(wrapper.text()).toContain('Offline Access');
+
+        await searchInput.setValue('');
+
+        const selectAllButtons = wrapper.findAll('button').filter((button) => button.text() === 'Select all');
+        await selectAllButtons[0].trigger('click');
+
+        expect(form.scopes).toEqual(['openid', 'email']);
     });
 
     it('shows the one-time secret notice from flash and handles delete errors', async () => {
@@ -223,7 +233,7 @@ describe('Clients CRUD frontend', () => {
         const wrapper = mountPage(Index, {
             props: {
                 rows: [{ id: 7, name: 'Portal', clientId: 'client_portal', redirectUris: ['https://portal.example.com/callback'], redirectUriCount: 1, isActive: true, scopes: ['openid'], scopesCount: 1, createdAt: '2026-03-25 10:00:00' }],
-                scopeOptions: [{ label: 'openid', value: 'openid' }],
+                scopeOptions,
                 tokenPolicies: [],
                 filters: { global: null, name: null, status: null },
                 pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },

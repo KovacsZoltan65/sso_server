@@ -118,7 +118,7 @@ onBeforeUnmount(() => {
     <Teleport to="body">
         <div
             v-if="isOpen"
-            class="min-w-40 rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
+            class="flex min-w-40 flex-col items-stretch rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
             :style="panelStyle"
         >
             <Button
@@ -128,7 +128,7 @@ onBeforeUnmount(() => {
                 :icon="item.icon"
                 severity="secondary"
                 text
-                class="w-full justify-start"
+                class="w-full !justify-start !text-left"
                 :disabled="item.disabled"
                 @click="handleItemClick(item)"
             />

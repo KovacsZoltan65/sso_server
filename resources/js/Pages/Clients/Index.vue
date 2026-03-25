@@ -5,8 +5,6 @@ import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
-import CreateModal from '@/Pages/Clients/CreateModal.vue';
-import EditModal from '@/Pages/Clients/EditModal.vue';
 import { Head, router, usePage } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
 import Button from 'primevue/button';
@@ -70,10 +68,6 @@ const props = defineProps({
 const toast = useToast();
 const page = usePage();
 const rows = computed(() => props.rows);
-
-const isCreateModalOpen = ref(false);
-const isEditModalOpen = ref(false);
-const selectedClient = ref(null);
 
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
@@ -201,36 +195,8 @@ const goToCreatePage = () => {
     router.get(route('admin.sso-clients.create'));
 };
 
-const openCreateModal = () => {
-    isCreateModalOpen.value = true;
-};
-
 const goToEditPage = (client) => {
     router.get(route('admin.sso-clients.edit', client.id));
-};
-
-const openEditModal = (client) => {
-    selectedClient.value = client;
-    isEditModalOpen.value = true;
-};
-
-const closeEditModal = () => {
-    selectedClient.value = null;
-    isEditModalOpen.value = false;
-};
-
-const handleEditVisibilityChange = (value) => {
-    if (value) {
-        isEditModalOpen.value = true;
-        return;
-    }
-
-    closeEditModal();
-};
-
-const handleSaved = () => {
-    isCreateModalOpen.value = false;
-    closeEditModal();
 };
 
 const clientActionItems = (client) => [
@@ -238,11 +204,6 @@ const clientActionItems = (client) => [
         label: 'Edit',
         icon: 'pi pi-pencil',
         command: () => goToEditPage(client),
-    },
-    {
-        label: 'Quick Edit',
-        icon: 'pi pi-pen-to-square',
-        command: () => openEditModal(client),
     },
     {
         label: 'Delete',
@@ -262,25 +223,8 @@ const clientActionItems = (client) => [
         <div class="admin-table-page">
             <PageHeader
                 title="SSO Clients"
-                description="Manage client registrations with both page-based and modal-based create/edit flows while keeping the form logic shared."
+                description="Manage client registrations with dedicated create and edit pages for a stable, scalable SSO admin flow."
             />
-
-            <div class="mb-6 flex flex-wrap justify-end gap-3">
-                <Button
-                    v-if="canManageClients"
-                    label="Create Client Page"
-                    icon="pi pi-arrow-right"
-                    severity="secondary"
-                    outlined
-                    @click="goToCreatePage"
-                />
-                <Button
-                    v-if="canManageClients"
-                    label="Quick Create Modal"
-                    icon="pi pi-plus"
-                    @click="openCreateModal"
-                />
-            </div>
 
             <div
                 v-if="flashClientSecret"
@@ -331,9 +275,9 @@ const clientActionItems = (client) => [
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManageClients"
-                                createLabel="Quick Create"
+                                createLabel="Create Client"
                                 :busy="busy"
-                                @create="openCreateModal"
+                                @create="goToCreatePage"
                                 @refresh="refresh"
                             >
                                 <template #search>
@@ -408,21 +352,5 @@ const clientActionItems = (client) => [
                 </template>
             </AdminTableCard>
         </div>
-
-        <CreateModal
-            v-model:visible="isCreateModalOpen"
-            :scopeOptions="scopeOptions"
-            :tokenPolicies="tokenPolicies"
-            @created="handleSaved"
-        />
-
-        <EditModal
-            v-model:visible="isEditModalOpen"
-            :client="selectedClient"
-            :scopeOptions="scopeOptions"
-            :tokenPolicies="tokenPolicies"
-            @updated="handleSaved"
-            @update:visible="handleEditVisibilityChange"
-        />
     </AuthenticatedLayout>
 </template>

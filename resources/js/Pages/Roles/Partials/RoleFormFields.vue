@@ -1,5 +1,5 @@
 <script setup>
-import PermissionGroupEditor from '@/Components/Roles/PermissionGroupEditor.vue';
+import GroupedCheckboxSelector from '@/Components/Admin/GroupedCheckboxSelector.vue';
 import InputText from 'primevue/inputtext';
 
 defineProps({
@@ -35,9 +35,13 @@ defineProps({
         </div>
 
         <div v-if="permissionOptions.length" class="grid gap-2">
-            <PermissionGroupEditor
+            <GroupedCheckboxSelector
                 v-model="form.permissions"
                 :options="permissionOptions"
+                fieldLabel="Permissions"
+                searchPlaceholder="Search permissions by resource or action"
+                emptyMessage="No permissions match the current search."
+                groupCountLabel="permissions"
                 :disabled="disabled"
             />
             <small v-if="form.errors.permissions" class="text-red-500">

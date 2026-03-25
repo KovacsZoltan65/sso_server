@@ -18,17 +18,48 @@ class ClientOptions
     }
 
     /**
-     * @return array<int, array{label: string, value: string}>
+     * @return array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>
      */
     public static function scopeOptions(): array
     {
-        return array_map(
-            fn (string $scope) => [
-                'label' => $scope,
-                'value' => $scope,
+        return [
+            [
+                'label' => 'openid',
+                'value' => 'openid',
+                'groupKey' => 'identity',
+                'groupLabel' => 'Identity',
+                'action' => 'openid',
+                'itemLabel' => 'OpenID',
+                'helper' => 'Authenticate the subject and issue an ID token.',
             ],
-            self::scopeValues(),
-        );
+            [
+                'label' => 'profile',
+                'value' => 'profile',
+                'groupKey' => 'identity',
+                'groupLabel' => 'Identity',
+                'action' => 'profile',
+                'itemLabel' => 'Profile',
+                'helper' => 'Access standard profile claims for the subject.',
+            ],
+            [
+                'label' => 'email',
+                'value' => 'email',
+                'groupKey' => 'identity',
+                'groupLabel' => 'Identity',
+                'action' => 'email',
+                'itemLabel' => 'Email',
+                'helper' => 'Access verified email claims for the subject.',
+            ],
+            [
+                'label' => 'offline_access',
+                'value' => 'offline_access',
+                'groupKey' => 'session',
+                'groupLabel' => 'Session',
+                'action' => 'offlineAccess',
+                'itemLabel' => 'Offline Access',
+                'helper' => 'Allow refresh-token based session continuation.',
+            ],
+        ];
     }
 
     /**

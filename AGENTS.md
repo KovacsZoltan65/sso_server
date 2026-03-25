@@ -156,8 +156,11 @@ All PrimeVue-based admin lists must follow one consistent table pattern across c
 - Simple mini-CRUD flows may use modals, but complex admin editing must use separate Create/Edit pages
 - If a form contains many fields, relation-heavy assignment, or large selectors, it must not stay in a modal
 - Role and permission-heavy administration should default to separate-page Create/Edit flows
+- Client administration with redirect URIs, scopes, or token policy editing must use separate Create/Edit pages, not modal variants
 - Large relation selectors must not use MultiSelect
 - Role-permission editing must use a grouped, searchable, resource-sectioned checkbox editor
+- Client scopes selectors must reuse the shared grouped checkbox editor pattern instead of introducing a separate implementation
+- Complex modal forms must fall back to one column below wide desktop breakpoints, and grouped checkbox selectors must not introduce horizontal or nested scroll
 - Selector UI that overflows the viewport or becomes unreadable at larger data volume is not acceptable
 - Create and Edit admin pages with larger forms must use a full-height flex layout with a fixed header, a scrollable form content area, and fixed action buttons
 - The body must not be the primary scroll container for larger admin forms; scrolling must stay inside the card content area
