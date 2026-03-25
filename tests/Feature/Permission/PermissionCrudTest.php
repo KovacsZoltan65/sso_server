@@ -36,6 +36,11 @@ it('authorized user can view permission index', function () {
             ->component('Permissions/Index')
             ->has('rows', 1)
             ->where('rows.0.name', 'reports.view')
+            ->where('rows.0.guardName', 'web')
+            ->where('rows.0.rolesCount', 0)
+            ->where('filters.global', 'reports.view')
+            ->where('sorting.field', 'name')
+            ->where('pagination.currentPage', 1)
             ->where('canManagePermissions', false));
 });
 

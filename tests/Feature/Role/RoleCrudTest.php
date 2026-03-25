@@ -27,6 +27,7 @@ function roleUser(array $abilities = []): User
 
 it('authorized user can view role index', function () {
     Role::create(['name' => 'auditor', 'guard_name' => 'web']);
+    Permission::create(['name' => 'reports.view', 'guard_name' => 'web']);
 
     $user = roleUser(['roles.view']);
 
@@ -37,6 +38,11 @@ it('authorized user can view role index', function () {
             ->component('Roles/Index')
             ->has('rows', 1)
             ->where('rows.0.name', 'auditor')
+            ->where('rows.0.permissions', [])
+            ->where('rows.0.usersCount', 0)
+            ->has('permissionOptions', 2)
+            ->where('permissionOptions.0.value', 'reports.view')
+            ->where('permissionOptions.1.value', 'roles.view')
             ->where('canManageRoles', false));
 });
 
