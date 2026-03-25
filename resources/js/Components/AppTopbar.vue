@@ -1,4 +1,5 @@
 <script setup>
+import { router } from '@inertiajs/vue3';
 import Avatar from 'primevue/avatar';
 import Button from 'primevue/button';
 
@@ -10,6 +11,10 @@ defineProps({
 });
 
 const emit = defineEmits(['logout', 'toggle-navigation']);
+
+const goToProfile = () => {
+    router.get(route('profile.edit'));
+};
 </script>
 
 <template>
@@ -35,6 +40,14 @@ const emit = defineEmits(['logout', 'toggle-navigation']);
                 <div class="text-xs text-slate-500">{{ user?.email }}</div>
             </div>
             <Avatar :label="user?.name?.charAt(0) ?? 'U'" shape="circle" class="bg-sky-100 text-sky-700" />
+            <Button
+                icon="pi pi-user"
+                severity="secondary"
+                text
+                rounded
+                aria-label="Profile"
+                @click="goToProfile"
+            />
             <Button icon="pi pi-sign-out" severity="secondary" text rounded @click="emit('logout')" />
         </div>
     </div>
