@@ -10,31 +10,31 @@ class PermissionPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can(PermissionPermissions::VIEW_ANY);
+        return $user->can(PermissionPermissions::VIEW_ANY) || $user->can('permissions.view');
     }
 
     public function view(User $user, Permission $permission): bool
     {
-        return $user->can(PermissionPermissions::VIEW);
+        return $user->can(PermissionPermissions::VIEW) || $user->can('permissions.view');
     }
 
     public function create(User $user): bool
     {
-        return $user->can(PermissionPermissions::CREATE);
+        return $user->can(PermissionPermissions::CREATE) || $user->can('permissions.manage');
     }
 
     public function update(User $user, Permission $permission): bool
     {
-        return $user->can(PermissionPermissions::UPDATE);
+        return $user->can(PermissionPermissions::UPDATE) || $user->can('permissions.manage');
     }
 
     public function delete(User $user, Permission $permission): bool
     {
-        return $user->can(PermissionPermissions::DELETE);
+        return $user->can(PermissionPermissions::DELETE) || $user->can('permissions.manage');
     }
 
     public function bulkDelete(User $user): bool
     {
-        return $user->can(PermissionPermissions::DELETE_ANY);
+        return $user->can(PermissionPermissions::DELETE_ANY) || $user->can('permissions.manage');
     }
 }

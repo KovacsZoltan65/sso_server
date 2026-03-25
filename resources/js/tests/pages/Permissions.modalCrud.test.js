@@ -6,8 +6,8 @@ import EditModal from '@/Pages/Permissions/EditModal.vue';
 import Index from '@/Pages/Permissions/Index.vue';
 import PermissionFormFields from '@/Pages/Permissions/Partials/PermissionFormFields.vue';
 import { axiosDelete } from '@/tests/mocks/axios';
-import { getLastForm, router } from '@/tests/mocks/inertia';
-import { confirmRequire, toastAdd } from '@/tests/mocks/primevue';
+import { getLastForm, router, setPageUrl } from '@/tests/mocks/inertia';
+import { confirmClose, confirmRequire, toastAdd } from '@/tests/mocks/primevue';
 import { mountPage } from '@/tests/testUtils';
 
 describe('Permissions modal CRUD frontend', () => {
@@ -98,6 +98,29 @@ describe('Permissions modal CRUD frontend', () => {
             severity: 'success',
             detail: 'permissions refreshed successfully.',
         }));
+        expect(confirmClose).toHaveBeenCalled();
+    });
+
+    it('closes modal state when the page url changes', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 1, name: 'reports.view', guardName: 'web', rolesCount: 0, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManagePermissions: true,
+            },
+        });
+
+        await nextTick();
+        await wrapper.find('[data-toolbar-action="create"]').trigger('click');
+
+        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('true');
+
+        setPageUrl('/admin/scopes');
+        await nextTick();
+
+        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('false');
     });
 
     it('submits the create modal and closes on success', async () => {

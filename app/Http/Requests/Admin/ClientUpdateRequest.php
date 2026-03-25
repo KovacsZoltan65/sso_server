@@ -25,7 +25,7 @@ class ClientUpdateRequest extends FormRequest
             'scopes' => ['nullable', 'array'],
             'scopes.*' => ['string', Rule::in(ClientOptions::scopeValues())],
             'is_active' => ['required', 'boolean'],
-            'token_policy_id' => ['nullable', 'integer', 'min:1'],
+            'token_policy_id' => ['nullable', 'integer', 'min:1', 'exists:token_policies,id'],
         ];
     }
 }

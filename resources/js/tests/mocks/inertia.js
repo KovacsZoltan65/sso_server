@@ -42,6 +42,7 @@ const createFormState = (initialValues = {}) => {
 };
 
 let currentPage = reactive({
+    url: '/dashboard',
     props: {
         flash: {},
     },
@@ -63,6 +64,7 @@ export const resetInertiaMocks = () => {
     router.delete.mockReset();
 
     currentPage = reactive({
+        url: '/dashboard',
         props: {
             flash: {},
         },
@@ -73,6 +75,10 @@ export const resetInertiaMocks = () => {
 
 export const setPageProps = (props) => {
     currentPage.props = props;
+};
+
+export const setPageUrl = (url) => {
+    currentPage.url = url;
 };
 
 export const getPage = () => currentPage;

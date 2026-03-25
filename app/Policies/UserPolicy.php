@@ -29,6 +29,6 @@ class UserPolicy
 
     public function bulkDelete(User $user): bool
     {
-        return $user->can(UserPermissions::BULK_DELETE);
+        return $user->can('users.deleteAny') || $user->can(UserPermissions::MANAGE);
     }
 }

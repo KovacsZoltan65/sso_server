@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PlaceholderPageController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
+use App\Http\Controllers\Admin\TokenPolicyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
@@ -70,9 +71,18 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/scopes/{scope}', 'destroy')->middleware(PermissionMiddleware::using('scopes.delete'))->name('destroy');
         });
 
+        Route::controller(TokenPolicyController::class)->name('token-policies.')->group(function () {
+            Route::get('/token-policies', 'index')->middleware(PermissionMiddleware::using('token-policies.viewAny'))->name('index');
+            Route::get('/token-policies/create', 'create')->middleware(PermissionMiddleware::using('token-policies.create'))->name('create');
+            Route::post('/token-policies', 'store')->middleware(PermissionMiddleware::using('token-policies.create'))->name('store');
+            Route::delete('/token-policies', 'bulkDestroy')->middleware(PermissionMiddleware::using('token-policies.deleteAny'))->name('bulk-destroy');
+            Route::get('/token-policies/{tokenPolicy}/edit', 'edit')->middleware(PermissionMiddleware::using('token-policies.update'))->name('edit');
+            Route::put('/token-policies/{tokenPolicy}', 'update')->middleware(PermissionMiddleware::using('token-policies.update'))->name('update');
+            Route::delete('/token-policies/{tokenPolicy}', 'destroy')->middleware(PermissionMiddleware::using('token-policies.delete'))->name('destroy');
+        });
+
         // PlaceholderPageController routes
         Route::controller(PlaceholderPageController::class)->group(function () {
-            Route::get('/token-policies', 'tokenPolicies')->middleware(PermissionMiddleware::using('token-policies.view'))->name('token-policies.index');
             Route::get('/audit-logs', 'auditLogs')->middleware(PermissionMiddleware::using('audit-logs.view'))->name('audit-logs.index');
         });
     });

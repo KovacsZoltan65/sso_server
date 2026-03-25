@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { router } from '@inertiajs/vue3';
-import { computed, ref } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 
@@ -16,10 +16,26 @@ export function useAdminListActions({
 }) {
     const confirm = useConfirm();
     const toast = useToast();
+    const page = usePage();
     const isReloading = ref(false);
     const isMutating = ref(false);
 
     const busy = computed(() => isReloading.value || isMutating.value);
+
+    const closeConfirm = () => {
+        confirm.close?.();
+    };
+
+    watch(
+        () => page.url,
+        () => {
+            closeConfirm();
+        },
+    );
+
+    onBeforeUnmount(() => {
+        closeConfirm();
+    });
 
     const showSuccess = (message) => {
         toast.add({
@@ -47,6 +63,8 @@ export function useAdminListActions({
         if (resetSelection) {
             clearSelection();
         }
+
+        closeConfirm();
 
         router.get(route(indexRouteName), buildParams(overrides), {
             preserveState: true,
@@ -77,6 +95,7 @@ export function useAdminListActions({
 
     const deleteRequest = async (url, payload = undefined) => {
         isMutating.value = true;
+        closeConfirm();
 
         try {
             const response = await axios.delete(url, payload ? { data: payload } : undefined);
@@ -100,6 +119,7 @@ export function useAdminListActions({
             rejectLabel: 'Cancel',
             acceptClass: 'p-button-danger',
             accept: () => {
+                closeConfirm();
                 deleteRequest(route(destroyRouteName, row.id));
             },
         });
@@ -114,6 +134,7 @@ export function useAdminListActions({
             rejectLabel: 'Cancel',
             acceptClass: 'p-button-danger',
             accept: () => {
+                closeConfirm();
                 deleteRequest(route(bulkDestroyRouteName), {
                     ids: selectedIds.value,
                 });

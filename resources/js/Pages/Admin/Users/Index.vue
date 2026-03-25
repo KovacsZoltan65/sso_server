@@ -5,6 +5,7 @@ import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
+import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
 import CreateModal from "@/Pages/Admin/Users/CreateModal.vue";
 import EditModal from "@/Pages/Admin/Users/EditModal.vue";
@@ -188,6 +189,13 @@ const closeEditModal = () => {
     selectedUser.value = null;
 };
 
+const closeAllOverlays = () => {
+    isCreateModalOpen.value = false;
+    closeEditModal();
+};
+
+usePageOverlayCleanup(closeAllOverlays);
+
 const handleEditVisibilityChange = (value) => {
     if (value) {
         isEditModalOpen.value = true;
@@ -200,8 +208,7 @@ const handleEditVisibilityChange = (value) => {
 const handleSaved = ({ message }) => {
     showSuccess(message);
     clearSelection();
-    closeEditModal();
-    isCreateModalOpen.value = false;
+    closeAllOverlays();
     reload({}, { resetSelection: true });
 };
 

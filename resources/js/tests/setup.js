@@ -3,7 +3,7 @@ import { defineComponent, h, inject, provide, ref } from 'vue';
 import { afterEach, beforeEach, vi } from 'vitest';
 import { axiosDelete, resetAxiosMocks } from './mocks/axios';
 import { createMockForm, getPage, resetInertiaMocks, router } from './mocks/inertia';
-import { confirmRequire, resetPrimeVueMocks, toastAdd } from './mocks/primevue';
+import { confirmClose, confirmRequire, resetPrimeVueMocks, toastAdd } from './mocks/primevue';
 
 const dataTableColumnsKey = Symbol('dataTableColumns');
 
@@ -122,6 +122,10 @@ const DataTableStub = defineComponent({
         value: {
             type: Array,
             default: () => [],
+        },
+        scrollHeight: {
+            type: String,
+            default: '',
         },
     },
     setup(props, { slots }) {
@@ -267,6 +271,7 @@ vi.mock('primevue/usetoast', () => ({
 vi.mock('primevue/useconfirm', () => ({
     useConfirm: () => ({
         require: confirmRequire,
+        close: confirmClose,
     }),
 }));
 
@@ -278,6 +283,7 @@ vi.mock('primevue/column', () => ({ default: ColumnStub }));
 vi.mock('primevue/datatable', () => ({ default: DataTableStub }));
 vi.mock('primevue/iconfield', () => ({ default: passthroughStub }));
 vi.mock('primevue/inputicon', () => ({ default: passthroughStub }));
+vi.mock('primevue/inputnumber', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/inputtext', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/multiselect', () => ({ default: MultiSelectStub }));
 vi.mock('primevue/menu', () => ({ default: passthroughStub }));

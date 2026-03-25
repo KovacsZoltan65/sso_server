@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Scope;
+use App\Models\TokenPolicy;
 use Illuminate\Support\Facades\Schema;
 
 class ClientOptions
@@ -84,7 +85,21 @@ class ClientOptions
      */
     public static function tokenPolicies(): array
     {
-        return [];
+        if (! Schema::hasTable('token_policies')) {
+            return [];
+        }
+
+        return TokenPolicy::query()
+            ->where('is_active', true)
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->get(['id', 'name'])
+            ->map(fn (TokenPolicy $tokenPolicy) => [
+                'id' => $tokenPolicy->id,
+                'name' => $tokenPolicy->name,
+            ])
+            ->values()
+            ->all();
     }
 
     /**

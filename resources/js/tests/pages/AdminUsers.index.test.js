@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { nextTick } from 'vue';
 import Index from '@/Pages/Admin/Users/Index.vue';
 import { axiosDelete } from '@/tests/mocks/axios';
-import { confirmRequire, toastAdd } from '@/tests/mocks/primevue';
+import { confirmClose, confirmRequire, toastAdd } from '@/tests/mocks/primevue';
 import { mountPage } from '@/tests/testUtils';
-import { router } from '@/tests/mocks/inertia';
+import { router, setPageUrl } from '@/tests/mocks/inertia';
 
 describe('Admin Users index', () => {
     const baseProps = {
@@ -106,5 +106,22 @@ describe('Admin Users index', () => {
             severity: 'success',
             detail: 'users refreshed successfully.',
         }));
+        expect(confirmClose).toHaveBeenCalled();
+    });
+
+    it('closes open modal state on page url change', async () => {
+        const wrapper = mountPage(Index, {
+            props: baseProps,
+        });
+
+        await nextTick();
+        await wrapper.find('[data-toolbar-action="create"]').trigger('click');
+
+        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('true');
+
+        setPageUrl('/admin/permissions');
+        await nextTick();
+
+        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('false');
     });
 });

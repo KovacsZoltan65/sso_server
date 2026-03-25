@@ -66,7 +66,7 @@ class AdminNavigation
                 'label' => 'Token Policies',
                 'route' => 'admin.token-policies.index',
                 'icon' => 'pi pi-key',
-                'permission' => 'token-policies.view',
+                'permission' => 'token-policies.viewAny',
                 'description' => 'TTL, rotation, signing, and revocation policy management.',
             ],
             [
