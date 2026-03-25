@@ -126,6 +126,64 @@ Not allowed:
 
 ---
 
+# 4. Admin List / DataTable Standard
+
+All PrimeVue-based admin lists must follow one consistent table pattern across current and future modules.
+
+- Use **PrimeVue DataTable** for admin lists
+- Use a shared **RowActionMenu** for row-level actions instead of separate inline button bars
+- Required row actions: **Edit** and **Delete**
+- If an entity is deletable, support **bulk delete** as part of the table flow
+- Bulk delete must always include:
+  - selection handling
+  - confirmation dialog
+  - success or error toast
+  - table refresh
+  - selection reset after success
+- Destructive actions must always use **ConfirmDialog**
+- After create, update, delete, or bulk delete, the list state must be refreshed and remain consistent
+- Stale table state or partially refreshed CRUD flows are not acceptable
+- Delete restrictions must be enforced in the backend as well, not only hidden or disabled in the frontend
+- New admin modules must follow the same shared table standard instead of creating a new local CRUD table pattern
+- Admin list pages must use a full-height layout chain so the table fills the available vertical space
+- The body must not be the primary scroll container for admin tables; scrolling must happen inside the table card or DataTable container
+- Use a card structure where the content area is `flex-1` plus `overflow-hidden`
+- Use scrollable PrimeVue DataTable configuration with flex-based height for full-height admin tables
+- The flex chain must stay valid through layout, page wrapper, card, card body, card content, and the DataTable wrapper using `flex`, `flex-col`, `flex-1`, and `min-h-0`
+- It is not acceptable for the card to grow while the DataTable stays visually collapsed at the top
+- Large empty space under the paginator is a layout bug and must be fixed at the shared layout or DataTable wrapper level
+- Overlay-based row actions must not be clipped by card or table overflow; use a non-clipped overlay strategy
+- Simple mini-CRUD flows may use modals, but complex admin editing must use separate Create/Edit pages
+- If a form contains many fields, relation-heavy assignment, or large selectors, it must not stay in a modal
+- Role and permission-heavy administration should default to separate-page Create/Edit flows
+- Large relation selectors must not use MultiSelect
+- Role-permission editing must use a grouped, searchable, resource-sectioned checkbox editor
+- Selector UI that overflows the viewport or becomes unreadable at larger data volume is not acceptable
+- Create and Edit admin pages with larger forms must use a full-height flex layout with a fixed header, a scrollable form content area, and fixed action buttons
+- The body must not be the primary scroll container for larger admin forms; scrolling must stay inside the card content area
+- A form card that overflows the viewport and pushes primary actions off-screen is a layout bug and must be fixed in the shared page/card structure
+
+Implementation expectations:
+
+- Keep list orchestration on the index page
+- Reuse shared toolbar, row action, selection, and refresh patterns where practical
+- Keep backend responses consistent for CRUD and bulk actions
+- Keep authorization policy-based
+- Keep validation in FormRequests
+
+---
+
+# Permission Standard
+
+- Every resource permission must use the `resource.action` format
+- Minimum required actions for every resource: `viewAny`, `view`, `create`, `update`, `delete`, `deleteAny`
+- Bulk operations must always have their own permission such as `deleteAny`
+- Domain-specific actions must exist as separate permissions, not be folded into generic CRUD permissions
+- Permission seeders must generate permissions from a central definition, not scattered hardcoded strings
+- Legacy compatibility aliases may exist temporarily, but new permission design must follow the standard naming only
+
+---
+
 # 4. Security Rules (STRICT)
 
 These rules are mandatory.

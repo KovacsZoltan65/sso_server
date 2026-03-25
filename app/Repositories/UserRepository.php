@@ -102,4 +102,29 @@ class UserRepository extends Repository implements UserRepositoryInterface
 
         return $user->load('roles');
     }
+
+    public function getByIds(array $ids): Collection
+    {
+        /** @var Collection<int, User> $users */
+        $users = $this->getModel()
+            ->newQuery()
+            ->with('roles')
+            ->whereIn('id', $ids)
+            ->get();
+
+        return $users;
+    }
+
+    public function deleteUser(User $user): void
+    {
+        $user->delete();
+    }
+
+    public function deleteByIds(array $ids): void
+    {
+        $this->getModel()
+            ->newQuery()
+            ->whereIn('id', $ids)
+            ->delete();
+    }
 }

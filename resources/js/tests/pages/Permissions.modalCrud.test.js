@@ -5,7 +5,8 @@ import CreateModal from '@/Pages/Permissions/CreateModal.vue';
 import EditModal from '@/Pages/Permissions/EditModal.vue';
 import Index from '@/Pages/Permissions/Index.vue';
 import PermissionFormFields from '@/Pages/Permissions/Partials/PermissionFormFields.vue';
-import { getLastForm, router, setPageProps } from '@/tests/mocks/inertia';
+import { axiosDelete } from '@/tests/mocks/axios';
+import { getLastForm, router } from '@/tests/mocks/inertia';
 import { confirmRequire, toastAdd } from '@/tests/mocks/primevue';
 import { mountPage } from '@/tests/testUtils';
 
@@ -21,9 +22,11 @@ describe('Permissions modal CRUD frontend', () => {
             },
         });
 
+        await nextTick();
+
         expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('false');
 
-        await wrapper.find('button').trigger('click');
+        await wrapper.find('[data-toolbar-action="create"]').trigger('click');
 
         expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('true');
     });
@@ -31,7 +34,7 @@ describe('Permissions modal CRUD frontend', () => {
     it('opens edit and triggers delete confirmation from the index page', async () => {
         const wrapper = mountPage(Index, {
             props: {
-                rows: [{ id: 5, name: 'reports.export', guardName: 'web', rolesCount: 2, createdAt: '2026-03-25 10:00:00' }],
+                rows: [{ id: 5, name: 'reports.export', guardName: 'web', rolesCount: 2, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
                 filters: { global: null, name: null },
                 pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
                 sorting: { field: 'name', order: 1 },
@@ -41,16 +44,60 @@ describe('Permissions modal CRUD frontend', () => {
 
         await nextTick();
 
-        const buttons = wrapper.findAll('button');
-
-        await buttons[1].trigger('click');
+        await wrapper.find('[data-row-action="Edit"]').trigger('click');
         expect(wrapper.find('[data-edit-modal]').attributes('data-visible')).toBe('true');
 
-        await buttons[2].trigger('click');
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
         expect(confirmRequire).toHaveBeenCalledTimes(1);
 
-        confirmRequire.mock.calls[0][0].accept();
-        expect(router.delete).toHaveBeenCalledTimes(1);
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(axiosDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('triggers bulk delete from the shared toolbar', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 5, name: 'reports.export', guardName: 'web', rolesCount: 0, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManagePermissions: true,
+            },
+        });
+
+        await nextTick();
+
+        await wrapper.find('input[type="checkbox"]').setValue(true);
+        await wrapper.find('[data-toolbar-action="bulk-delete"]').trigger('click');
+
+        expect(confirmRequire).toHaveBeenCalledTimes(1);
+
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(axiosDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the shared refresh action to reload the table', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 0, from: 0, to: 0, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManagePermissions: true,
+            },
+        });
+
+        await nextTick();
+
+        await wrapper.find('[data-toolbar-action="refresh"]').trigger('click');
+
+        expect(router.get).toHaveBeenCalledTimes(1);
+        expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
+            severity: 'success',
+            detail: 'permissions refreshed successfully.',
+        }));
     });
 
     it('submits the create modal and closes on success', async () => {
@@ -122,24 +169,30 @@ describe('Permissions modal CRUD frontend', () => {
         expect(wrapper.text()).toContain('Name is required.');
     });
 
-    it('shows an error toast when the page flash contains an error', async () => {
+    it('shows an error toast when delete fails', async () => {
+        axiosDelete.mockRejectedValueOnce({
+            response: {
+                data: {
+                    message: 'Permission delete failed.',
+                },
+            },
+        });
+
         const wrapper = mountPage(Index, {
             props: {
-                rows: [],
+                rows: [{ id: 6, name: 'reports.view', guardName: 'web', rolesCount: 0, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
                 filters: { global: null, name: null },
-                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 0, from: 0, to: 0, first: 0 },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
                 sorting: { field: 'name', order: 1 },
-                canManagePermissions: false,
+                canManagePermissions: true,
             },
         });
 
-        setPageProps({
-            flash: {
-                error: 'Permission delete failed.',
-            },
-        });
+        await nextTick();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+        await nextTick();
 
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'error',

@@ -1,6 +1,6 @@
 <script setup>
+import PermissionGroupEditor from '@/Components/Roles/PermissionGroupEditor.vue';
 import InputText from 'primevue/inputtext';
-import MultiSelect from 'primevue/multiselect';
 
 defineProps({
     form: {
@@ -35,18 +35,10 @@ defineProps({
         </div>
 
         <div v-if="permissionOptions.length" class="grid gap-2">
-            <label for="role-permissions" class="text-sm font-medium text-slate-700">Permissions</label>
-            <MultiSelect
-                id="role-permissions"
+            <PermissionGroupEditor
                 v-model="form.permissions"
                 :options="permissionOptions"
-                optionLabel="label"
-                optionValue="value"
-                placeholder="Select permissions"
-                display="chip"
-                filter
                 :disabled="disabled"
-                fluid
             />
             <small v-if="form.errors.permissions" class="text-red-500">
                 {{ form.errors.permissions }}

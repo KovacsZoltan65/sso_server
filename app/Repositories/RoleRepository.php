@@ -96,4 +96,25 @@ class RoleRepository extends Repository implements RoleRepositoryInterface
     {
         return $role->users()->exists();
     }
+
+    public function getByIds(array $ids): Collection
+    {
+        /** @var Collection<int, Role> $roles */
+        $roles = $this->getModel()
+            ->newQuery()
+            ->whereIn('id', $ids)
+            ->with(['permissions:id,name'])
+            ->withCount(['permissions', 'users'])
+            ->get();
+
+        return $roles;
+    }
+
+    public function deleteByIds(array $ids): void
+    {
+        $this->getModel()
+            ->newQuery()
+            ->whereIn('id', $ids)
+            ->delete();
+    }
 }

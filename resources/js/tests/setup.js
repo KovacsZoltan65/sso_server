@@ -1,6 +1,7 @@
 import { config } from '@vue/test-utils';
 import { defineComponent, h, inject, provide, ref } from 'vue';
 import { afterEach, beforeEach, vi } from 'vitest';
+import { axiosDelete, resetAxiosMocks } from './mocks/axios';
 import { createMockForm, getPage, resetInertiaMocks, router } from './mocks/inertia';
 import { confirmRequire, resetPrimeVueMocks, toastAdd } from './mocks/primevue';
 
@@ -188,6 +189,30 @@ const MultiSelectStub = defineComponent({
     },
 });
 
+const CheckboxStub = defineComponent({
+    inheritAttrs: false,
+    props: {
+        modelValue: {
+            type: Boolean,
+            default: false,
+        },
+        disabled: {
+            type: Boolean,
+            default: false,
+        },
+    },
+    emits: ['update:modelValue'],
+    setup(props, { attrs, emit }) {
+        return () => h('input', {
+            ...attrs,
+            type: 'checkbox',
+            checked: props.modelValue,
+            disabled: props.disabled,
+            onChange: (event) => emit('update:modelValue', event.target.checked),
+        });
+    },
+});
+
 const TagStub = defineComponent({
     props: {
         value: {
@@ -227,6 +252,12 @@ vi.mock('@inertiajs/vue3', async () => {
     };
 });
 
+vi.mock('axios', () => ({
+    default: {
+        delete: axiosDelete,
+    },
+}));
+
 vi.mock('primevue/usetoast', () => ({
     useToast: () => ({
         add: toastAdd,
@@ -242,12 +273,14 @@ vi.mock('primevue/useconfirm', () => ({
 vi.mock('primevue/button', () => ({ default: ButtonStub }));
 vi.mock('primevue/dialog', () => ({ default: DialogStub }));
 vi.mock('primevue/card', () => ({ default: CardStub }));
+vi.mock('primevue/checkbox', () => ({ default: CheckboxStub }));
 vi.mock('primevue/column', () => ({ default: ColumnStub }));
 vi.mock('primevue/datatable', () => ({ default: DataTableStub }));
 vi.mock('primevue/iconfield', () => ({ default: passthroughStub }));
 vi.mock('primevue/inputicon', () => ({ default: passthroughStub }));
 vi.mock('primevue/inputtext', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/multiselect', () => ({ default: MultiSelectStub }));
+vi.mock('primevue/menu', () => ({ default: passthroughStub }));
 vi.mock('primevue/password', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/select', () => ({ default: makeFieldComponent('select') }));
 vi.mock('primevue/tag', () => ({ default: TagStub }));
@@ -272,6 +305,7 @@ config.global.stubs = {
 };
 
 beforeEach(() => {
+    resetAxiosMocks();
     resetInertiaMocks();
     resetPrimeVueMocks();
 });

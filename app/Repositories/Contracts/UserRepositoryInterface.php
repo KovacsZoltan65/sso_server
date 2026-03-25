@@ -35,4 +35,17 @@ interface UserRepositoryInterface
      * @param array<int, string> $roles
      */
     public function updateWithRoles(User $user, array $attributes, array $roles = []): User;
+
+    /**
+     * @param array<int, int> $ids
+     * @return Collection<int, User>
+     */
+    public function getByIds(array $ids): Collection;
+
+    public function deleteUser(User $user): void;
+
+    /**
+     * @param array<int, int> $ids
+     */
+    public function deleteByIds(array $ids): void;
 }

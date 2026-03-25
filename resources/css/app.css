@@ -75,6 +75,60 @@
         @apply min-h-screen lg:grid lg:grid-cols-[18rem_minmax(0,1fr)];
     }
 
+    .admin-table-page {
+        @apply flex min-h-0 flex-1 flex-col;
+    }
+
+    .admin-table-shell {
+        @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+    }
+
+    .admin-form-page {
+        @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+    }
+
+    .admin-form-shell {
+        @apply flex min-h-0 flex-1 flex-col overflow-hidden;
+    }
+
+    .admin-form-card,
+    .admin-form-card__body,
+    .admin-form-card__content,
+    .admin-form-card__scroll {
+        @apply min-h-0;
+    }
+
+    .admin-table-card,
+    .admin-table-card__content,
+    .admin-table-card__body {
+        @apply min-h-0;
+    }
+
+    .admin-datatable {
+        @apply min-h-0 flex-1;
+    }
+
+    .admin-datatable.p-datatable {
+        display: flex;
+        min-height: 0;
+        flex: 1 1 auto;
+        flex-direction: column;
+    }
+
+    .admin-datatable .p-datatable-header,
+    .admin-datatable .p-paginator,
+    .admin-datatable .p-datatable-footer {
+        flex: 0 0 auto;
+    }
+
+    .admin-datatable .p-datatable-table-container,
+    .admin-datatable .p-datatable-virtualscroller,
+    .admin-datatable .p-virtualscroller,
+    .admin-datatable .p-scroller {
+        min-height: 0;
+        flex: 1 1 auto;
+    }
+
     .sidebar-link {
         @apply flex items-center gap-3 rounded-2xl px-4 py-3 text-sm font-medium transition;
         color: #c5d1de;

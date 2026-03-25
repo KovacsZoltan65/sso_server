@@ -31,4 +31,9 @@ class PermissionPolicy
     {
         return $user->can('permissions.manage');
     }
+
+    public function bulkDelete(User $user): bool
+    {
+        return $user->can('permissions.manage');
+    }
 }

@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RoleBulkDestroyRequest;
 use App\Http\Requests\Admin\RoleIndexRequest;
 use App\Http\Requests\Admin\RoleStoreRequest;
 use App\Http\Requests\Admin\RoleUpdateRequest;
 use App\Services\RoleService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -69,20 +71,54 @@ class RoleController extends Controller
             ->with('success', 'Role updated successfully.');
     }
 
-    public function destroy(Role $role, RoleService $roleService): RedirectResponse
+    public function destroy(Role $role, RoleService $roleService): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $role);
 
         try {
             $roleService->deleteRole($role);
         } catch (RuntimeException $exception) {
+            if (request()->expectsJson()) {
+                return $this->errorResponse(
+                    message: $exception->getMessage(),
+                    errors: ['role' => [$exception->getMessage()]],
+                );
+            }
+
             return redirect()
                 ->route('admin.roles.index')
                 ->with('error', $exception->getMessage());
         }
 
+        if (request()->expectsJson()) {
+            return $this->successResponse(
+                message: 'Role deleted successfully.',
+                data: ['id' => $role->id],
+            );
+        }
+
         return redirect()
             ->route('admin.roles.index')
             ->with('success', 'Role deleted successfully.');
+    }
+
+    public function bulkDestroy(RoleBulkDestroyRequest $request, RoleService $roleService): JsonResponse
+    {
+        $this->authorize('bulkDelete', Role::class);
+
+        try {
+            $deletedIds = $roleService->bulkDeleteRoles($request->validated('ids'));
+        } catch (RuntimeException $exception) {
+            return $this->errorResponse(
+                message: $exception->getMessage(),
+                errors: ['ids' => [$exception->getMessage()]],
+            );
+        }
+
+        return $this->successResponse(
+            message: 'Selected roles deleted successfully.',
+            data: ['ids' => $deletedIds],
+            meta: ['deletedCount' => count($deletedIds)],
+        );
     }
 }

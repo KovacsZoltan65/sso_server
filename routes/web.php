@@ -22,9 +22,17 @@ Route::middleware(['auth'])->group(function () {
             ->middleware('permission:users.manage')
             ->name('users.store');
 
+        Route::delete('/users', [UserController::class, 'bulkDestroy'])
+            ->middleware('permission:users.manage')
+            ->name('users.bulk-destroy');
+
         Route::put('/users/{user}', [UserController::class, 'update'])
             ->middleware('permission:users.manage')
             ->name('users.update');
+
+        Route::delete('/users/{user}', [UserController::class, 'destroy'])
+            ->middleware('permission:users.manage')
+            ->name('users.destroy');
 
         Route::get('/roles', [RoleController::class, 'index'])
             ->middleware('permission:roles.view')
@@ -37,6 +45,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/roles', [RoleController::class, 'store'])
             ->middleware('permission:roles.manage')
             ->name('roles.store');
+
+        Route::delete('/roles', [RoleController::class, 'bulkDestroy'])
+            ->middleware('permission:roles.manage')
+            ->name('roles.bulk-destroy');
 
         Route::get('/roles/{role}/edit', [RoleController::class, 'edit'])
             ->middleware('permission:roles.manage')
@@ -61,6 +73,10 @@ Route::middleware(['auth'])->group(function () {
         Route::post('/permissions', [PermissionController::class, 'store'])
             ->middleware('permission:permissions.manage')
             ->name('permissions.store');
+
+        Route::delete('/permissions', [PermissionController::class, 'bulkDestroy'])
+            ->middleware('permission:permissions.manage')
+            ->name('permissions.bulk-destroy');
 
         Route::get('/permissions/{permission}/edit', [PermissionController::class, 'edit'])
             ->middleware('permission:permissions.manage')

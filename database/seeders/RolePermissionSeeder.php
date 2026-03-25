@@ -15,22 +15,20 @@ class RolePermissionSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         foreach (SsoPermissions::all() as $permission) {
-            Permission::findOrCreate($permission, 'web');
+            Permission::firstOrCreate([
+                'name' => $permission,
+                'guard_name' => 'web',
+            ]);
         }
 
         $superadmin = Role::findOrCreate('superadmin', 'web');
         $admin = Role::findOrCreate('admin', 'web');
+        $user = Role::findOrCreate('user', 'web');
 
         $superadmin->syncPermissions(Permission::all());
-        $admin->syncPermissions([
+        $admin->syncPermissions(SsoPermissions::adminPermissions());
+        $user->syncPermissions([
             'dashboard.view',
-            'users.view',
-            'roles.view',
-            'permissions.view',
-            'sso-clients.view',
-            'scopes.view',
-            'token-policies.view',
-            'audit-logs.view',
         ]);
     }
 }

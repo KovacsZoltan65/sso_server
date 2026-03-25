@@ -1,39 +1,21 @@
-import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { describe, expect, it } from 'vitest';
-import CreateModal from '@/Pages/Roles/CreateModal.vue';
-import EditModal from '@/Pages/Roles/EditModal.vue';
+import { mount } from '@vue/test-utils';
+import PermissionGroupEditor from '@/Components/Roles/PermissionGroupEditor.vue';
+import Create from '@/Pages/Roles/Create.vue';
+import Edit from '@/Pages/Roles/Edit.vue';
 import Index from '@/Pages/Roles/Index.vue';
 import RoleFormFields from '@/Pages/Roles/Partials/RoleFormFields.vue';
-import { getLastForm, router, setPageProps } from '@/tests/mocks/inertia';
+import { axiosDelete } from '@/tests/mocks/axios';
+import { getLastForm, router } from '@/tests/mocks/inertia';
 import { confirmRequire, toastAdd } from '@/tests/mocks/primevue';
 import { mountPage } from '@/tests/testUtils';
 
-describe('Roles modal CRUD frontend', () => {
-    it('opens the create modal from the index page', async () => {
+describe('Roles page CRUD frontend', () => {
+    it('navigates to the create page from the index page', async () => {
         const wrapper = mountPage(Index, {
             props: {
                 rows: [{ id: 1, name: 'auditor', guardName: 'web', permissions: [], usersCount: 0, createdAt: '2026-03-25 10:00:00' }],
-                permissionOptions: [{ label: 'reports.view', value: 'reports.view' }],
-                filters: { global: null, name: null },
-                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
-                sorting: { field: 'name', order: 1 },
-                canManageRoles: true,
-            },
-        });
-
-        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('false');
-
-        await wrapper.find('button').trigger('click');
-
-        expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('true');
-    });
-
-    it('opens edit and triggers delete confirmation from the index page', async () => {
-        const wrapper = mountPage(Index, {
-            props: {
-                rows: [{ id: 5, name: 'reviewer', guardName: 'web', permissions: ['reports.view'], usersCount: 2, createdAt: '2026-03-25 10:00:00' }],
-                permissionOptions: [{ label: 'reports.view', value: 'reports.view' }],
                 filters: { global: null, name: null },
                 pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
                 sorting: { field: 'name', order: 1 },
@@ -43,28 +25,85 @@ describe('Roles modal CRUD frontend', () => {
 
         await nextTick();
 
-        const buttons = wrapper.findAll('button');
+        await wrapper.find('[data-toolbar-action="create"]').trigger('click');
 
-        await buttons[1].trigger('click');
-        expect(wrapper.find('[data-edit-modal]').attributes('data-visible')).toBe('true');
-
-        await buttons[2].trigger('click');
-        expect(confirmRequire).toHaveBeenCalledTimes(1);
-
-        confirmRequire.mock.calls[0][0].accept();
-        expect(router.delete).toHaveBeenCalledTimes(1);
+        expect(router.get).toHaveBeenCalledWith(route('admin.roles.create'));
     });
 
-    it('submits the create modal and closes on success', async () => {
-        const wrapper = mount(CreateModal, {
+    it('navigates to edit and still triggers delete confirmation from the index page', async () => {
+        const wrapper = mountPage(Index, {
             props: {
-                visible: true,
-                permissionOptions: [{ label: 'reports.view', value: 'reports.view' }],
+                rows: [{ id: 5, name: 'reviewer', guardName: 'web', permissions: ['reports.view'], usersCount: 2, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManageRoles: true,
             },
-            global: {
-                stubs: {
-                    RoleFormFields: true,
-                },
+        });
+
+        await nextTick();
+
+        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        expect(router.get).toHaveBeenCalledWith(route('admin.roles.edit', 5));
+
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        expect(confirmRequire).toHaveBeenCalledTimes(1);
+
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(axiosDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('triggers bulk delete from the shared toolbar', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 5, name: 'reviewer', guardName: 'web', permissions: ['reports.view'], usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManageRoles: true,
+            },
+        });
+
+        await nextTick();
+
+        await wrapper.find('input[type="checkbox"]').setValue(true);
+        await wrapper.find('[data-toolbar-action="bulk-delete"]').trigger('click');
+
+        expect(confirmRequire).toHaveBeenCalledTimes(1);
+
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(axiosDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('uses the shared refresh action to reload the table', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 0, from: 0, to: 0, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManageRoles: true,
+            },
+        });
+
+        await nextTick();
+
+        await wrapper.find('[data-toolbar-action="refresh"]').trigger('click');
+
+        expect(router.get).toHaveBeenCalledTimes(1);
+        expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
+            severity: 'success',
+            detail: 'roles refreshed successfully.',
+        }));
+    });
+
+    it('submits the create page form', async () => {
+        const wrapper = mount(Create, {
+            props: {
+                guardName: 'web',
+                permissionOptions: [{ label: 'reports.view', value: 'reports.view' }],
             },
         });
 
@@ -73,17 +112,11 @@ describe('Roles modal CRUD frontend', () => {
         await wrapper.find('form').trigger('submit.prevent');
 
         expect(form.post).toHaveBeenCalledTimes(1);
-        expect(wrapper.emitted('saved')?.[0]?.[0]).toEqual({
-            message: 'Role created successfully.',
-            type: 'create',
-        });
-        expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false]);
     });
 
-    it('syncs the selected role into the edit modal form', async () => {
-        const wrapper = mount(EditModal, {
+    it('loads the selected role into the edit page form and submits it', async () => {
+        const wrapper = mount(Edit, {
             props: {
-                visible: true,
                 role: {
                     id: 9,
                     name: 'manager',
@@ -109,10 +142,6 @@ describe('Roles modal CRUD frontend', () => {
         await wrapper.find('form').trigger('submit.prevent');
 
         expect(form.put).toHaveBeenCalledTimes(1);
-        expect(wrapper.emitted('saved')?.[0]?.[0]).toEqual({
-            message: 'Role updated successfully.',
-            type: 'edit',
-        });
     });
 
     it('renders role field validation errors and permission selector', async () => {
@@ -134,30 +163,69 @@ describe('Roles modal CRUD frontend', () => {
 
         expect(wrapper.text()).toContain('Role name is required.');
         expect(wrapper.text()).toContain('Invalid permission.');
-
-        await wrapper.find('select').setValue(['reports.view']);
-        expect(form.permissions).toEqual(['reports.view']);
+        expect(wrapper.text()).toContain('Permissions');
     });
 
-    it('shows an error toast when the page flash contains an error', async () => {
+    it('groups permissions by resource, supports search, and updates checkbox selection', async () => {
+        const wrapper = mount(PermissionGroupEditor, {
+            props: {
+                modelValue: ['users.view'],
+                options: [
+                    { label: 'users.viewAny', value: 'users.viewAny' },
+                    { label: 'users.view', value: 'users.view' },
+                    { label: 'users.deleteAny', value: 'users.deleteAny' },
+                    { label: 'roles.assignPermission', value: 'roles.assignPermission' },
+                ],
+            },
+        });
+
+        expect(wrapper.text()).toContain('Users');
+        expect(wrapper.text()).toContain('Roles');
+        expect(wrapper.text()).toContain('View Any');
+        expect(wrapper.text()).toContain('Assign Permission');
+
+        const searchInput = wrapper.find('input[type="search"]');
+        await searchInput.setValue('assign');
+
+        expect(wrapper.text()).not.toContain('View Any');
+        expect(wrapper.text()).toContain('Assign Permission');
+
+        await searchInput.setValue('');
+
+        const selectAllButtons = wrapper.findAll('button').filter((button) => button.text() === 'Select all');
+        await selectAllButtons[1].trigger('click');
+
+        expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual([
+            'users.view',
+            'users.viewAny',
+            'users.deleteAny',
+        ]);
+    });
+
+    it('shows an error toast when delete fails', async () => {
+        axiosDelete.mockRejectedValueOnce({
+            response: {
+                data: {
+                    message: 'Role delete failed.',
+                },
+            },
+        });
+
         const wrapper = mountPage(Index, {
             props: {
-                rows: [],
-                permissionOptions: [],
+                rows: [{ id: 9, name: 'reviewer', guardName: 'web', permissions: [], usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
                 filters: { global: null, name: null },
-                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 0, from: 0, to: 0, first: 0 },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
                 sorting: { field: 'name', order: 1 },
-                canManageRoles: false,
+                canManageRoles: true,
             },
         });
 
-        setPageProps({
-            flash: {
-                error: 'Role delete failed.',
-            },
-        });
+        await nextTick();
 
-        await wrapper.vm.$nextTick();
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+        await nextTick();
 
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'error',

@@ -39,4 +39,15 @@ interface RoleRepositoryInterface
     public function deleteRole(Role $role): void;
 
     public function hasAssignedUsers(Role $role): bool;
+
+    /**
+     * @param array<int, int> $ids
+     * @return Collection<int, Role>
+     */
+    public function getByIds(array $ids): Collection;
+
+    /**
+     * @param array<int, int> $ids
+     */
+    public function deleteByIds(array $ids): void;
 }

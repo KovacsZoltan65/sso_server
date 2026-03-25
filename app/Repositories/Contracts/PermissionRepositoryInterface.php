@@ -3,6 +3,7 @@
 namespace App\Repositories\Contracts;
 
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Spatie\Permission\Models\Permission;
 
 interface PermissionRepositoryInterface
@@ -31,4 +32,15 @@ interface PermissionRepositoryInterface
     public function deletePermission(Permission $permission): void;
 
     public function hasAssignments(Permission $permission): bool;
+
+    /**
+     * @param array<int, int> $ids
+     * @return Collection<int, Permission>
+     */
+    public function getByIds(array $ids): Collection;
+
+    /**
+     * @param array<int, int> $ids
+     */
+    public function deleteByIds(array $ids): void;
 }

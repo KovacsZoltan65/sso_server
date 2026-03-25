@@ -18,10 +18,18 @@ class RoleSummaryData extends Data
         public int $permissionsCount,
         public int $usersCount,
         public string $createdAt,
+        public bool $canDelete,
+        public ?string $deleteBlockCode,
+        public ?string $deleteBlockReason,
     ) {
     }
 
-    public static function fromModel(Role $role): self
+    public static function fromModel(
+        Role $role,
+        bool $canDelete = true,
+        ?string $deleteBlockCode = null,
+        ?string $deleteBlockReason = null,
+    ): self
     {
         $permissions = $role->relationLoaded('permissions')
             ? $role->permissions->pluck('name')->values()->all()
@@ -35,6 +43,9 @@ class RoleSummaryData extends Data
             permissionsCount: (int) ($role->permissions_count ?? count($permissions)),
             usersCount: (int) ($role->users_count ?? 0),
             createdAt: $role->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
+            canDelete: $canDelete,
+            deleteBlockCode: $deleteBlockCode,
+            deleteBlockReason: $deleteBlockReason,
         );
     }
 }

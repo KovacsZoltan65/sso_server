@@ -176,3 +176,67 @@ it('prevents deleting permission that is assigned to a role or user', function (
         'id' => $permission->id,
     ]);
 });
+
+it('authorized user can bulk delete unassigned permissions', function () {
+    $permissions = collect([
+        Permission::create(['name' => 'reports.export', 'guard_name' => 'web']),
+        Permission::create(['name' => 'reports.download', 'guard_name' => 'web']),
+    ]);
+    $manager = permissionUser(['permissions.manage']);
+
+    $this->actingAs($manager)
+        ->deleteJson(route('admin.permissions.bulk-destroy'), [
+            'ids' => $permissions->pluck('id')->all(),
+        ])
+        ->assertOk()
+        ->assertJson([
+            'message' => 'Selected permissions deleted successfully.',
+            'meta' => [
+                'deletedCount' => 2,
+            ],
+        ]);
+
+    foreach ($permissions as $permission) {
+        $this->assertDatabaseMissing('permissions', [
+            'id' => $permission->id,
+        ]);
+    }
+});
+
+it('blocks bulk delete when an assigned permission is selected', function () {
+    $assignedPermission = Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
+    $freePermission = Permission::create(['name' => 'reports.download', 'guard_name' => 'web']);
+    $assignedUser = User::factory()->create();
+    $assignedUser->givePermissionTo($assignedPermission);
+    $manager = permissionUser(['permissions.manage']);
+
+    $this->actingAs($manager)
+        ->deleteJson(route('admin.permissions.bulk-destroy'), [
+            'ids' => [$assignedPermission->id, $freePermission->id],
+        ])
+        ->assertUnprocessable()
+        ->assertJson([
+            'message' => 'This permission is assigned to roles or users and cannot be deleted.',
+        ]);
+
+    $this->assertDatabaseHas('permissions', [
+        'id' => $assignedPermission->id,
+    ]);
+    $this->assertDatabaseHas('permissions', [
+        'id' => $freePermission->id,
+    ]);
+});
+
+it('forbids permission bulk delete when unauthorized', function () {
+    $permissions = collect([
+        Permission::create(['name' => 'reports.export', 'guard_name' => 'web']),
+        Permission::create(['name' => 'reports.download', 'guard_name' => 'web']),
+    ]);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->deleteJson(route('admin.permissions.bulk-destroy'), [
+            'ids' => $permissions->pluck('id')->all(),
+        ])
+        ->assertForbidden();
+});

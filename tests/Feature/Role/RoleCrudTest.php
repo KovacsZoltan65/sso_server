@@ -40,9 +40,6 @@ it('authorized user can view role index', function () {
             ->where('rows.0.name', 'auditor')
             ->where('rows.0.permissions', [])
             ->where('rows.0.usersCount', 0)
-            ->has('permissionOptions', 2)
-            ->where('permissionOptions.0.value', 'reports.view')
-            ->where('permissionOptions.1.value', 'roles.view')
             ->where('canManageRoles', false));
 });
 
@@ -207,4 +204,67 @@ it('prevents deleting role assigned to users', function () {
     $this->assertDatabaseHas('roles', [
         'id' => $role->id,
     ]);
+});
+
+it('authorized user can bulk delete unassigned roles', function () {
+    $roles = collect([
+        Role::create(['name' => 'auditor', 'guard_name' => 'web']),
+        Role::create(['name' => 'reviewer', 'guard_name' => 'web']),
+    ]);
+    $user = roleUser(['roles.manage']);
+
+    $this->actingAs($user)
+        ->deleteJson(route('admin.roles.bulk-destroy'), [
+            'ids' => $roles->pluck('id')->all(),
+        ])
+        ->assertOk()
+        ->assertJson([
+            'message' => 'Selected roles deleted successfully.',
+            'meta' => [
+                'deletedCount' => 2,
+            ],
+        ]);
+
+    foreach ($roles as $role) {
+        $this->assertDatabaseMissing('roles', [
+            'id' => $role->id,
+        ]);
+    }
+});
+
+it('blocks bulk delete when a protected role is selected', function () {
+    $roles = collect([
+        Role::create(['name' => 'admin', 'guard_name' => 'web']),
+        Role::create(['name' => 'auditor', 'guard_name' => 'web']),
+    ]);
+    $user = roleUser(['roles.manage']);
+
+    $this->actingAs($user)
+        ->deleteJson(route('admin.roles.bulk-destroy'), [
+            'ids' => $roles->pluck('id')->all(),
+        ])
+        ->assertUnprocessable()
+        ->assertJson([
+            'message' => 'This role is protected and cannot be deleted.',
+        ]);
+
+    foreach ($roles as $role) {
+        $this->assertDatabaseHas('roles', [
+            'id' => $role->id,
+        ]);
+    }
+});
+
+it('forbids role bulk delete when unauthorized', function () {
+    $roles = collect([
+        Role::create(['name' => 'auditor', 'guard_name' => 'web']),
+        Role::create(['name' => 'reviewer', 'guard_name' => 'web']),
+    ]);
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->deleteJson(route('admin.roles.bulk-destroy'), [
+            'ids' => $roles->pluck('id')->all(),
+        ])
+        ->assertForbidden();
 });

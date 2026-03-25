@@ -30,7 +30,12 @@ class PermissionService
 
         return [
             'rows' => Collection::make($paginator->items())
-                ->map(fn (Permission $permission) => PermissionSummaryData::fromModel($permission))
+                ->map(fn (Permission $permission) => PermissionSummaryData::fromModel(
+                    permission: $permission,
+                    canDelete: $this->canDeletePermission($permission),
+                    deleteBlockCode: $this->deleteBlockCode($permission),
+                    deleteBlockReason: $this->deleteBlockReason($permission),
+                ))
                 ->values()
                 ->all(),
             'canManagePermissions' => auth()->user()?->can('permissions.manage') ?? false,
@@ -103,10 +108,66 @@ class PermissionService
 
     public function deletePermission(Permission $permission): void
     {
-        if ($this->permissions->hasAssignments($permission)) {
-            throw new RuntimeException('This permission is assigned to roles or users and cannot be deleted.');
-        }
+        $this->guardDeleteable($permission);
 
         $this->permissions->deletePermission($permission);
+    }
+
+    /**
+     * @param array<int, int> $ids
+     * @return array<int, int>
+     */
+    public function bulkDeletePermissions(array $ids): array
+    {
+        $permissions = $this->permissions->getByIds($ids);
+
+        if ($permissions->count() !== count($ids)) {
+            throw new RuntimeException('One or more selected permissions could not be found.');
+        }
+
+        foreach ($permissions as $permission) {
+            $this->guardDeleteable($permission);
+        }
+
+        $deletedIds = $permissions->pluck('id')->values()->all();
+
+        $this->permissions->deleteByIds($deletedIds);
+
+        return $deletedIds;
+    }
+
+    public function canDeletePermission(Permission $permission): bool
+    {
+        return $this->deleteBlockCode($permission) === null;
+    }
+
+    private function guardDeleteable(Permission $permission): void
+    {
+        $reason = $this->deleteBlockReason($permission);
+
+        if ($reason !== null) {
+            throw new RuntimeException($reason);
+        }
+    }
+
+    private function deleteBlockCode(Permission $permission): ?string
+    {
+        if (((int) ($permission->roles_count ?? 0) > 0) || ((int) ($permission->users_count ?? 0) > 0)) {
+            return 'assigned_records';
+        }
+
+        if ($this->permissions->hasAssignments($permission)) {
+            return 'assigned_records';
+        }
+
+        return null;
+    }
+
+    private function deleteBlockReason(Permission $permission): ?string
+    {
+        return match ($this->deleteBlockCode($permission)) {
+            'assigned_records' => 'This permission is assigned to roles or users and cannot be deleted.',
+            default => null,
+        };
     }
 }

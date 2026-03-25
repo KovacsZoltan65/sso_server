@@ -1,14 +1,16 @@
 <script setup>
+import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
+import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
+import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
+import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useAdminListActions } from '@/Composables/useAdminListActions';
+import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
 import CreateModal from '@/Pages/Permissions/CreateModal.vue';
 import EditModal from '@/Pages/Permissions/EditModal.vue';
-import PageHeader from '@/Components/PageHeader.vue';
-import { Head, router, usePage } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
-import { useConfirm } from 'primevue/useconfirm';
-import { useToast } from 'primevue/usetoast';
-import Button from 'primevue/button';
-import Card from 'primevue/card';
+import Checkbox from 'primevue/checkbox';
 import Column from 'primevue/column';
 import ConfirmDialog from 'primevue/confirmdialog';
 import DataTable from 'primevue/datatable';
@@ -17,7 +19,7 @@ import InputIcon from 'primevue/inputicon';
 import InputText from 'primevue/inputtext';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
-import { reactive, ref, watch } from 'vue';
+import { computed, reactive, ref } from 'vue';
 
 const props = defineProps({
     rows: {
@@ -56,9 +58,7 @@ const props = defineProps({
     },
 });
 
-const page = usePage();
-const toast = useToast();
-const confirm = useConfirm();
+const rows = computed(() => props.rows);
 
 const isCreateModalOpen = ref(false);
 const isEditModalOpen = ref(false);
@@ -78,6 +78,17 @@ const tableState = reactive({
 
 const perPageOptions = [5, 10, 15, 25];
 
+const {
+    selectedIds,
+    selectedRows,
+    selectableRows,
+    allSelected,
+    partiallySelected,
+    clearSelection,
+    toggleRowSelection,
+    toggleAllSelection,
+} = useAdminTableSelection(rows);
+
 const buildParams = (overrides = {}) => ({
     global: tableFilters.value.global.value || undefined,
     name: tableFilters.value.name.value || undefined,
@@ -88,13 +99,23 @@ const buildParams = (overrides = {}) => ({
     ...overrides,
 });
 
-const reload = (overrides = {}) => {
-    router.get(route('admin.permissions.index'), buildParams(overrides), {
-        preserveState: true,
-        replace: true,
-        preserveScroll: true,
-    });
-};
+const {
+    busy,
+    showSuccess,
+    reload,
+    refresh,
+    confirmDelete,
+    confirmBulkDelete,
+} = useAdminListActions({
+    indexRouteName: 'admin.permissions.index',
+    destroyRouteName: 'admin.permissions.destroy',
+    bulkDestroyRouteName: 'admin.permissions.bulk-destroy',
+    entityLabel: 'Permission',
+    entityLabelPlural: 'permissions',
+    buildParams,
+    clearSelection,
+    selectedIds,
+});
 
 const onGlobalFilterInput = (value) => {
     tableFilters.value.global.value = value ?? null;
@@ -102,7 +123,7 @@ const onGlobalFilterInput = (value) => {
     reload({
         page: 1,
         global: value || undefined,
-    });
+    }, { resetSelection: true });
 };
 
 const onFilter = (event) => {
@@ -112,7 +133,7 @@ const onFilter = (event) => {
         page: 1,
         global: event.filters.global?.value || undefined,
         name: event.filters.name?.value || undefined,
-    });
+    }, { resetSelection: true });
 };
 
 const onSort = (event) => {
@@ -122,7 +143,7 @@ const onSort = (event) => {
     reload({
         sortField: event.sortField,
         sortOrder: event.sortOrder,
-    });
+    }, { resetSelection: true });
 };
 
 const onPage = (event) => {
@@ -132,7 +153,7 @@ const onPage = (event) => {
     reload({
         page: event.page + 1,
         perPage: event.rows,
-    });
+    }, { resetSelection: true });
 };
 
 const openCreateModal = () => {
@@ -159,71 +180,26 @@ const handleEditVisibilityChange = (value) => {
 };
 
 const handleSaved = ({ message }) => {
-    toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: message,
-        life: 3000,
-    });
-
+    showSuccess(message);
+    clearSelection();
     closeEditModal();
     isCreateModalOpen.value = false;
-    reload();
+    reload({}, { resetSelection: true });
 };
 
-const confirmDelete = (permission) => {
-    confirm.require({
-        message: `Delete "${permission.name}"? This action cannot be undone.`,
-        header: 'Delete Permission',
-        icon: 'pi pi-exclamation-triangle',
-        acceptLabel: 'Delete',
-        rejectLabel: 'Cancel',
-        acceptClass: 'p-button-danger',
-        accept: () => {
-            router.delete(route('admin.permissions.destroy', permission.id), {
-                preserveScroll: true,
-                onSuccess: () => {
-                    const success = page.props.flash?.success ?? 'Permission deleted successfully.';
-                    const error = page.props.flash?.error;
-
-                    if (error) {
-                        toast.add({
-                            severity: 'error',
-                            summary: 'Error',
-                            detail: error,
-                            life: 4000,
-                        });
-
-                        return;
-                    }
-
-                    toast.add({
-                        severity: 'success',
-                        summary: 'Success',
-                        detail: success,
-                        life: 3000,
-                    });
-                },
-            });
-        },
-    });
-};
-
-watch(
-    () => page.props.flash?.error,
-    (error) => {
-        if (!error) {
-            return;
-        }
-
-        toast.add({
-            severity: 'error',
-            summary: 'Error',
-            detail: error,
-            life: 4000,
-        });
+const permissionActionItems = (permission) => [
+    {
+        label: 'Edit',
+        icon: 'pi pi-pencil',
+        command: () => openEditModal(permission),
     },
-);
+    {
+        label: 'Delete',
+        icon: 'pi pi-trash',
+        disabled: !permission.canDelete,
+        command: () => confirmDelete(permission),
+    },
+];
 </script>
 
 <template>
@@ -233,14 +209,15 @@ watch(
         <Toast />
         <ConfirmDialog />
 
-        <PageHeader
-            title="Permissions"
-            description="Manage application permissions with the same admin list flow used in the Users module."
-        />
+        <div class="admin-table-page">
+            <PageHeader
+                title="Permissions"
+                description="Manage application permissions with the same admin table standard used across users and roles."
+            />
 
-        <Card class="surface-card">
-            <template #content>
-                <DataTable
+            <AdminTableCard>
+                <div class="admin-table-shell">
+                    <DataTable
                     :value="rows"
                     v-model:filters="tableFilters"
                     :rows="tableState.perPage"
@@ -249,9 +226,13 @@ watch(
                     :rowsPerPageOptions="perPageOptions"
                     :sortField="tableState.sortField"
                     :sortOrder="tableState.sortOrder"
+                    :loading="busy"
+                    class="admin-datatable h-full"
                     data-key="id"
                     paginator
                     lazy
+                    scrollable
+                    scrollHeight="flex"
                     striped-rows
                     filterDisplay="menu"
                     removableSort
@@ -259,33 +240,64 @@ watch(
                     @filter="onFilter"
                     @sort="onSort"
                     @page="onPage"
-                >
-                    <template #header>
-                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <IconField class="w-full sm:max-w-sm">
-                                <InputIcon class="pi pi-search text-slate-400" />
-                                <InputText
-                                    v-model="tableFilters.global.value"
-                                    placeholder="Global search"
-                                    class="w-full"
-                                    @update:modelValue="onGlobalFilterInput"
+                    >
+                        <template #header>
+                            <AdminTableToolbar
+                                :canCreate="canManagePermissions"
+                                createLabel="Create Permission"
+                            :canBulkDelete="canManagePermissions"
+                            bulkDeleteLabel="Delete Selected"
+                            :selectedCount="selectedRows.length"
+                            :selectableCount="selectableRows.length"
+                            :busy="busy"
+                            @create="openCreateModal"
+                            @bulk-delete="confirmBulkDelete"
+                            @refresh="refresh"
+                            >
+                                <template #search>
+                                    <IconField class="w-full">
+                                        <InputIcon class="pi pi-search text-slate-400" />
+                                        <InputText
+                                            v-model="tableFilters.global.value"
+                                            placeholder="Global search"
+                                            class="w-full"
+                                            @update:modelValue="onGlobalFilterInput"
+                                        />
+                                    </IconField>
+                                </template>
+                            </AdminTableToolbar>
+                        </template>
+
+                        <template #empty>
+                            <div class="py-8 text-center text-sm text-slate-500">
+                                No permissions found for the current filters.
+                            </div>
+                        </template>
+
+                        <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
+                        <template #header>
+                            <div :title="selectableRows.length === 0 ? 'No deletable permissions on this page.' : ''">
+                                <Checkbox
+                                    :binary="true"
+                                    :modelValue="allSelected"
+                                    :indeterminate="partiallySelected"
+                                    :disabled="selectableRows.length === 0"
+                                    @update:modelValue="toggleAllSelection"
                                 />
-                            </IconField>
+                            </div>
+                        </template>
 
-                            <Button
-                                v-if="canManagePermissions"
-                                label="Create Permission"
-                                icon="pi pi-plus"
-                                @click="openCreateModal"
-                            />
-                        </div>
-                    </template>
-
-                    <template #empty>
-                        <div class="py-8 text-center text-sm text-slate-500">
-                            No permissions found for the current filters.
-                        </div>
-                    </template>
+                        <template #body="{ data }">
+                            <div :title="data.deleteBlockReason ?? ''">
+                                <Checkbox
+                                    :binary="true"
+                                    :modelValue="selectedIds.includes(data.id)"
+                                    :disabled="!data.canDelete"
+                                    @update:modelValue="toggleRowSelection(data)"
+                                />
+                            </div>
+                        </template>
+                    </Column>
 
                     <Column
                         field="name"
@@ -307,44 +319,39 @@ watch(
 
                     <Column field="guardName" header="Guard">
                         <template #body="{ data }">
-                            <Tag :value="data.guardName" severity="secondary" />
-                        </template>
-                    </Column>
-
-                    <Column field="rolesCount" header="Assigned Roles" />
-                    <Column field="createdAt" header="Created At" sortable />
-
-                    <Column v-if="canManagePermissions" header="Actions" :exportable="false" style="width: 12rem">
-                        <template #body="{ data }">
-                            <div class="flex items-center gap-2">
-                                <Button
-                                    label="Edit"
-                                    icon="pi pi-pencil"
-                                    size="small"
-                                    outlined
-                                    @click="openEditModal(data)"
-                                />
-                                <Button
-                                    label="Delete"
-                                    icon="pi pi-trash"
-                                    size="small"
-                                    severity="danger"
-                                    text
-                                    @click="confirmDelete(data)"
+                            <div class="flex flex-wrap items-center gap-2">
+                                <Tag :value="data.guardName" severity="secondary" />
+                                <Tag
+                                    v-if="data.deleteBlockCode === 'assigned_records'"
+                                    value="In Use"
+                                    severity="warn"
                                 />
                             </div>
                         </template>
                     </Column>
-                </DataTable>
 
-                <div class="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} permissions
-                    </div>
-                    <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
+                        <Column field="rolesCount" header="Assigned Roles" />
+                        <Column field="usersCount" header="Direct Users" />
+                        <Column field="createdAt" header="Created At" sortable />
+
+                        <Column v-if="canManagePermissions" header="Actions" :exportable="false" style="width: 5rem">
+                            <template #body="{ data }">
+                                <RowActionMenu :items="permissionActionItems(data)" />
+                            </template>
+                        </Column>
+                    </DataTable>
                 </div>
-            </template>
-        </Card>
+
+                <template #footer>
+                    <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} permissions
+                        </div>
+                        <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
+                    </div>
+                </template>
+            </AdminTableCard>
+        </div>
 
         <CreateModal
             v-model:visible="isCreateModalOpen"

@@ -17,10 +17,18 @@ class UserSummaryData extends Data
         public array $roles,
         public ?string $emailVerifiedAt,
         public string $createdAt,
+        public bool $canDelete,
+        public ?string $deleteBlockCode,
+        public ?string $deleteBlockReason,
     ) {
     }
 
-    public static function fromModel(User $user): self
+    public static function fromModel(
+        User $user,
+        bool $canDelete = true,
+        ?string $deleteBlockCode = null,
+        ?string $deleteBlockReason = null,
+    ): self
     {
         return new self(
             id: $user->id,
@@ -29,6 +37,9 @@ class UserSummaryData extends Data
             roles: $user->roleNames(),
             emailVerifiedAt: $user->email_verified_at?->toIso8601String(),
             createdAt: $user->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
+            canDelete: $canDelete,
+            deleteBlockCode: $deleteBlockCode,
+            deleteBlockReason: $deleteBlockReason,
         );
     }
 }

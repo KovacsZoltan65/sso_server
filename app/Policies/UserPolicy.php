@@ -25,4 +25,9 @@ class UserPolicy
     {
         return $user->can('users.manage') && ! $user->is($model);
     }
+
+    public function bulkDelete(User $user): bool
+    {
+        return $user->can('users.manage');
+    }
 }

@@ -31,4 +31,9 @@ class RolePolicy
     {
         return $user->can('roles.manage');
     }
+
+    public function bulkDelete(User $user): bool
+    {
+        return $user->can('roles.manage');
+    }
 }

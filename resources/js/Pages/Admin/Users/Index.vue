@@ -1,22 +1,26 @@
 <script setup>
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import CreateModal from '@/Pages/Admin/Users/CreateModal.vue';
-import EditModal from '@/Pages/Admin/Users/EditModal.vue';
-import PageHeader from '@/Components/PageHeader.vue';
-import { Head, router } from '@inertiajs/vue3';
-import { FilterMatchMode } from '@primevue/core/api';
-import { useToast } from 'primevue/usetoast';
-import Button from 'primevue/button';
-import Card from 'primevue/card';
-import Column from 'primevue/column';
-import DataTable from 'primevue/datatable';
-import IconField from 'primevue/iconfield';
-import InputText from 'primevue/inputtext';
-import InputIcon from 'primevue/inputicon';
-import Select from 'primevue/select';
-import Tag from 'primevue/tag';
-import Toast from 'primevue/toast';
-import { reactive, ref } from 'vue';
+import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
+import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
+import PageHeader from "@/Components/PageHeader.vue";
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { useAdminListActions } from "@/Composables/useAdminListActions";
+import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
+import CreateModal from "@/Pages/Admin/Users/CreateModal.vue";
+import EditModal from "@/Pages/Admin/Users/EditModal.vue";
+import { Head } from "@inertiajs/vue3";
+import { FilterMatchMode } from "@primevue/core/api";
+import Checkbox from "primevue/checkbox";
+import Column from "primevue/column";
+import ConfirmDialog from "primevue/confirmdialog";
+import DataTable from "primevue/datatable";
+import IconField from "primevue/iconfield";
+import InputIcon from "primevue/inputicon";
+import InputText from "primevue/inputtext";
+import Select from "primevue/select";
+import Tag from "primevue/tag";
+import Toast from "primevue/toast";
+import { computed, reactive, ref } from "vue";
 
 const props = defineProps({
     rows: {
@@ -45,7 +49,7 @@ const props = defineProps({
     },
 });
 
-const toast = useToast();
+const rows = computed(() => props.rows);
 
 const isCreateModalOpen = ref(false);
 const isEditModalOpen = ref(false);
@@ -55,23 +59,37 @@ const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
     name: { value: props.filters.name ?? null, matchMode: FilterMatchMode.CONTAINS },
     email: { value: props.filters.email ?? null, matchMode: FilterMatchMode.CONTAINS },
-    emailVerifiedAt: { value: props.filters.verified ?? null, matchMode: FilterMatchMode.EQUALS },
+    emailVerifiedAt: {
+        value: props.filters.verified ?? null,
+        matchMode: FilterMatchMode.EQUALS,
+    },
 });
 
 const tableState = reactive({
     page: props.pagination.currentPage,
     perPage: props.pagination.perPage ?? 10,
-    sortField: props.sorting.field ?? 'name',
+    sortField: props.sorting.field ?? "name",
     sortOrder: props.sorting.order ?? 1,
 });
 
 const perPageOptions = [5, 10, 15, 25];
 
 const verifiedOptions = [
-    { label: 'All', value: null },
-    { label: 'Verified', value: 'verified' },
-    { label: 'Pending', value: 'pending' },
+    { label: "All", value: null },
+    { label: "Verified", value: "verified" },
+    { label: "Pending", value: "pending" },
 ];
+
+const {
+    selectedIds,
+    selectedRows,
+    selectableRows,
+    allSelected,
+    partiallySelected,
+    clearSelection,
+    toggleRowSelection,
+    toggleAllSelection,
+} = useAdminTableSelection(rows);
 
 const buildParams = (overrides = {}) => ({
     global: tableFilters.value.global.value || undefined,
@@ -85,53 +103,75 @@ const buildParams = (overrides = {}) => ({
     ...overrides,
 });
 
-const reload = (overrides = {}) => {
-    router.get(route('admin.users.index'), buildParams(overrides), {
-        preserveState: true,
-        replace: true,
-        preserveScroll: true,
-    });
-};
+const {
+    busy,
+    showSuccess,
+    reload,
+    refresh,
+    confirmDelete,
+    confirmBulkDelete,
+} = useAdminListActions({
+    indexRouteName: "admin.users.index",
+    destroyRouteName: "admin.users.destroy",
+    bulkDestroyRouteName: "admin.users.bulk-destroy",
+    entityLabel: "User",
+    entityLabelPlural: "users",
+    buildParams,
+    clearSelection,
+    selectedIds,
+});
 
 const onGlobalFilterInput = (value) => {
     tableFilters.value.global.value = value ?? null;
     tableState.page = 1;
-    reload({
-        page: 1,
-        global: value || undefined,
-    });
+    reload(
+        {
+            page: 1,
+            global: value || undefined,
+        },
+        { resetSelection: true }
+    );
 };
 
 const onFilter = (event) => {
     tableState.page = 1;
 
-    reload({
-        page: 1,
-        global: event.filters.global?.value || undefined,
-        name: event.filters.name?.value || undefined,
-        email: event.filters.email?.value || undefined,
-        verified: event.filters.emailVerifiedAt?.value || undefined,
-    });
+    reload(
+        {
+            page: 1,
+            global: event.filters.global?.value || undefined,
+            name: event.filters.name?.value || undefined,
+            email: event.filters.email?.value || undefined,
+            verified: event.filters.emailVerifiedAt?.value || undefined,
+        },
+        { resetSelection: true }
+    );
 };
 
 const onSort = (event) => {
     tableState.sortField = event.sortField;
     tableState.sortOrder = event.sortOrder;
 
-    reload({
-        sortField: event.sortField,
-        sortOrder: event.sortOrder,
-    });
+    reload(
+        {
+            sortField: event.sortField,
+            sortOrder: event.sortOrder,
+        },
+        { resetSelection: true }
+    );
 };
 
 const onPage = (event) => {
     tableState.page = event.page + 1;
     tableState.perPage = event.rows;
 
-    reload({
-        page: event.page + 1,
-        perPage: event.rows,
-    });
+    reload(
+        {
+            page: event.page + 1,
+            perPage: event.rows,
+        },
+        { resetSelection: true }
+    );
 };
 
 const openCreateModal = () => {
@@ -158,17 +198,26 @@ const handleEditVisibilityChange = (value) => {
 };
 
 const handleSaved = ({ message }) => {
-    toast.add({
-        severity: 'success',
-        summary: 'Success',
-        detail: message,
-        life: 3000,
-    });
-
+    showSuccess(message);
+    clearSelection();
     closeEditModal();
     isCreateModalOpen.value = false;
-    reload();
+    reload({}, { resetSelection: true });
 };
+
+const userActionItems = (user) => [
+    {
+        label: "Edit",
+        icon: "pi pi-pencil",
+        command: () => openEditModal(user),
+    },
+    {
+        label: "Delete",
+        icon: "pi pi-trash",
+        disabled: !user.canDelete,
+        command: () => confirmDelete(user),
+    },
+];
 </script>
 
 <template>
@@ -176,154 +225,221 @@ const handleSaved = ({ message }) => {
 
     <AuthenticatedLayout>
         <Toast />
+        <ConfirmDialog />
 
-        <PageHeader
-            title="Users"
-            description="Example read flow using Controller -> Service -> Repository -> Data. This page is intentionally simple but production-oriented for future user and operator modules."
-        />
+        <div class="admin-table-page">
+            <PageHeader
+                title="Users"
+                description="Repository-backed admin user list with consistent selection, row actions, bulk delete, and refresh behavior."
+            />
 
-        <Card class="surface-card">
-            <template #content>
-                <DataTable
-                    :value="rows"
-                    v-model:filters="tableFilters"
-                    :rows="tableState.perPage"
-                    :first="pagination.first"
-                    :totalRecords="pagination.total"
-                    :rowsPerPageOptions="perPageOptions"
-                    :sortField="tableState.sortField"
-                    :sortOrder="tableState.sortOrder"
-                    data-key="id"
-                    paginator
-                    lazy
-                    striped-rows
-                    filterDisplay="menu"
-                    removableSort
-                    responsive-layout="scroll"
-                    @filter="onFilter"
-                    @sort="onSort"
-                    @page="onPage"
-                >
-                    <template #header>
-                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-                            <IconField class="w-full sm:max-w-sm">
-                                <InputIcon class="pi pi-search text-slate-400" />
+            <AdminTableCard>
+                <div class="admin-table-shell">
+                    <DataTable
+                        :value="rows"
+                        v-model:filters="tableFilters"
+                        :rows="tableState.perPage"
+                        :first="pagination.first"
+                        :totalRecords="pagination.total"
+                        :rowsPerPageOptions="perPageOptions"
+                        :sortField="tableState.sortField"
+                        :sortOrder="tableState.sortOrder"
+                        :loading="busy"
+                        class="admin-datatable h-full"
+                        data-key="id"
+                        paginator
+                        lazy
+                        scrollable
+                        scrollHeight="flex"
+                        striped-rows
+                        filterDisplay="menu"
+                        removableSort
+                        responsive-layout="scroll"
+                        @filter="onFilter"
+                        @sort="onSort"
+                        @page="onPage"
+                    >
+                        <template #header>
+                            <AdminTableToolbar
+                                :canCreate="canManageUsers"
+                                createLabel="Create User"
+                            :canBulkDelete="canManageUsers"
+                            bulkDeleteLabel="Delete Selected"
+                            :selectedCount="selectedRows.length"
+                            :selectableCount="selectableRows.length"
+                            :busy="busy"
+                            @create="openCreateModal"
+                            @bulk-delete="confirmBulkDelete"
+                            @refresh="refresh"
+                            >
+                                <template #search>
+                                    <IconField class="w-full">
+                                        <InputIcon class="pi pi-search text-slate-400" />
+                                        <InputText
+                                            v-model="tableFilters.global.value"
+                                            placeholder="Global search"
+                                            class="w-full"
+                                            @update:modelValue="onGlobalFilterInput"
+                                        />
+                                    </IconField>
+                                </template>
+                            </AdminTableToolbar>
+                        </template>
+
+                        <template #empty>
+                            <div class="py-8 text-center text-sm text-slate-500">
+                                No users found for the current filters.
+                            </div>
+                        </template>
+
+                        <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
+                            <template #header>
+                                <div :title="selectableRows.length === 0 ? 'No deletable users on this page.' : ''">
+                                    <Checkbox
+                                        :binary="true"
+                                        :modelValue="allSelected"
+                                        :indeterminate="partiallySelected"
+                                        :disabled="selectableRows.length === 0"
+                                        @update:modelValue="toggleAllSelection"
+                                    />
+                                </div>
+                            </template>
+
+                            <template #body="{ data }">
+                                <div :title="data.deleteBlockReason ?? ''">
+                                    <Checkbox
+                                        :binary="true"
+                                        :modelValue="selectedIds.includes(data.id)"
+                                        :disabled="!data.canDelete"
+                                        @update:modelValue="toggleRowSelection(data)"
+                                    />
+                                </div>
+                            </template>
+                        </Column>
+
+                        <Column
+                            field="name"
+                            header="Name"
+                            sortable
+                            :showFilterMatchModes="false"
+                            :showFilterOperator="false"
+                            :showAddButton="false"
+                        >
+                            <template #body="{ data }">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span>{{ data.name }}</span>
+                                    <Tag
+                                        v-if="data.deleteBlockCode === 'current_user'"
+                                        value="You"
+                                        severity="contrast"
+                                    />
+                                    <Tag
+                                        v-if="data.deleteBlockCode === 'protected_user'"
+                                        value="Protected"
+                                        severity="warn"
+                                    />
+                                </div>
+                            </template>
+
+                            <template #filter="{ filterModel, filterCallback }">
                                 <InputText
-                                    v-model="tableFilters.global.value"
-                                    placeholder="Global search"
+                                    v-model="filterModel.value"
+                                    placeholder="Filter name"
                                     class="w-full"
-                                    @update:modelValue="onGlobalFilterInput"
+                                    @input="filterCallback()"
                                 />
-                            </IconField>
+                            </template>
+                        </Column>
 
-                            <div class="flex items-center justify-end gap-3">
-                                <Button
-                                    label="Repository-backed read model"
-                                    icon="pi pi-database"
-                                    severity="secondary"
-                                    outlined
+                        <Column
+                            field="email"
+                            header="Email"
+                            sortable
+                            :showFilterMatchModes="false"
+                            :showFilterOperator="false"
+                            :showAddButton="false"
+                        >
+                            <template #filter="{ filterModel, filterCallback }">
+                                <InputText
+                                    v-model="filterModel.value"
+                                    placeholder="Filter email"
+                                    class="w-full"
+                                    @input="filterCallback()"
                                 />
-                                <Button
-                                    v-if="canManageUsers"
-                                    label="Create User"
-                                    icon="pi pi-plus"
-                                    @click="openCreateModal"
-                                />
-                            </div>
-                        </div>
-                    </template>
+                            </template>
+                        </Column>
 
-                    <Column
-                        field="name"
-                        header="Name"
-                        sortable
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #filter="{ filterModel, filterCallback }">
-                            <InputText
-                                v-model="filterModel.value"
-                                placeholder="Filter name"
-                                class="w-full"
-                                @input="filterCallback()"
-                            />
-                        </template>
-                    </Column>
-                    <Column
-                        field="email"
-                        header="Email"
-                        sortable
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #filter="{ filterModel, filterCallback }">
-                            <InputText
-                                v-model="filterModel.value"
-                                placeholder="Filter email"
-                                class="w-full"
-                                @input="filterCallback()"
-                            />
-                        </template>
-                    </Column>
-                    <Column header="Roles">
-                        <template #body="{ data }">
-                            <div class="flex flex-wrap gap-2">
+                        <Column header="Roles">
+                            <template #body="{ data }">
+                                <div class="flex flex-wrap gap-2">
+                                    <Tag
+                                        v-for="role in data.roles"
+                                        :key="role"
+                                        :value="role"
+                                        severity="info"
+                                    />
+                                </div>
+                            </template>
+                        </Column>
+
+                        <Column
+                            field="emailVerifiedAt"
+                            header="Verified"
+                            sortable
+                            :showFilterMatchModes="false"
+                            :showFilterOperator="false"
+                            :showAddButton="false"
+                        >
+                            <template #body="{ data }">
                                 <Tag
-                                    v-for="role in data.roles"
-                                    :key="role"
-                                    :value="role"
-                                    severity="info"
+                                    :value="data.emailVerifiedAt ? 'Verified' : 'Pending'"
+                                    :severity="data.emailVerifiedAt ? 'success' : 'warn'"
                                 />
-                            </div>
-                        </template>
-                    </Column>
-                    <Column
-                        field="emailVerifiedAt"
-                        header="Verified"
-                        sortable
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #body="{ data }">
-                            <Tag :value="data.emailVerifiedAt ? 'Verified' : 'Pending'" :severity="data.emailVerifiedAt ? 'success' : 'warn'" />
-                        </template>
-                        <template #filter="{ filterModel, filterCallback }">
-                            <Select
-                                v-model="filterModel.value"
-                                :options="verifiedOptions"
-                                optionLabel="label"
-                                optionValue="value"
-                                placeholder="All"
-                                class="w-full"
-                                @change="filterCallback()"
-                            />
-                        </template>
-                    </Column>
-                    <Column field="createdAt" header="Created At" sortable />
-                    <Column v-if="canManageUsers" header="Actions" :exportable="false" style="width: 8rem">
-                        <template #body="{ data }">
-                            <Button
-                                label="Edit"
-                                icon="pi pi-pencil"
-                                size="small"
-                                outlined
-                                @click="openEditModal(data)"
-                            />
-                        </template>
-                    </Column>
-                </DataTable>
+                            </template>
 
-                <div class="mt-5 flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} users
-                    </div>
-                    <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
+                            <template #filter="{ filterModel, filterCallback }">
+                                <Select
+                                    v-model="filterModel.value"
+                                    :options="verifiedOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="All"
+                                    class="w-full"
+                                    @change="filterCallback()"
+                                />
+                            </template>
+                        </Column>
+
+                        <Column field="createdAt" header="Created At" sortable />
+
+                        <Column
+                            v-if="canManageUsers"
+                            header="Actions"
+                            :exportable="false"
+                            style="width: 5rem"
+                        >
+                            <template #body="{ data }">
+                                <RowActionMenu :items="userActionItems(data)" />
+                            </template>
+                        </Column>
+                    </DataTable>
                 </div>
-            </template>
-        </Card>
+
+                <template #footer>
+                    <div
+                        class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                        <div>
+                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of
+                            {{ pagination.total }} users
+                        </div>
+                        <div>
+                            Page {{ pagination.currentPage }} / {{ pagination.lastPage }}
+                        </div>
+                    </div>
+                </template>
+            </AdminTableCard>
+        </div>
 
         <CreateModal
             v-model:visible="isCreateModalOpen"

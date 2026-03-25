@@ -2,8 +2,10 @@
 
 namespace App\Repositories;
 
+use App\Models\User;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Prettus\Repository\Eloquent\Repository;
 use Spatie\Permission\Models\Permission;
@@ -33,7 +35,14 @@ class PermissionRepository extends Repository implements PermissionRepositoryInt
         $query = $this->getModel()
             ->newQuery()
             ->where('guard_name', 'web')
-            ->withCount('roles');
+            ->withCount('roles')
+            ->selectSub(
+                DB::table('model_has_permissions')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('permission_id', 'permissions.id')
+                    ->where('model_type', User::class),
+                'users_count',
+            );
 
         $global = trim((string) ($filters['global'] ?? ''));
         $name = trim((string) ($filters['name'] ?? ''));
@@ -92,5 +101,32 @@ class PermissionRepository extends Repository implements PermissionRepositoryInt
         return DB::table('model_has_permissions')
             ->where('permission_id', $permissionId)
             ->exists();
+    }
+
+    public function getByIds(array $ids): Collection
+    {
+        /** @var Collection<int, Permission> $permissions */
+        $permissions = $this->getModel()
+            ->newQuery()
+            ->whereIn('id', $ids)
+            ->withCount('roles')
+            ->selectSub(
+                DB::table('model_has_permissions')
+                    ->selectRaw('count(*)')
+                    ->whereColumn('permission_id', 'permissions.id')
+                    ->where('model_type', User::class),
+                'users_count',
+            )
+            ->get();
+
+        return $permissions;
+    }
+
+    public function deleteByIds(array $ids): void
+    {
+        $this->getModel()
+            ->newQuery()
+            ->whereIn('id', $ids)
+            ->delete();
     }
 }

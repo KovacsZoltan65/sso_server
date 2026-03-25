@@ -163,3 +163,103 @@ it('forbids user update when unauthorized', function () {
         ])
         ->assertForbidden();
 });
+
+it('authorized user can delete a regular user', function () {
+    $targetUser = User::factory()->create();
+    $manager = userManager(['users.manage']);
+
+    $this->actingAs($manager)
+        ->deleteJson(route('admin.users.destroy', $targetUser))
+        ->assertOk()
+        ->assertJson([
+            'message' => 'User deleted successfully.',
+            'data' => [
+                'id' => $targetUser->id,
+            ],
+        ]);
+
+    $this->assertDatabaseMissing('users', [
+        'id' => $targetUser->id,
+    ]);
+});
+
+it('forbids deleting the currently signed-in user', function () {
+    $manager = userManager(['users.manage']);
+
+    $this->actingAs($manager)
+        ->deleteJson(route('admin.users.destroy', $manager))
+        ->assertForbidden();
+});
+
+it('blocks deleting a protected system user', function () {
+    $protectedUser = User::factory()->create([
+        'email' => 'admin@sso.test',
+    ]);
+    $manager = userManager(['users.manage']);
+
+    $this->actingAs($manager)
+        ->deleteJson(route('admin.users.destroy', $protectedUser))
+        ->assertUnprocessable()
+        ->assertJson([
+            'message' => 'This protected system user cannot be deleted.',
+        ]);
+
+    $this->assertDatabaseHas('users', [
+        'id' => $protectedUser->id,
+    ]);
+});
+
+it('authorized user can bulk delete regular users', function () {
+    $targets = User::factory()->count(2)->create();
+    $manager = userManager(['users.manage']);
+
+    $this->actingAs($manager)
+        ->deleteJson(route('admin.users.bulk-destroy'), [
+            'ids' => $targets->pluck('id')->all(),
+        ])
+        ->assertOk()
+        ->assertJson([
+            'message' => 'Selected users deleted successfully.',
+            'meta' => [
+                'deletedCount' => 2,
+            ],
+        ]);
+
+    foreach ($targets as $target) {
+        $this->assertDatabaseMissing('users', [
+            'id' => $target->id,
+        ]);
+    }
+});
+
+it('blocks bulk delete when the current user is included', function () {
+    $manager = userManager(['users.manage']);
+    $otherUser = User::factory()->create();
+
+    $this->actingAs($manager)
+        ->deleteJson(route('admin.users.bulk-destroy'), [
+            'ids' => [$manager->id, $otherUser->id],
+        ])
+        ->assertUnprocessable()
+        ->assertJson([
+            'message' => 'The currently signed-in user cannot be deleted.',
+        ]);
+
+    $this->assertDatabaseHas('users', [
+        'id' => $manager->id,
+    ]);
+    $this->assertDatabaseHas('users', [
+        'id' => $otherUser->id,
+    ]);
+});
+
+it('forbids user bulk delete when unauthorized', function () {
+    $targets = User::factory()->count(2)->create();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->deleteJson(route('admin.users.bulk-destroy'), [
+            'ids' => $targets->pluck('id')->all(),
+        ])
+        ->assertForbidden();
+});

@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\PermissionBulkDestroyRequest;
 use App\Http\Requests\Admin\PermissionIndexRequest;
 use App\Http\Requests\Admin\PermissionStoreRequest;
 use App\Http\Requests\Admin\PermissionUpdateRequest;
 use App\Services\PermissionService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -72,20 +74,56 @@ class PermissionController extends Controller
             ->with('success', 'Permission updated successfully.');
     }
 
-    public function destroy(Permission $permission, PermissionService $permissionService): RedirectResponse
+    public function destroy(Permission $permission, PermissionService $permissionService): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $permission);
 
         try {
             $permissionService->deletePermission($permission);
         } catch (RuntimeException $exception) {
+            if (request()->expectsJson()) {
+                return $this->errorResponse(
+                    message: $exception->getMessage(),
+                    errors: ['permission' => [$exception->getMessage()]],
+                );
+            }
+
             return redirect()
                 ->route('admin.permissions.index')
                 ->with('error', $exception->getMessage());
         }
 
+        if (request()->expectsJson()) {
+            return $this->successResponse(
+                message: 'Permission deleted successfully.',
+                data: ['id' => $permission->id],
+            );
+        }
+
         return redirect()
             ->route('admin.permissions.index')
             ->with('success', 'Permission deleted successfully.');
+    }
+
+    public function bulkDestroy(
+        PermissionBulkDestroyRequest $request,
+        PermissionService $permissionService,
+    ): JsonResponse {
+        $this->authorize('bulkDelete', Permission::class);
+
+        try {
+            $deletedIds = $permissionService->bulkDeletePermissions($request->validated('ids'));
+        } catch (RuntimeException $exception) {
+            return $this->errorResponse(
+                message: $exception->getMessage(),
+                errors: ['ids' => [$exception->getMessage()]],
+            );
+        }
+
+        return $this->successResponse(
+            message: 'Selected permissions deleted successfully.',
+            data: ['ids' => $deletedIds],
+            meta: ['deletedCount' => count($deletedIds)],
+        );
     }
 }

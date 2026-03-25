@@ -36,10 +36,14 @@ class RoleService
 
         return [
             'rows' => Collection::make($paginator->items())
-                ->map(fn (Role $role) => RoleSummaryData::fromModel($role))
+                ->map(fn (Role $role) => RoleSummaryData::fromModel(
+                    role: $role,
+                    canDelete: $this->canDeleteRole($role),
+                    deleteBlockCode: $this->deleteBlockCode($role),
+                    deleteBlockReason: $this->deleteBlockReason($role),
+                ))
                 ->values()
                 ->all(),
-            'permissionOptions' => $this->permissionOptions(),
             'canManageRoles' => auth()->user()?->can('roles.manage') ?? false,
             'filters' => [
                 'global' => $filters['global'] ?? null,
@@ -134,14 +138,67 @@ class RoleService
 
     public function deleteRole(Role $role): void
     {
-        if (in_array($role->name, $this->protectedRoles, true)) {
-            throw new RuntimeException('This role is protected and cannot be deleted.');
-        }
-
-        if ($this->roles->hasAssignedUsers($role)) {
-            throw new RuntimeException('This role is assigned to users and cannot be deleted.');
-        }
+        $this->guardDeleteable($role);
 
         $this->roles->deleteRole($role);
+    }
+
+    /**
+     * @param array<int, int> $ids
+     * @return array<int, int>
+     */
+    public function bulkDeleteRoles(array $ids): array
+    {
+        $roles = $this->roles->getByIds($ids);
+
+        if ($roles->count() !== count($ids)) {
+            throw new RuntimeException('One or more selected roles could not be found.');
+        }
+
+        foreach ($roles as $role) {
+            $this->guardDeleteable($role);
+        }
+
+        $deletedIds = $roles->pluck('id')->values()->all();
+
+        $this->roles->deleteByIds($deletedIds);
+
+        return $deletedIds;
+    }
+
+    public function canDeleteRole(Role $role): bool
+    {
+        return $this->deleteBlockCode($role) === null;
+    }
+
+    private function guardDeleteable(Role $role): void
+    {
+        $reason = $this->deleteBlockReason($role);
+
+        if ($reason !== null) {
+            throw new RuntimeException($reason);
+        }
+    }
+
+    private function deleteBlockCode(Role $role): ?string
+    {
+        if (in_array($role->name, $this->protectedRoles, true)) {
+            return 'protected_role';
+        }
+
+        if ((int) ($role->users_count ?? 0) > 0 || $this->roles->hasAssignedUsers($role)) {
+            return 'assigned_users';
+        }
+
+        return null;
+    }
+
+    private function deleteBlockReason(Role $role): ?string
+    {
+        return match ($this->deleteBlockCode($role)) {
+            'protected_role' => 'This role is protected and cannot be deleted.',
+            'assigned_users' => 'This role is assigned to users and cannot be deleted.',
+            default => null,
+        };
     }
 }
