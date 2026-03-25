@@ -448,28 +448,72 @@ append-oriented
 non-editable from admin UI
 10. Testing Rules
 
-Testing is required for critical flows.
+Testing is mandatory for all meaningful feature work. A change is not complete until the required automated tests exist, are updated for the new behavior, and pass locally.
 
-Must-have feature tests
-authentication flow
-client CRUD
-redirect URI validation
-scope assignment
-secret generation and secure storage
-token issuance
-token refresh
-token revocation
-policy authorization
-invalid input rejection
-revoked/inactive client behavior
+Backend test stack
+
+- Use the existing Laravel test stack
+- Prefer Pest for new backend tests
+- Keep PHPUnit compatibility intact
+
+Frontend test stack
+
+- Use Vitest for frontend tests
+- Use Vue Test Utils for Vue component and page tests
+- Do not introduce alternate frontend test frameworks without explicit approval
+
+Mandatory backend coverage
+
+- authentication and authorization flows
+- policy enforcement
+- CRUD happy paths
+- validation failures
+- authorization failures
+- redirect / flash response behavior
+- Inertia response payload shape where the frontend depends on it
+- destructive action protections
+- security-sensitive flows such as secrets, redirect URI validation, token issuance, refresh, revocation, and access control
+
+Mandatory frontend coverage
+
+- interactive admin pages that coordinate CRUD flows
+- modal open / close behavior
+- create and edit submission behavior
+- field-level validation rendering
+- destructive action confirmation flows where practical
+- shared form partial contracts
+- page-to-modal state synchronization
+- modal-first CRUD pages such as Users, Roles, and Permissions
+
+CRUD rule
+
+- Every CRUD module must have backend tests for index, happy-path mutations, validation failures, and authorization failures
+- Every interactive CRUD frontend must have Vitest coverage for its primary create/edit/delete orchestration and shared form behavior
+- If a module has delete restrictions or relation-sensitive rules, those rules must be explicitly tested
+
+Maintenance rule
+
+- When behavior changes, update the existing tests in the same task
+- Do not leave outdated tests behind
+- Do not delete useful failing tests to get green output; fix the implementation or replace the test with a better one that covers the real behavior
+
+Execution rule
+
+- Run the relevant backend tests after backend changes
+- Run the relevant frontend Vitest suite after frontend changes
+- After cross-cutting or CRUD work, run both backend and frontend tests
+- Report the commands used and whether the suites passed
+
 Test principles
-test security-sensitive paths first
-test both success and failure cases
-test validation thoroughly
-test policies explicitly
-test secret invisibility in responses
-test redirect URI strict matching
-test revocation behavior
+
+- test security-sensitive paths first
+- test success and failure cases
+- test validation thoroughly
+- test policies explicitly
+- test secret invisibility in responses
+- test redirect URI strict matching
+- test revocation behavior
+- prefer focused, high-value tests over noisy low-value assertions
 11. Implementation Priorities
 
 When building features, prefer this order:
@@ -533,7 +577,8 @@ Use FormRequests and Policies
 Use Services and Repositories correctly
 Keep responses consistent
 Avoid sensitive data leakage
-Write tests for critical flows
+Write and maintain the required backend and frontend tests
+Run the relevant test suites before declaring the work complete
 If a requirement is unclear or conflicts with security, stop and ask first
 
 When in doubt:
