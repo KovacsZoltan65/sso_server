@@ -32,47 +32,32 @@ class UserRepository extends Repository implements UserRepositoryInterface
         ?int $sortOrder,
         int $perPage = 10,
         int $page = 1,
-    ): LengthAwarePaginator
-    {
-        $query = $this->getModel()
-            ->newQuery()
-            ->with('roles');
-
+    ): LengthAwarePaginator {
         $global = trim((string) ($filters['global'] ?? ''));
         $name = trim((string) ($filters['name'] ?? ''));
         $email = trim((string) ($filters['email'] ?? ''));
         $verified = $filters['verified'] ?? null;
 
-        if ($global !== '') {
-            $query->where(function ($innerQuery) use ($global): void {
-                $innerQuery
-                    ->where('name', 'like', "%{$global}%")
-                    ->orWhere('email', 'like', "%{$global}%");
-            });
-        }
-
-        if ($name !== '') {
-            $query->where('name', 'like', "%{$name}%");
-        }
-
-        if ($email !== '') {
-            $query->where('email', 'like', "%{$email}%");
-        }
-
-        if ($verified === 'verified') {
-            $query->whereNotNull('email_verified_at');
-        }
-
-        if ($verified === 'pending') {
-            $query->whereNull('email_verified_at');
-        }
-
         $column = $this->sortableFields[$sortField ?? ''] ?? 'name';
         $direction = $sortOrder === -1 ? 'desc' : 'asc';
 
-        $query->orderBy($column, $direction);
-
-        return $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+        return $this->getModel()
+            ->newQuery()
+            ->with('roles')
+            ->when($global !== '', function ($query) use ($global): void {
+                $query->where(function ($innerQuery) use ($global): void {
+                    $innerQuery
+                        ->where('name', 'like', "%{$global}%")
+                        ->orWhere('email', 'like', "%{$global}%");
+                });
+            })
+            ->when($name !== '', fn ($query) => $query->where('name', 'like', "%{$name}%"))
+            ->when($email !== '', fn ($query) => $query->where('email', 'like', "%{$email}%"))
+            ->when($verified === 'verified', fn ($query) => $query->whereNotNull('email_verified_at'))
+            ->when($verified === 'pending', fn ($query) => $query->whereNull('email_verified_at'))
+            ->orderBy($column, $direction)
+            ->paginate($perPage, ['*'], 'page', $page)
+            ->withQueryString();
     }
 
     public function getRoleNames(): Collection

@@ -34,28 +34,26 @@ class TokenPolicyRepository extends Repository implements TokenPolicyRepositoryI
         int $perPage = 10,
         int $page = 1,
     ): LengthAwarePaginator {
-        $query = $this->getModel()->newQuery();
-
         $global = trim((string) ($filters['global'] ?? ''));
         $status = $filters['status'] ?? null;
-
-        if ($global !== '') {
-            $query->where(function ($innerQuery) use ($global): void {
-                $innerQuery
-                    ->where('name', 'like', "%{$global}%")
-                    ->orWhere('code', 'like', "%{$global}%")
-                    ->orWhere('description', 'like', "%{$global}%");
-            });
-        }
-
-        if ($status !== null && $status !== '') {
-            $query->where('is_active', filter_var($status, FILTER_VALIDATE_BOOL));
-        }
 
         $column = $this->sortableFields[$sortField ?? 'name'] ?? $this->sortableFields['name'];
         $direction = ($sortOrder ?? 1) === -1 ? 'desc' : 'asc';
 
-        return $query
+        return $this->getModel()
+            ->newQuery()
+            ->when($global !== '', function ($query) use ($global): void {
+                $query->where(function ($innerQuery) use ($global): void {
+                    $innerQuery
+                        ->where('name', 'like', "%{$global}%")
+                        ->orWhere('code', 'like', "%{$global}%")
+                        ->orWhere('description', 'like', "%{$global}%");
+                });
+            })
+            ->when(
+                $status !== null && $status !== '',
+                fn ($query) => $query->where('is_active', filter_var($status, FILTER_VALIDATE_BOOL))
+            )
             ->orderBy($column, $direction)
             ->paginate($perPage, ['*'], 'page', $page);
     }

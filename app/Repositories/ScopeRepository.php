@@ -32,44 +32,31 @@ class ScopeRepository extends Repository implements ScopeRepositoryInterface
         int $perPage = 10,
         int $page = 1,
     ): LengthAwarePaginator {
-        $query = $this->getModel()->newQuery();
-
         $global = trim((string) ($filters['global'] ?? ''));
         $name = trim((string) ($filters['name'] ?? ''));
         $code = trim((string) ($filters['code'] ?? ''));
         $status = $filters['status'] ?? null;
 
-        if ($global !== '') {
-            $query->where(function ($innerQuery) use ($global): void {
-                $innerQuery
-                    ->where('name', 'like', "%{$global}%")
-                    ->orWhere('code', 'like', "%{$global}%")
-                    ->orWhere('description', 'like', "%{$global}%");
-            });
-        }
-
-        if ($name !== '') {
-            $query->where('name', 'like', "%{$name}%");
-        }
-
-        if ($code !== '') {
-            $query->where('code', 'like', "%{$code}%");
-        }
-
-        if ($status === 'active') {
-            $query->where('is_active', true);
-        }
-
-        if ($status === 'inactive') {
-            $query->where('is_active', false);
-        }
-
         $column = $this->sortableFields[$sortField ?? ''] ?? 'name';
         $direction = $sortOrder === -1 ? 'desc' : 'asc';
 
-        $query->orderBy($column, $direction);
-
-        return $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+        return $this->getModel()
+            ->newQuery()
+            ->when($global !== '', function ($query) use ($global): void {
+                $query->where(function ($innerQuery) use ($global): void {
+                    $innerQuery
+                        ->where('name', 'like', "%{$global}%")
+                        ->orWhere('code', 'like', "%{$global}%")
+                        ->orWhere('description', 'like', "%{$global}%");
+                });
+            })
+            ->when($name !== '', fn ($query) => $query->where('name', 'like', "%{$name}%"))
+            ->when($code !== '', fn ($query) => $query->where('code', 'like', "%{$code}%"))
+            ->when($status === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($status === 'inactive', fn ($query) => $query->where('is_active', false))
+            ->orderBy($column, $direction)
+            ->paginate($perPage, ['*'], 'page', $page)
+            ->withQueryString();
     }
 
     public function createScope(array $attributes): Scope

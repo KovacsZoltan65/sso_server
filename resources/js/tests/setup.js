@@ -123,6 +123,38 @@ const DataTableStub = defineComponent({
             type: Array,
             default: () => [],
         },
+        paginator: {
+            type: Boolean,
+            default: false,
+        },
+        rows: {
+            type: Number,
+            default: 0,
+        },
+        first: {
+            type: Number,
+            default: 0,
+        },
+        totalRecords: {
+            type: Number,
+            default: 0,
+        },
+        rowsPerPageOptions: {
+            type: Array,
+            default: () => [],
+        },
+        alwaysShowPaginator: {
+            type: Boolean,
+            default: false,
+        },
+        paginatorTemplate: {
+            type: String,
+            default: '',
+        },
+        currentPageReportTemplate: {
+            type: String,
+            default: '',
+        },
         scrollHeight: {
             type: String,
             default: '',
@@ -135,7 +167,17 @@ const DataTableStub = defineComponent({
             columns.value.push(column);
         });
 
-        return () => h('div', { class: 'datatable-stub' }, [
+        return () => h('div', {
+            class: 'datatable-stub',
+            'data-paginator': String(props.paginator),
+            'data-rows': String(props.rows),
+            'data-first': String(props.first),
+            'data-total-records': String(props.totalRecords),
+            'data-rows-per-page-options': props.rowsPerPageOptions.join(','),
+            'data-always-show-paginator': String(props.alwaysShowPaginator),
+            'data-paginator-template': props.paginatorTemplate,
+            'data-current-page-report-template': props.currentPageReportTemplate,
+        }, [
             slots.header?.(),
             slots.default?.(),
             props.value.length === 0

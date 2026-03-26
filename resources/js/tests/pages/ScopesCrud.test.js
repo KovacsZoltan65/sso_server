@@ -109,6 +109,50 @@ describe('Scopes CRUD frontend', () => {
         }));
     });
 
+    it('wires the shared paginator props into the scopes table', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                ...baseProps,
+                pagination: { currentPage: 2, lastPage: 3, perPage: 15, total: 31, from: 16, to: 30, first: 15 },
+            },
+        });
+
+        await nextTick();
+
+        const dataTable = wrapper.find('.datatable-stub');
+
+        expect(dataTable.attributes('data-paginator')).toBe('true');
+        expect(dataTable.attributes('data-rows')).toBe('15');
+        expect(dataTable.attributes('data-first')).toBe('15');
+        expect(dataTable.attributes('data-total-records')).toBe('31');
+        expect(dataTable.attributes('data-rows-per-page-options')).toBe('5,10,15,25');
+        expect(dataTable.attributes('data-always-show-paginator')).toBe('true');
+        expect(dataTable.attributes('data-paginator-template')).toContain('RowsPerPageDropdown');
+    });
+
+    it('falls back to the previous page after deleting the last row on a page', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                ...baseProps,
+                rows: [baseProps.rows[0]],
+                pagination: { currentPage: 2, lastPage: 2, perPage: 10, total: 11, from: 11, to: 11, first: 10 },
+            },
+        });
+
+        await nextTick();
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(router.get).toHaveBeenLastCalledWith(
+            route('admin.scopes.index'),
+            expect.objectContaining({
+                page: 1,
+                perPage: 10,
+            }),
+            expect.any(Object),
+        );
+    });
+
     it('submits the create page form', async () => {
         const wrapper = mount(Create, {
             global: {

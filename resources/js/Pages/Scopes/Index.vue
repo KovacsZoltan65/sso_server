@@ -4,6 +4,11 @@ import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import {
+    adminCurrentPageReportTemplate,
+    adminPaginatorTemplate,
+    adminRowsPerPageOptions,
+} from '@/Constants/adminTablePagination';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
 import { Head, router } from '@inertiajs/vue3';
@@ -71,8 +76,6 @@ const tableState = reactive({
     sortOrder: props.sorting.order ?? 1,
 });
 
-const perPageOptions = [5, 10, 15, 25];
-
 const {
     selectedIds,
     selectedRows,
@@ -108,6 +111,8 @@ const {
     buildParams,
     clearSelection,
     selectedIds,
+    pageState: tableState,
+    getCurrentRowCount: () => rows.value.length,
 });
 
 const onGlobalFilterInput = (value) => {
@@ -183,10 +188,13 @@ const scopeActionItems = (scope) => [
                         :rows="tableState.perPage"
                         :first="pagination.first"
                         :totalRecords="pagination.total"
-                        :rowsPerPageOptions="perPageOptions"
+                        :rowsPerPageOptions="adminRowsPerPageOptions"
                         :sortField="tableState.sortField"
                         :sortOrder="tableState.sortOrder"
                         :loading="busy"
+                        :alwaysShowPaginator="true"
+                        :paginatorTemplate="adminPaginatorTemplate"
+                        :currentPageReportTemplate="adminCurrentPageReportTemplate"
                         class="admin-datatable h-full"
                         data-key="id"
                         paginator

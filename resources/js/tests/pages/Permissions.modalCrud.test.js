@@ -101,6 +101,55 @@ describe('Permissions modal CRUD frontend', () => {
         expect(confirmClose).toHaveBeenCalled();
     });
 
+    it('wires the shared paginator props into the permissions table', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 1, name: 'reports.view', guardName: 'web', rolesCount: 0, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 2, lastPage: 3, perPage: 15, total: 31, from: 16, to: 30, first: 15 },
+                sorting: { field: 'name', order: 1 },
+                canManagePermissions: true,
+            },
+        });
+
+        await nextTick();
+
+        const dataTable = wrapper.find('.datatable-stub');
+
+        expect(dataTable.attributes('data-paginator')).toBe('true');
+        expect(dataTable.attributes('data-rows')).toBe('15');
+        expect(dataTable.attributes('data-first')).toBe('15');
+        expect(dataTable.attributes('data-total-records')).toBe('31');
+        expect(dataTable.attributes('data-rows-per-page-options')).toBe('5,10,15,25');
+        expect(dataTable.attributes('data-always-show-paginator')).toBe('true');
+        expect(dataTable.attributes('data-paginator-template')).toContain('RowsPerPageDropdown');
+    });
+
+    it('falls back to the previous page after deleting the last row on a page', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 9, name: 'reports.export', guardName: 'web', rolesCount: 0, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 2, lastPage: 2, perPage: 10, total: 11, from: 11, to: 11, first: 10 },
+                sorting: { field: 'name', order: 1 },
+                canManagePermissions: true,
+            },
+        });
+
+        await nextTick();
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(router.get).toHaveBeenLastCalledWith(
+            JSON.stringify({ name: 'admin.permissions.index', params: undefined }),
+            expect.objectContaining({
+                page: 1,
+                perPage: 10,
+            }),
+            expect.any(Object),
+        );
+    });
+
     it('closes modal state when the page url changes', async () => {
         const wrapper = mountPage(Index, {
             props: {

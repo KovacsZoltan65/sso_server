@@ -159,6 +159,10 @@ All PrimeVue-based admin lists must follow one consistent table pattern across c
 - Client administration with redirect URIs, scopes, or token policy editing must use separate Create/Edit pages, not modal variants
 - Scope catalog management must use page-based Create/Edit with a shared ScopeForm, and scope codes must remain unique technical identifiers
 - Token policy administration is security-critical and must use page-based Create/Edit with backend-enforced default uniqueness and TTL validation
+- Admin lists with non-trivial datasets must implement a visible, working paginator with PrimeVue DataTable lazy state and backend pagination meta kept in sync
+- It is not acceptable for a list to fetch paginated data while omitting or breaking the paginator UI
+- Search, sort, page changes, and rows-per-page changes must work together without desynchronizing the table state
+- Delete and bulk delete flows must not leave the paginator on an empty orphaned page
 - Large relation selectors must not use MultiSelect
 - Role-permission editing must use a grouped, searchable, resource-sectioned checkbox editor
 - Client scopes selectors must reuse the shared grouped checkbox editor pattern instead of introducing a separate implementation

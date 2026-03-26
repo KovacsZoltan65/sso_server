@@ -13,6 +13,8 @@ export function useAdminListActions({
     buildParams,
     clearSelection,
     selectedIds,
+    pageState = null,
+    getCurrentRowCount = null,
 }) {
     const confirm = useConfirm();
     const toast = useToast();
@@ -99,10 +101,22 @@ export function useAdminListActions({
 
         try {
             const response = await axios.delete(url, payload ? { data: payload } : undefined);
+            const deletedCount = Number(response.data?.meta?.deletedCount ?? payload?.ids?.length ?? 1);
+            const currentRowCount = typeof getCurrentRowCount === 'function' ? getCurrentRowCount() : null;
+            const shouldGoToPreviousPage = Boolean(
+                pageState
+                && typeof currentRowCount === 'number'
+                && pageState.page > 1
+                && deletedCount >= currentRowCount,
+            );
+
+            if (shouldGoToPreviousPage) {
+                pageState.page -= 1;
+            }
 
             clearSelection();
             showSuccess(response.data.message);
-            reload({}, { resetSelection: true });
+            reload(shouldGoToPreviousPage ? { page: pageState.page } : {}, { resetSelection: true });
         } catch (error) {
             showError(extractErrorMessage(error, `The selected ${entityLabel} operation could not be completed.`));
         } finally {

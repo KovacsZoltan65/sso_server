@@ -50,6 +50,30 @@ it('authorized user can view scope index', function () {
             ->where('canManageScopes', false));
 });
 
+it('scope index returns paginator meta for the requested page', function () {
+    Scope::factory()->count(12)->create();
+    $user = scopeManager(['scopes.viewAny']);
+
+    $this->actingAs($user)
+        ->get(route('admin.scopes.index', [
+            'page' => 2,
+            'perPage' => 5,
+            'sortField' => 'name',
+            'sortOrder' => 1,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Scopes/Index')
+            ->has('rows', 5)
+            ->where('pagination.currentPage', 2)
+            ->where('pagination.lastPage', 3)
+            ->where('pagination.perPage', 5)
+            ->where('pagination.total', 12)
+            ->where('pagination.first', 5)
+            ->where('pagination.from', 6)
+            ->where('pagination.to', 10));
+});
+
 it('unauthorized user is forbidden from scope index', function () {
     $user = User::factory()->create();
 

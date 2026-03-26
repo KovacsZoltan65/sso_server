@@ -32,7 +32,13 @@ class PermissionRepository extends Repository implements PermissionRepositoryInt
         int $perPage = 10,
         int $page = 1,
     ): LengthAwarePaginator {
-        $query = $this->getModel()
+        $global = trim((string) ($filters['global'] ?? ''));
+        $name = trim((string) ($filters['name'] ?? ''));
+
+        $column = $this->sortableFields[$sortField ?? ''] ?? 'name';
+        $direction = $sortOrder === -1 ? 'desc' : 'asc';
+
+        return $this->getModel()
             ->newQuery()
             ->where('guard_name', 'web')
             ->withCount('roles')
@@ -42,27 +48,14 @@ class PermissionRepository extends Repository implements PermissionRepositoryInt
                     ->whereColumn('permission_id', 'permissions.id')
                     ->where('model_type', User::class),
                 'users_count',
-            );
-
-        $global = trim((string) ($filters['global'] ?? ''));
-        $name = trim((string) ($filters['name'] ?? ''));
-
-        if ($global !== '') {
-            $query->where(function ($innerQuery) use ($global): void {
-                $innerQuery->where('name', 'like', "%{$global}%");
-            });
-        }
-
-        if ($name !== '') {
-            $query->where('name', 'like', "%{$name}%");
-        }
-
-        $column = $this->sortableFields[$sortField ?? ''] ?? 'name';
-        $direction = $sortOrder === -1 ? 'desc' : 'asc';
-
-        $query->orderBy($column, $direction);
-
-        return $query->paginate($perPage, ['*'], 'page', $page)->withQueryString();
+            )
+            ->when($global !== '', function ($query) use ($global): void {
+                $query->where('name', 'like', "%{$global}%");
+            })
+            ->when($name !== '', fn ($query) => $query->where('name', 'like', "%{$name}%"))
+            ->orderBy($column, $direction)
+            ->paginate($perPage, ['*'], 'page', $page)
+            ->withQueryString();
     }
 
     public function createPermission(array $attributes): Permission

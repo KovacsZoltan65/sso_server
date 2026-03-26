@@ -44,6 +44,34 @@ it('authorized user can view permission index', function () {
             ->where('canManagePermissions', false));
 });
 
+it('permission index returns paginator meta for the requested page', function () {
+    collect(range(1, 12))->each(fn (int $index) => Permission::create([
+        'name' => "reports.permission.{$index}",
+        'guard_name' => 'web',
+    ]));
+
+    $user = permissionUser(['permissions.view']);
+
+    $this->actingAs($user)
+        ->get(route('admin.permissions.index', [
+            'page' => 2,
+            'perPage' => 5,
+            'sortField' => 'name',
+            'sortOrder' => 1,
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('Permissions/Index')
+            ->has('rows', 5)
+            ->where('pagination.currentPage', 2)
+            ->where('pagination.lastPage', 3)
+            ->where('pagination.perPage', 5)
+            ->where('pagination.total', 13)
+            ->where('pagination.first', 5)
+            ->where('pagination.from', 6)
+            ->where('pagination.to', 10));
+});
+
 it('unauthorized user is forbidden from permission index', function () {
     $user = User::factory()->create();
 
