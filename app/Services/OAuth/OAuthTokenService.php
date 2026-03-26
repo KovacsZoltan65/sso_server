@@ -6,7 +6,10 @@ use App\Models\AuthorizationCode;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\SsoClient;
+use App\Models\User;
 use App\Repositories\Contracts\TokenRepositoryInterface;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -348,6 +351,37 @@ class OAuthTokenService
         return $response;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function getUserInfo(?string $plainAccessToken, ?string $ipAddress, ?string $userAgent): array
+    {
+        $token = $this->resolveUserInfoAccessToken($plainAccessToken);
+
+        if (! in_array('openid', $token->scopes ?? [], true)) {
+            throw new AuthorizationException('The access token does not grant the openid scope.');
+        }
+
+        $claims = $this->formatUserInfoClaims($token->user, $token->scopes ?? []);
+
+        $token->forceFill([
+            'last_used_at' => now(),
+            'issued_from_ip' => $token->issued_from_ip ?? $ipAddress,
+            'user_agent' => $token->user_agent ?? $userAgent,
+        ])->save();
+
+        activity('oauth')
+            ->performedOn($token->client)
+            ->causedBy($token->user)
+            ->event('oauth.userinfo.requested')
+            ->withProperties([
+                'scope' => implode(' ', $token->scopes ?? []),
+            ])
+            ->log('OAuth user info retrieved.');
+
+        return $claims;
+    }
+
     private function normalizeTokenTypeHint(mixed $hint): ?string
     {
         if (! \is_string($hint)) {
@@ -460,5 +494,44 @@ class OAuthTokenService
     private function inactiveIntrospectionResponse(): array
     {
         return ['active' => false];
+    }
+
+    private function resolveUserInfoAccessToken(?string $plainAccessToken): Token
+    {
+        $normalizedToken = trim((string) $plainAccessToken);
+
+        if ($normalizedToken === '') {
+            throw new AuthenticationException('A valid Bearer access token is required.');
+        }
+
+        $token = $this->tokenRepository->findAccessTokenWithUserAndClientByHash(hash('sha256', $normalizedToken));
+
+        if (! $token instanceof Token || ! $this->isAccessTokenActive($token)) {
+            throw new AuthenticationException('The provided access token is invalid, expired, or revoked.');
+        }
+
+        return $token;
+    }
+
+    /**
+     * @param array<int, string> $scopes
+     * @return array<string, mixed>
+     */
+    private function formatUserInfoClaims(User $user, array $scopes): array
+    {
+        $claims = [
+            'sub' => (string) $user->id,
+        ];
+
+        if (in_array('profile', $scopes, true)) {
+            $claims['name'] = $user->name;
+        }
+
+        if (in_array('email', $scopes, true)) {
+            $claims['email'] = $user->email;
+            $claims['email_verified'] = $user->email_verified_at !== null;
+        }
+
+        return $claims;
     }
 }

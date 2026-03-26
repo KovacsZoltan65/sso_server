@@ -4,34 +4,75 @@ use App\Models\SsoClient;
 use Database\Seeders\SsoClientSeeder;
 use Illuminate\Support\Facades\Hash;
 
-it('seeds the default sso clients with expected identifiers and scopes', function () {
+it('seeds the portal client with the expected redirect uri and scopes', function () {
     $this->seed(SsoClientSeeder::class);
 
-    $adminConsole = SsoClient::query()->where('client_id', 'client_admin_console')->first();
-    $customerPortal = SsoClient::query()->where('client_id', 'client_customer_portal')->first();
-    $opsDashboard = SsoClient::query()->where('client_id', 'client_ops_dashboard')->first();
+    $client = SsoClient::query()
+        ->where('client_id', 'portal-client')
+        ->with(['redirectUris', 'scopes', 'activeSecrets'])
+        ->first();
 
-    expect($adminConsole)->not->toBeNull();
-    expect($customerPortal)->not->toBeNull();
-    expect($opsDashboard)->not->toBeNull();
-
-    expect($adminConsole->name)->toBe('SSO Admin Console');
-    expect($adminConsole->redirect_uris)->toBe([
-        'https://admin.sso.test/auth/callback',
-        'https://admin.sso.test/auth/silent-renew',
-    ]);
-    expect($adminConsole->scopes)->toBe(['openid', 'profile', 'email']);
-    expect($adminConsole->is_active)->toBeTrue();
-
-    expect($customerPortal->scopes)->toBe(['openid', 'profile', 'email', 'offline_access']);
-    expect($opsDashboard->is_active)->toBeFalse();
+    expect($client)->not->toBeNull();
+    expect($client->name)->toBe('Portal Client');
+    expect($client->is_active)->toBeTrue();
+    expect($client->redirect_uris)->toBe(['https://portal.example.com/callback']);
+    expect($client->scopes)->toBe(['openid', 'profile', 'email']);
+    expect($client->redirectUris)->toHaveCount(1);
+    expect($client->redirectUris->first()?->uri)->toBe('https://portal.example.com/callback');
+    expect($client->redirectUris->first()?->is_primary)->toBeTrue();
+    expect($client->getRelation('scopes')->pluck('code')->all())->toBe(['email', 'openid', 'profile']);
+    expect($client->activeSecrets)->toHaveCount(1);
+    expect($client->activeSecrets->first()?->is_active)->toBeTrue();
 });
 
-it('stores seeded client secrets as hashes', function () {
+it('is idempotent and does not create a second active secret automatically', function () {
     $this->seed(SsoClientSeeder::class);
 
-    $adminConsole = SsoClient::query()->where('client_id', 'client_admin_console')->firstOrFail();
+    $client = SsoClient::query()->where('client_id', 'portal-client')->firstOrFail();
+    $secret = $client->activeSecrets()->firstOrFail();
 
-    expect($adminConsole->client_secret_hash)->not->toBe('dev-admin-console-secret');
-    expect(Hash::check('dev-admin-console-secret', $adminConsole->client_secret_hash))->toBeTrue();
+    $this->seed(SsoClientSeeder::class);
+
+    $client->refresh()->load(['redirectUris', 'scopes', 'activeSecrets']);
+
+    expect($client->redirectUris)->toHaveCount(1);
+    expect($client->scopes)->toHaveCount(3);
+    expect($client->activeSecrets)->toHaveCount(1);
+    expect($client->activeSecrets->first()?->is($secret))->toBeTrue();
+});
+
+it('stores only the hashed client secret', function () {
+    $messages = [];
+
+    $command = \Mockery::mock(\Illuminate\Console\Command::class);
+    $command->shouldReceive('info')
+        ->once()
+        ->with('Portal client created.');
+    $command->shouldReceive('warn')
+        ->once()
+        ->with('Client ID: portal-client');
+    $command->shouldReceive('warn')
+        ->once()
+        ->withArgs(function (string $message) use (&$messages): bool {
+            $messages[] = $message;
+
+            return str_starts_with($message, 'Client Secret: ');
+        });
+
+    $seeder = new SsoClientSeeder();
+    $seeder->setContainer(app());
+    $seeder->setCommand($command);
+    $seeder->run();
+
+    $client = SsoClient::query()->where('client_id', 'portal-client')->firstOrFail();
+    $secret = $client->activeSecrets()->firstOrFail();
+
+    $plainSecret = str($messages[0] ?? '')
+        ->after('Client Secret: ')
+        ->toString();
+
+    expect($plainSecret)->not->toBe('');
+    expect($secret->secret_hash)->not->toBe($plainSecret);
+    expect(Hash::check($plainSecret, $secret->secret_hash))->toBeTrue();
+    expect(Hash::check($plainSecret, $client->client_secret_hash))->toBeTrue();
 });

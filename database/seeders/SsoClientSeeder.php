@@ -2,69 +2,125 @@
 
 namespace Database\Seeders;
 
+use App\Models\Scope;
 use App\Models\SsoClient;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Str;
 
 class SsoClientSeeder extends Seeder
 {
     public function run(): void
     {
-        foreach ($this->clients() as $client) {
-            SsoClient::query()->updateOrCreate(
-                ['client_id' => $client['client_id']],
+        $plainSecret = null;
+
+        DB::transaction(function () use (&$plainSecret): void {
+            $redirectUri = trim('https://portal.example.com/callback');
+            $scopeDefinitions = $this->scopeDefinitions();
+            $scopeCodes = collect($scopeDefinitions)->pluck('code')->values()->all();
+            $existingClient = SsoClient::query()
+                ->where('client_id', 'portal-client')
+                ->with('activeSecrets')
+                ->first();
+
+            if ($existingClient === null || $existingClient->activeSecrets->isEmpty()) {
+                $plainSecret = Str::random(64);
+            }
+
+            $client = SsoClient::query()->updateOrCreate(
+                ['client_id' => 'portal-client'],
                 [
-                    'name' => $client['name'],
-                    'client_secret_hash' => Hash::make($client['plain_secret']),
-                    'redirect_uris' => $client['redirect_uris'],
-                    'is_active' => $client['is_active'],
-                    'scopes' => $client['scopes'],
-                    'token_policy_id' => $client['token_policy_id'],
+                    'name' => 'Portal Client',
+                    'client_secret_hash' => $existingClient?->client_secret_hash ?: Hash::make($plainSecret ?? Str::random(64)),
+                    'redirect_uris' => [$redirectUri],
+                    'is_active' => true,
+                    'scopes' => $scopeCodes,
                 ],
             );
+
+            $this->syncRedirectUri($client, $redirectUri);
+            $this->syncScopes($client, $scopeDefinitions);
+
+            if (! $client->activeSecrets()->exists()) {
+                $client->secrets()->create([
+                    'name' => 'Local development secret',
+                    'secret_hash' => Hash::make($plainSecret),
+                    'last_four' => substr($plainSecret, -4),
+                    'is_active' => true,
+                ]);
+
+                $client->forceFill([
+                    'client_secret_hash' => Hash::make($plainSecret),
+                ])->save();
+            }
+        });
+
+        $this->command?->info('Portal client created.');
+        $this->command?->warn('Client ID: portal-client');
+
+        if ($plainSecret !== null) {
+            $this->command?->warn('Client Secret: '.$plainSecret);
         }
     }
 
+    private function syncRedirectUri(SsoClient $client, string $redirectUri): void
+    {
+        $redirectUriHash = hash('sha256', $redirectUri);
+
+        $client->redirectUris()->updateOrCreate(
+            ['uri_hash' => $redirectUriHash],
+            [
+                'uri' => $redirectUri,
+                'is_primary' => true,
+            ],
+        );
+
+        $client->redirectUris()
+            ->where('uri_hash', '!=', $redirectUriHash)
+            ->delete();
+    }
+
     /**
-     * @return array<int, array<string, mixed>>
+     * @param array<int, array{name: string, code: string, description: string, is_active: bool}> $scopeDefinitions
      */
-    private function clients(): array
+    private function syncScopes(SsoClient $client, array $scopeDefinitions): void
+    {
+        $scopeIds = collect($scopeDefinitions)
+            ->map(function (array $definition): int {
+                return Scope::query()->updateOrCreate(
+                    ['code' => $definition['code']],
+                    $definition,
+                )->getKey();
+            })
+            ->all();
+
+        $client->scopes()->sync($scopeIds);
+    }
+
+    /**
+     * @return array<int, array{name: string, code: string, description: string, is_active: bool}>
+     */
+    private function scopeDefinitions(): array
     {
         return [
             [
-                'name' => 'SSO Admin Console',
-                'client_id' => 'client_admin_console',
-                'plain_secret' => 'dev-admin-console-secret',
-                'redirect_uris' => [
-                    'https://admin.sso.test/auth/callback',
-                    'https://admin.sso.test/auth/silent-renew',
-                ],
+                'name' => 'OpenID',
+                'code' => 'openid',
+                'description' => 'Authenticate the subject and issue an ID token.',
                 'is_active' => true,
-                'scopes' => ['openid', 'profile', 'email'],
-                'token_policy_id' => null,
             ],
             [
-                'name' => 'Customer Portal',
-                'client_id' => 'client_customer_portal',
-                'plain_secret' => 'dev-customer-portal-secret',
-                'redirect_uris' => [
-                    'https://portal.sso.test/oidc/callback',
-                ],
+                'name' => 'Profile',
+                'code' => 'profile',
+                'description' => 'Access standard profile claims for the subject.',
                 'is_active' => true,
-                'scopes' => ['openid', 'profile', 'email', 'offline_access'],
-                'token_policy_id' => null,
             ],
             [
-                'name' => 'Operations Dashboard',
-                'client_id' => 'client_ops_dashboard',
-                'plain_secret' => 'dev-ops-dashboard-secret',
-                'redirect_uris' => [
-                    'https://ops.sso.test/login/callback',
-                    'https://ops.sso.test/auth/callback',
-                ],
-                'is_active' => false,
-                'scopes' => ['openid', 'profile'],
-                'token_policy_id' => null,
+                'name' => 'Email',
+                'code' => 'email',
+                'description' => 'Access verified email claims for the subject.',
+                'is_active' => true,
             ],
         ];
     }

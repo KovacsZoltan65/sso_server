@@ -8,6 +8,8 @@ use App\Models\Token;
 
 interface TokenRepositoryInterface
 {
+    public function findAccessTokenWithUserAndClientByHash(string $tokenHash): ?Token;
+
     public function findAccessTokenByHash(string $tokenHash): ?Token;
 
     public function findRefreshTokenByHash(string $tokenHash): ?Token;

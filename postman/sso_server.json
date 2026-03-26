@@ -1,0 +1,782 @@
+{
+  "info": {
+    "_postman_id": "c9d7d986-8c2b-4c9f-9df7-1f8c9d7b2a11",
+    "name": "SSO Server OAuth Flow",
+    "description": "Manual OAuth testing collection for the current Laravel SSO Server endpoints.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [],
+  "variable": [],
+  "item": [
+    {
+      "name": "OAuth Setup",
+      "item": [
+        {
+          "name": "Generate PKCE Values",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function base64UrlEncodeWordArray(wordArray) {",
+                  "    return CryptoJS.enc.Base64.stringify(wordArray)",
+                  "        .replace(/\\+/g, '-')",
+                  "        .replace(/\\//g, '_')",
+                  "        .replace(/=+$/, '');",
+                  "}",
+                  "",
+                  "function randomString(length) {",
+                  "    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';",
+                  "    let result = '';",
+                  "    for (let i = 0; i < length; i++) {",
+                  "        result += charset.charAt(Math.floor(Math.random() * charset.length));",
+                  "    }",
+                  "    return result;",
+                  "}",
+                  "",
+                  "const codeVerifier = randomString(96);",
+                  "const hashed = CryptoJS.SHA256(codeVerifier);",
+                  "const codeChallenge = base64UrlEncodeWordArray(hashed);",
+                  "",
+                  "pm.environment.set('code_verifier', codeVerifier);",
+                  "pm.environment.set('code_challenge', codeChallenge);",
+                  "",
+                  "console.log('code_verifier:', codeVerifier);",
+                  "console.log('code_challenge:', codeChallenge);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('PKCE variables are set', function () {",
+                  "    pm.expect(pm.environment.get('code_verifier')).to.be.a('string').and.not.empty;",
+                  "    pm.expect(pm.environment.get('code_challenge')).to.be.a('string').and.not.empty;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}",
+              "host": [
+                "{{base_url}}"
+              ]
+            },
+            "description": "Helper request to generate PKCE values in the Pre-request Script."
+          },
+          "response": []
+        },
+        {
+          "name": "Open Authorize URL Helper",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "function base64UrlEncodeWordArray(wordArray) {",
+                  "    return CryptoJS.enc.Base64.stringify(wordArray)",
+                  "        .replace(/\\+/g, '-')",
+                  "        .replace(/\\//g, '_')",
+                  "        .replace(/=+$/, '');",
+                  "}",
+                  "",
+                  "function randomString(length) {",
+                  "    const charset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';",
+                  "    let result = '';",
+                  "    for (let i = 0; i < length; i++) {",
+                  "        result += charset.charAt(Math.floor(Math.random() * charset.length));",
+                  "    }",
+                  "    return result;",
+                  "}",
+                  "",
+                  "if (!pm.environment.get('code_verifier') || !pm.environment.get('code_challenge')) {",
+                  "    const codeVerifier = randomString(96);",
+                  "    const hashed = CryptoJS.SHA256(codeVerifier);",
+                  "    const codeChallenge = base64UrlEncodeWordArray(hashed);",
+                  "    pm.environment.set('code_verifier', codeVerifier);",
+                  "    pm.environment.set('code_challenge', codeChallenge);",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response status is redirect or success', function () {",
+                  "    pm.expect([200, 302, 303]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "const locationHeader = pm.response.headers.get('Location');",
+                  "",
+                  "if (locationHeader) {",
+                  "    pm.environment.set('last_location', locationHeader);",
+                  "    const match = locationHeader.match(/[?&]code=([^&]+)/);",
+                  "    if (match && match[1]) {",
+                  "        const code = decodeURIComponent(match[1]);",
+                  "        pm.environment.set('authorization_code', code);",
+                  "        console.log('authorization_code captured:', code);",
+                  "    }",
+                  "}",
+                  "",
+                  "pm.test('Location header check completed', function () {",
+                  "    pm.expect(true).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/authorize?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&state=local-dev-state&code_challenge={{code_challenge}}&code_challenge_method=S256",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirect_uri}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{scope}}"
+                },
+                {
+                  "key": "state",
+                  "value": "local-dev-state"
+                },
+                {
+                  "key": "code_challenge",
+                  "value": "{{code_challenge}}"
+                },
+                {
+                  "key": "code_challenge_method",
+                  "value": "S256"
+                }
+              ]
+            },
+            "description": "If browser session login is required, open this same URL manually in a browser and copy the code query parameter into the authorization_code environment variable."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authorization Code Flow",
+      "item": [
+        {
+          "name": "Authorization Request",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.environment.get('code_challenge')) {",
+                  "    throw new Error('code_challenge is missing. Run Generate PKCE Values first.');",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Response status is redirect or success', function () {",
+                  "    pm.expect([200, 302, 303]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "const locationHeader = pm.response.headers.get('Location');",
+                  "if (locationHeader) {",
+                  "    pm.environment.set('last_location', locationHeader);",
+                  "    const match = locationHeader.match(/[?&]code=([^&]+)/);",
+                  "    if (match && match[1]) {",
+                  "        pm.environment.set('authorization_code', decodeURIComponent(match[1]));",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "text/html"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/oauth/authorize?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&state=local-dev-state&code_challenge={{code_challenge}}&code_challenge_method=S256",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "oauth",
+                "authorize"
+              ],
+              "query": [
+                {
+                  "key": "response_type",
+                  "value": "code"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{client_id}}"
+                },
+                {
+                  "key": "redirect_uri",
+                  "value": "{{redirect_uri}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "{{scope}}"
+                },
+                {
+                  "key": "state",
+                  "value": "local-dev-state"
+                },
+                {
+                  "key": "code_challenge",
+                  "value": "{{code_challenge}}"
+                },
+                {
+                  "key": "code_challenge_method",
+                  "value": "S256"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Token Exchange",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Response contains backend wrapper', function () {",
+                  "    pm.expect(json).to.have.property('message');",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json).to.have.property('meta');",
+                  "    pm.expect(json).to.have.property('errors');",
+                  "});",
+                  "",
+                  "pm.test('Response contains tokens', function () {",
+                  "    pm.expect(json.data).to.have.property('access_token');",
+                  "    pm.expect(json.data).to.have.property('refresh_token');",
+                  "    pm.expect(json.data).to.have.property('token_type');",
+                  "});",
+                  "",
+                  "pm.environment.set('access_token', json.data.access_token);",
+                  "pm.environment.set('refresh_token', json.data.refresh_token);",
+                  "",
+                  "if (json.data.scope) {",
+                  "    pm.environment.set('scope', json.data.scope);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"authorization_code\",\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"code\": \"{{authorization_code}}\",\n  \"redirect_uri\": \"{{redirect_uri}}\",\n  \"code_verifier\": \"{{code_verifier}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/oauth/token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "token"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Refresh Flow",
+      "item": [
+        {
+          "name": "Refresh Token Exchange",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Response contains access token', function () {",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.have.property('access_token');",
+                  "});",
+                  "",
+                  "pm.environment.set('access_token', json.data.access_token);",
+                  "",
+                  "if (json.data.refresh_token) {",
+                  "    pm.environment.set('refresh_token', json.data.refresh_token);",
+                  "}",
+                  "",
+                  "if (json.data.scope) {",
+                  "    pm.environment.set('scope', json.data.scope);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"refresh_token\",\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/oauth/token",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "token"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Token Management",
+      "item": [
+        {
+          "name": "Introspect Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Introspection contains active flag', function () {",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.have.property('active');",
+                  "});",
+                  "",
+                  "pm.environment.set('introspection_active', String(json.data.active));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"token\": \"{{access_token}}\",\n  \"token_type_hint\": \"access_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/oauth/introspect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "introspect"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Introspect Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Introspection contains active flag', function () {",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.have.property('active');",
+                  "});",
+                  "",
+                  "pm.environment.set('introspection_active', String(json.data.active));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"token\": \"{{refresh_token}}\",\n  \"token_type_hint\": \"refresh_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/oauth/introspect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "introspect"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Response contains message', function () {",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"token\": \"{{access_token}}\",\n  \"token_type_hint\": \"access_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/oauth/revoke",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "revoke"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Revoke Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Response contains message', function () {",
+                  "    pm.expect(json).to.have.property('message');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"token\": \"{{refresh_token}}\",\n  \"token_type_hint\": \"refresh_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/oauth/revoke",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "revoke"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Introspect Access Token After Revoke",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('Token is inactive after revoke', function () {",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.have.property('active');",
+                  "    pm.expect(json.data.active).to.eql(false);",
+                  "});",
+                  "",
+                  "pm.environment.set('introspection_active', String(json.data.active));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"client_id\": \"{{client_id}}\",\n  \"client_secret\": \"{{client_secret}}\",\n  \"token\": \"{{access_token}}\",\n  \"token_type_hint\": \"access_token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/oauth/introspect",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "introspect"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Optional",
+      "item": [
+        {
+          "name": "UserInfo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "const json = pm.response.json();",
+                  "",
+                  "pm.test('UserInfo contains sub', function () {",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.have.property('sub');",
+                  "});",
+                  "",
+                  "if (json.data.email !== undefined) {",
+                  "    pm.test('email_verified exists when email exists', function () {",
+                  "        pm.expect(json.data).to.have.property('email_verified');",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/oauth/userinfo",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "oauth",
+                "userinfo"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\ClientSecret;
 use App\Models\Scope;
 use App\Models\SsoClient;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 beforeEach(function (): void {
@@ -210,4 +212,72 @@ it('rotates refresh token on refresh grant when policy requires rotation', funct
 
     $oldToken = Token::query()->where('refresh_token_hash', hash('sha256', $originalRefreshToken))->firstOrFail();
     expect($oldToken->refresh_token_revoked_at)->not->toBeNull();
+});
+
+it('continues the intended authorize flow after login and returns an inertia external redirect', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $authorizeUrl = route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'local-dev-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ], false);
+
+    $this->get($authorizeUrl)
+        ->assertRedirect(route('login'));
+
+    $loginResponse = $this
+        ->withHeader('X-Inertia', 'true')
+        ->withHeader('X-Requested-With', 'XMLHttpRequest')
+        ->post(route('login'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+    $loginRedirect = $loginResponse->headers->get('Location');
+
+    expect($loginRedirect)->not->toBeNull()
+        ->and(parse_url($loginRedirect, PHP_URL_PATH))->toBe('/oauth/authorize');
+
+    parse_str(parse_url($loginRedirect, PHP_URL_QUERY) ?: '', $loginQuery);
+
+    expect($loginQuery['response_type'] ?? null)->toBe('code');
+    expect($loginQuery['client_id'] ?? null)->toBe($client->client_id);
+    expect($loginQuery['redirect_uri'] ?? null)->toBe('https://portal.example.com/callback');
+    expect($loginQuery['scope'] ?? null)->toBe('openid profile');
+    expect($loginQuery['state'] ?? null)->toBe('local-dev-state');
+    expect($loginQuery['code_challenge'] ?? null)->toBe($challenge);
+    expect($loginQuery['code_challenge_method'] ?? null)->toBe('S256');
+
+    $response = $this
+        ->actingAs($user)
+        ->withHeader('X-Inertia', 'true')
+        ->withHeader('X-Inertia-Version', (string) app(HandleInertiaRequests::class)->version(Request::create($loginRedirect, 'GET')))
+        ->withHeader('X-Requested-With', 'XMLHttpRequest')
+        ->get($loginRedirect);
+
+    $response->assertStatus(409);
+
+    $location = $response->headers->get('X-Inertia-Location');
+
+    expect($location)->not->toBeNull()
+        ->and($location)->toStartWith('https://portal.example.com/callback?');
+
+    parse_str(parse_url($location, PHP_URL_QUERY) ?: '', $query);
+
+    expect($query['state'] ?? null)->toBe('local-dev-state');
+    expect($query['code'] ?? null)->not->toBeNull();
+
+    $this->assertDatabaseHas('authorization_codes', [
+        'sso_client_id' => $client->id,
+        'user_id' => $user->id,
+        'code_hash' => hash('sha256', (string) $query['code']),
+    ]);
 });
