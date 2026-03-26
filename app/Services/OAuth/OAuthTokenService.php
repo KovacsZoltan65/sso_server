@@ -322,6 +322,32 @@ class OAuthTokenService
         });
     }
 
+    /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function introspectToken(array $payload): array
+    {
+        $client = $this->resolveClient((string) $payload['client_id']);
+        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''));
+
+        $tokenHash = hash('sha256', (string) $payload['token']);
+        $tokenTypeHint = $this->normalizeTokenTypeHint($payload['token_type_hint'] ?? null);
+        $response = $this->resolveIntrospectionResponse($client, $tokenHash, $tokenTypeHint);
+
+        activity('oauth')
+            ->performedOn($client)
+            ->event('oauth.token.introspected')
+            ->withProperties([
+                'active' => $response['active'],
+                'token_type_hint' => $tokenTypeHint,
+                'resolved_token_type' => $response['token_type'] ?? null,
+            ])
+            ->log('OAuth token introspection completed.');
+
+        return $response;
+    }
+
     private function normalizeTokenTypeHint(mixed $hint): ?string
     {
         if (! \is_string($hint)) {
@@ -335,5 +361,104 @@ class OAuthTokenService
             'refresh_token' => 'refresh_token',
             default => null,
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function resolveIntrospectionResponse(SsoClient $client, string $tokenHash, ?string $tokenTypeHint): array
+    {
+        if ($tokenTypeHint === 'access_token') {
+            return $this->introspectAccessToken($client, $tokenHash);
+        }
+
+        if ($tokenTypeHint === 'refresh_token') {
+            return $this->introspectRefreshToken($client, $tokenHash);
+        }
+
+        $accessTokenResponse = $this->introspectAccessToken($client, $tokenHash);
+
+        if ($accessTokenResponse['active'] === true) {
+            return $accessTokenResponse;
+        }
+
+        return $this->introspectRefreshToken($client, $tokenHash);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function introspectAccessToken(SsoClient $client, string $tokenHash): array
+    {
+        $token = $this->tokenRepository->findAccessTokenByHash($tokenHash);
+
+        if (! $token instanceof Token || (int) $token->sso_client_id !== (int) $client->id) {
+            return $this->inactiveIntrospectionResponse();
+        }
+
+        if (! $this->isAccessTokenActive($token)) {
+            return $this->inactiveIntrospectionResponse();
+        }
+
+        return $this->formatIntrospectionResponse($token, 'access_token');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function introspectRefreshToken(SsoClient $client, string $tokenHash): array
+    {
+        $token = $this->tokenRepository->findRefreshTokenByHash($tokenHash);
+
+        if (! $token instanceof Token || (int) $token->sso_client_id !== (int) $client->id) {
+            return $this->inactiveIntrospectionResponse();
+        }
+
+        if (! $this->isRefreshTokenActive($token)) {
+            return $this->inactiveIntrospectionResponse();
+        }
+
+        return $this->formatIntrospectionResponse($token, 'refresh_token');
+    }
+
+    private function isAccessTokenActive(Token $token): bool
+    {
+        return $token->access_token_revoked_at === null
+            && $token->access_token_expires_at !== null
+            && ! $token->access_token_expires_at->isPast();
+    }
+
+    private function isRefreshTokenActive(Token $token): bool
+    {
+        return $token->refresh_token_revoked_at === null
+            && $token->refresh_token_expires_at !== null
+            && ! $token->refresh_token_expires_at->isPast();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function formatIntrospectionResponse(Token $token, string $tokenType): array
+    {
+        $expiresAt = $tokenType === 'access_token'
+            ? $token->access_token_expires_at
+            : $token->refresh_token_expires_at;
+
+        return [
+            'active' => true,
+            'token_type' => $tokenType,
+            'client_id' => (string) $token->client->client_id,
+            'scope' => implode(' ', $token->scopes ?? []),
+            'sub' => (string) $token->user_id,
+            'exp' => $expiresAt?->getTimestamp(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function inactiveIntrospectionResponse(): array
+    {
+        return ['active' => false];
     }
 }

@@ -20,6 +20,30 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return Token::class;
     }
 
+    public function findAccessTokenByHash(string $tokenHash): ?Token
+    {
+        /** @var Token|null $token */
+        $token = $this->getModel()
+            ->newQuery()
+            ->with('client')
+            ->where('access_token_hash', $tokenHash)
+            ->first();
+
+        return $token;
+    }
+
+    public function findRefreshTokenByHash(string $tokenHash): ?Token
+    {
+        /** @var Token|null $token */
+        $token = $this->getModel()
+            ->newQuery()
+            ->with('client')
+            ->where('refresh_token_hash', $tokenHash)
+            ->first();
+
+        return $token;
+    }
+
     public function findActiveAccessTokenByHash(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
