@@ -6,6 +6,7 @@ use Database\Factories\ScopeFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
@@ -28,6 +29,13 @@ class Scope extends Model
         return [
             'is_active' => 'boolean',
         ];
+    }
+
+
+    public function clients(): BelongsToMany
+    {
+        return $this->belongsToMany(SsoClient::class, 'client_scopes')
+            ->withTimestamps();
     }
 
     public function getActivitylogOptions(): LogOptions

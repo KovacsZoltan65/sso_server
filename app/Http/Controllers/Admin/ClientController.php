@@ -4,8 +4,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ClientIndexRequest;
+use App\Http\Requests\Admin\ClientRevokeSecretRequest;
+use App\Http\Requests\Admin\ClientRotateSecretRequest;
 use App\Http\Requests\Admin\ClientStoreRequest;
 use App\Http\Requests\Admin\ClientUpdateRequest;
+use App\Models\ClientSecret;
 use App\Models\SsoClient;
 use App\Services\ClientService;
 use Illuminate\Http\JsonResponse;
@@ -75,6 +78,46 @@ class ClientController extends Controller
         return redirect()
             ->route('admin.sso-clients.index')
             ->with('success', 'SSO client updated successfully.');
+    }
+
+    public function rotateSecret(
+        ClientRotateSecretRequest $request,
+        SsoClient $ssoClient,
+        ClientService $clientService,
+    ): RedirectResponse {
+        $this->authorize('rotateSecret', $ssoClient);
+
+        $result = $clientService->rotateSecret($ssoClient, $request->validated());
+
+        return redirect()
+            ->route('admin.sso-clients.edit', $ssoClient)
+            ->with('success', 'Client secret rotated successfully.')
+            ->with('clientSecret', [
+                'clientId' => $result['client']->client_id,
+                'secret' => $result['plainSecret'],
+            ]);
+    }
+
+    public function revokeSecret(
+        ClientRevokeSecretRequest $request,
+        SsoClient $ssoClient,
+        ClientSecret $clientSecret,
+        ClientService $clientService,
+    ): RedirectResponse|JsonResponse {
+        $this->authorize('revokeSecret', [$ssoClient, $clientSecret]);
+
+        $clientService->revokeSecret($ssoClient, $clientSecret);
+
+        if ($request->expectsJson()) {
+            return $this->successResponse(
+                message: 'Client secret revoked successfully.',
+                data: ['id' => $clientSecret->id],
+            );
+        }
+
+        return redirect()
+            ->route('admin.sso-clients.edit', $ssoClient)
+            ->with('success', 'Client secret revoked successfully.');
     }
 
     public function destroy(SsoClient $ssoClient, ClientService $clientService): RedirectResponse|JsonResponse

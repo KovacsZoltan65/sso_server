@@ -49,6 +49,7 @@ let currentPage = reactive({
 });
 
 let lastForm = null;
+let forms = [];
 
 export const router = {
     get: vi.fn(),
@@ -71,6 +72,7 @@ export const resetInertiaMocks = () => {
     });
 
     lastForm = null;
+    forms = [];
 };
 
 export const setPageProps = (props) => {
@@ -84,9 +86,11 @@ export const setPageUrl = (url) => {
 export const getPage = () => currentPage;
 
 export const getLastForm = () => lastForm;
+export const getForms = () => forms;
 
 export const createMockForm = (initialValues = {}) => {
     lastForm = createFormState(initialValues);
+    forms.push(lastForm);
 
     return lastForm;
 };

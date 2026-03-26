@@ -1,7 +1,10 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Repositories;
 
+use App\Models\ClientSecret;
 use App\Models\SsoClient;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -14,13 +17,19 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
      */
     private array $sortableFields = [
         'name' => 'name',
-        'clientId' => 'client_id',
-        'createdAt' => 'created_at',
+        'client_id' => 'client_id',
+        'is_active' => 'is_active',
+        'created_at' => 'created_at',
     ];
 
     public function __construct(SsoClient $model)
     {
         parent::__construct($model);
+    }
+
+    public function model(): string
+    {
+        return SsoClient::class;
     }
 
     public function paginateForAdminIndex(
@@ -30,28 +39,30 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
         int $perPage = 10,
         int $page = 1,
     ): LengthAwarePaginator {
+        $query = $this->model->newQuery()->with(['redirectUris', 'scopes', 'tokenPolicy']);
+
         $global = trim((string) ($filters['global'] ?? ''));
-        $name = trim((string) ($filters['name'] ?? ''));
         $status = $filters['status'] ?? null;
 
-        $column = $this->sortableFields[$sortField ?? ''] ?? 'name';
-        $direction = $sortOrder === -1 ? 'desc' : 'asc';
+        if ($global !== '') {
+            $query->where(function ($innerQuery) use ($global): void {
+                $innerQuery
+                    ->where('name', 'like', "%{$global}%")
+                    ->orWhere('client_id', 'like', "%{$global}%")
+                    ->orWhere('description', 'like', "%{$global}%");
+            });
+        }
 
-        return $this->getModel()
-            ->newQuery()
-            ->when($global !== '', function ($query) use ($global): void {
-                $query->where(function ($innerQuery) use ($global): void {
-                    $innerQuery
-                        ->where('name', 'like', "%{$global}%")
-                        ->orWhere('client_id', 'like', "%{$global}%");
-                });
-            })
-            ->when($name !== '', fn ($query) => $query->where('name', 'like', "%{$name}%"))
-            ->when($status === 'active', fn ($query) => $query->where('is_active', true))
-            ->when($status === 'inactive', fn ($query) => $query->where('is_active', false))
+        if ($status !== null && $status !== '') {
+            $query->where('is_active', filter_var($status, FILTER_VALIDATE_BOOL));
+        }
+
+        $column = $this->sortableFields[$sortField ?? 'name'] ?? $this->sortableFields['name'];
+        $direction = ($sortOrder ?? 1) === -1 ? 'desc' : 'asc';
+
+        return $query
             ->orderBy($column, $direction)
-            ->paginate($perPage, ['*'], 'page', $page)
-            ->withQueryString();
+            ->paginate(perPage: $perPage, page: $page);
     }
 
     public function createClient(array $attributes): SsoClient
@@ -73,5 +84,75 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
     public function deleteClient(SsoClient $client): void
     {
         $client->delete();
+    }
+
+    public function syncRedirectUris(SsoClient $client, array $redirectUris): void
+    {
+        $normalized = collect($redirectUris)
+            ->map(
+                fn (string $uri): array => [
+                    'uri' => trim($uri),
+                    'uri_hash' => hash('sha256', trim($uri)),
+                ]
+            )
+            ->unique('uri_hash')
+            ->values();
+
+        $hashes = $normalized->pluck('uri_hash')->all();
+
+        $client->redirectUris()
+            ->whereNotIn('uri_hash', $hashes)
+            ->delete();
+
+        foreach ($normalized as $item) {
+            $client->redirectUris()->updateOrCreate(
+                ['uri_hash' => $item['uri_hash']],
+                ['uri' => $item['uri']],
+            );
+        }
+    }
+
+    public function syncScopes(SsoClient $client, array $scopeCodes): void
+    {
+        $scopeIds = \App\Models\Scope::query()
+            ->whereIn('code', $scopeCodes)
+            ->pluck('id')
+            ->all();
+
+        $client->scopes()->sync($scopeIds);
+    }
+
+    public function createSecret(SsoClient $client, array $attributes): void
+    {
+        $client->secrets()->create($attributes);
+    }
+
+    public function deactivateActiveSecrets(SsoClient $client): void
+    {
+        $client->secrets()
+            ->where('is_active', true)
+            ->whereNull('revoked_at')
+            ->update([
+                'is_active' => false,
+                'revoked_at' => now(),
+            ]);
+    }
+
+    public function revokeSecret(SsoClient $client, int $secretId): void
+    {
+        $client->secrets()
+            ->whereKey($secretId)
+            ->update([
+                'is_active' => false,
+                'revoked_at' => now(),
+            ]);
+    }
+
+    public function countUsableSecrets(SsoClient $client): int
+    {
+        return $client->secrets()
+            ->where('is_active', true)
+            ->whereNull('revoked_at')
+            ->count();
     }
 }

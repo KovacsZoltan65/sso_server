@@ -28,5 +28,26 @@ interface ClientRepositoryInterface
      */
     public function updateClient(SsoClient $client, array $attributes): SsoClient;
 
+    /**
+     * @param array<int, string> $redirectUris
+     */
+    public function syncRedirectUris(SsoClient $client, array $redirectUris): void;
+
+    /**
+     * @param array<int, string> $scopeCodes
+     */
+    public function syncScopes(SsoClient $client, array $scopeCodes): void;
+
+    /**
+     * @param array<string, mixed> $attributes
+     */
+    public function createSecret(SsoClient $client, array $attributes): void;
+
+    public function deactivateActiveSecrets(SsoClient $client): void;
+
+    public function revokeSecret(SsoClient $client, int $secretId): void;
+
+    public function countUsableSecrets(SsoClient $client): int;
+
     public function deleteClient(SsoClient $client): void;
 }

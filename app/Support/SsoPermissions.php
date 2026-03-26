@@ -94,6 +94,7 @@ class SsoPermissions
             'tokens.refreshToken',
             'clients.manageSecrets',
             'clients.rotateSecret',
+            'clients.revokeSecret',
             'dashboard.view',
         ];
     }
@@ -182,6 +183,7 @@ class SsoPermissions
                 [
                     'clients.manageSecrets',
                     'clients.rotateSecret',
+                    'clients.revokeSecret',
                     'tokens.issueToken',
                     'tokens.revokeToken',
                     'tokens.refreshToken',

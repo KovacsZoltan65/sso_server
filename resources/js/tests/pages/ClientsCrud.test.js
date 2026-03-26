@@ -6,7 +6,7 @@ import Edit from '@/Pages/Clients/Edit.vue';
 import Index from '@/Pages/Clients/Index.vue';
 import ClientForm from '@/Pages/Clients/Partials/ClientForm.vue';
 import { axiosDelete } from '@/tests/mocks/axios';
-import { getLastForm, router, setPageProps } from '@/tests/mocks/inertia';
+import { getForms, getLastForm, router, setPageProps } from '@/tests/mocks/inertia';
 import { confirmRequire, toastAdd } from '@/tests/mocks/primevue';
 import { mountPage } from '@/tests/testUtils';
 
@@ -105,7 +105,7 @@ describe('Clients CRUD frontend', () => {
         expect(form.post).toHaveBeenCalledTimes(1);
     });
 
-    it('prefills and submits the edit page form without showing a secret field', async () => {
+    it('prefills and submits the edit page form and renders secret metadata only', async () => {
         const wrapper = mount(Edit, {
             props: {
                 client: {
@@ -116,9 +116,21 @@ describe('Clients CRUD frontend', () => {
                     scopes: ['openid', 'email'],
                     isActive: true,
                     tokenPolicyId: null,
+                    secrets: [
+                        {
+                            id: 9,
+                            name: 'Initial secret',
+                            lastFour: '1234',
+                            isActive: true,
+                            isRevoked: false,
+                            createdAt: '2026-03-26 10:00:00',
+                            canRevoke: false,
+                        },
+                    ],
                 },
                 scopeOptions,
                 tokenPolicies: [],
+                canManageSecrets: true,
             },
             global: {
                 stubs: {
@@ -132,15 +144,17 @@ describe('Clients CRUD frontend', () => {
             },
         });
 
-        const form = getLastForm();
+        const [form] = getForms();
 
         expect(form.name).toBe('Portal');
         expect(form.client_id).toBe('client_portal');
         expect(form.scopes).toEqual(['openid', 'email']);
         expect(wrapper.text()).toContain('Client ID');
-        expect(wrapper.text()).not.toContain('Client Secret');
+        expect(wrapper.text()).toContain('Initial secret');
+        expect(wrapper.text()).toContain('1234');
+        expect(wrapper.text()).not.toContain('very-secret-value');
 
-        await wrapper.find('form').trigger('submit.prevent');
+        await wrapper.find('#client-edit-form').trigger('submit.prevent');
         expect(form.put).toHaveBeenCalledTimes(1);
     });
 
@@ -258,5 +272,70 @@ describe('Clients CRUD frontend', () => {
             severity: 'error',
             detail: 'SSO client delete failed.',
         }));
+    });
+
+    it('can rotate and revoke secrets from the edit page', async () => {
+        setPageProps({
+            flash: {
+                success: 'Client secret rotated successfully.',
+                clientSecret: {
+                    clientId: 'client_portal',
+                    secret: 'rotated-secret-value',
+                },
+            },
+        });
+
+        const wrapper = mount(Edit, {
+            props: {
+                client: {
+                    id: 4,
+                    name: 'Portal',
+                    clientId: 'client_portal',
+                    redirectUris: ['https://portal.example.com/callback'],
+                    scopes: ['openid', 'email'],
+                    isActive: true,
+                    tokenPolicyId: null,
+                    secrets: [
+                        {
+                            id: 1,
+                            name: 'Older secret',
+                            lastFour: '1111',
+                            isActive: true,
+                            isRevoked: false,
+                            createdAt: '2026-03-26 09:00:00',
+                            canRevoke: true,
+                        },
+                    ],
+                },
+                scopeOptions,
+                tokenPolicies: [],
+                canManageSecrets: true,
+            },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: {
+                        template: '<div><slot /></div>',
+                    },
+                    PageHeader: {
+                        template: '<div />',
+                    },
+                },
+            },
+        });
+
+        const [, rotateForm] = getForms();
+
+        expect(wrapper.text()).toContain('rotated-secret-value');
+        await wrapper.find('#secret-name').setValue('Rotation before deploy');
+        await wrapper.find('form:last-of-type').trigger('submit.prevent');
+        expect(rotateForm.post).toHaveBeenCalledTimes(1);
+
+        const revokeButton = wrapper.findAll('button').find((button) => button.text() === 'Revoke');
+        await revokeButton.trigger('click');
+        await confirmRequire.mock.calls.at(-1)[0].accept();
+
+        expect(router.delete).toHaveBeenCalledWith(route('admin.sso-clients.revoke-secret', [4, 1]), {
+            preserveScroll: true,
+        });
     });
 });

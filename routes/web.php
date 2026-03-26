@@ -8,6 +8,7 @@ use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TokenPolicyController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\OAuth\AuthorizationController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use Spatie\Permission\Middleware\PermissionMiddleware;
@@ -15,6 +16,8 @@ use Spatie\Permission\Middleware\PermissionMiddleware;
 Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth'])->group(function () {
+    Route::get('/oauth/authorize', AuthorizationController::class)->name('oauth.authorize');
+
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 
     Route::prefix('admin')->name('admin.')->group(function () {
@@ -57,6 +60,16 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/sso-clients', 'store')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('store');
             Route::get('/sso-clients/{ssoClient}/edit', 'edit')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('edit');
             Route::put('/sso-clients/{ssoClient}', 'update')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('update');
+            /*
+            Route::post('/sso-clients/{ssoClient}/rotate-secret', 'rotateSecret')
+                ->middleware(PermissionMiddleware::using('clients.rotateSecret'))
+                ->name('rotate-secret');
+            */
+            Route::post('/sso-clients/{ssoClient}/rotate-secret', 'rotateSecret')
+                ->middleware(PermissionMiddleware::using('clients.rotateSecret|clients.manageSecrets'))
+                ->name('rotate-secret');
+
+            Route::delete('/sso-clients/{ssoClient}/secrets/{clientSecret}', 'revokeSecret')->middleware(PermissionMiddleware::using('clients.manageSecrets'))->name('revoke-secret');
             Route::delete('/sso-clients/{ssoClient}', 'destroy')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('destroy');
         });
 

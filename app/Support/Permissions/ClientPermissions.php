@@ -10,6 +10,9 @@ final class ClientPermissions
     public const UPDATE = 'clients.update';
     public const DELETE = 'clients.delete';
     public const DELETE_ANY = 'clients.deleteAny';
+    public const MANAGE_SECRETS = 'clients.manageSecrets';
+    public const ROTATE_SECRET = 'clients.rotateSecret';
+    public const REVOKE_SECRET = 'clients.revokeSecret';
 
     /**
      * @return array<int, string>
@@ -23,6 +26,9 @@ final class ClientPermissions
             self::UPDATE,
             self::DELETE,
             self::DELETE_ANY,
+            self::MANAGE_SECRETS,
+            self::ROTATE_SECRET,
+            self::REVOKE_SECRET,
         ];
     }
 }

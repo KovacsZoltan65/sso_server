@@ -28,8 +28,8 @@ class ClientSummaryData extends Data
 
     public static function fromModel(SsoClient $client, bool $canDelete = true): self
     {
-        $redirectUris = array_values($client->redirect_uris ?? []);
-        $scopes = array_values($client->scopes ?? []);
+        $redirectUris = $client->normalizedRedirectUris();
+        $scopes = $client->normalizedScopeCodes();
 
         return new self(
             id: $client->id,
