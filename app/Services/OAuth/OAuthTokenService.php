@@ -6,6 +6,7 @@ use App\Models\AuthorizationCode;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\SsoClient;
+use App\Repositories\Contracts\TokenRepositoryInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -16,6 +17,7 @@ class OAuthTokenService
     public function __construct(
         private readonly RedirectUriMatcher $redirectUriMatcher,
         private readonly PkceVerifier $pkceVerifier,
+        private readonly TokenRepositoryInterface $tokenRepository,
     ) {
     }
 
@@ -229,5 +231,109 @@ class OAuthTokenService
             'refresh_token_expires_in' => now()->diffInSeconds($refreshExpiresAt),
             'scope' => implode(' ', $scopes),
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    public function revokeToken(array $payload): void
+    {
+        $client = $this->resolveClient((string) $payload['client_id']);
+        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''));
+
+        $plainToken = (string) $payload['token'];
+        $tokenHash = hash('sha256', $plainToken);
+        $tokenTypeHint = $this->normalizeTokenTypeHint($payload['token_type_hint'] ?? null);
+
+        DB::transaction(function () use ($client, $tokenHash, $tokenTypeHint): void {
+            if ($tokenTypeHint === 'access_token') {
+                $token = $this->tokenRepository->findActiveAccessTokenByHash($tokenHash);
+
+                if ($token === null || (int) $token->sso_client_id !== (int) $client->id) {
+                    return;
+                }
+
+                $this->tokenRepository->revokeAccessToken($token);
+
+                activity('oauth')
+                    ->performedOn($client)
+                    ->event('oauth.token.revoked')
+                    ->withProperties([
+                        'token_kind' => 'access_token',
+                        'token_id' => $token->id,
+                    ])
+                    ->log('OAuth access token revoked.');
+
+                return;
+            }
+
+            if ($tokenTypeHint === 'refresh_token') {
+                $token = $this->tokenRepository->findActiveRefreshTokenByHash($tokenHash);
+
+                if ($token === null || (int) $token->sso_client_id !== (int) $client->id) {
+                    return;
+                }
+
+                $this->tokenRepository->revokeRefreshToken($token);
+
+                activity('oauth')
+                    ->performedOn($client)
+                    ->event('oauth.token.revoked')
+                    ->withProperties([
+                        'token_kind' => 'refresh_token',
+                        'token_id' => $token->id,
+                    ])
+                    ->log('OAuth refresh token revoked.');
+
+                return;
+            }
+
+            $accessToken = $this->tokenRepository->findActiveAccessTokenByHash($tokenHash);
+
+            if ($accessToken !== null && (int) $accessToken->sso_client_id === (int) $client->id) {
+                $this->tokenRepository->revokeAccessToken($accessToken);
+
+                activity('oauth')
+                    ->performedOn($client)
+                    ->event('oauth.token.revoked')
+                    ->withProperties([
+                        'token_kind' => 'access_token',
+                        'token_id' => $accessToken->id,
+                    ])
+                    ->log('OAuth access token revoked.');
+
+                return;
+            }
+
+            $refreshToken = $this->tokenRepository->findActiveRefreshTokenByHash($tokenHash);
+
+            if ($refreshToken !== null && (int) $refreshToken->sso_client_id === (int) $client->id) {
+                $this->tokenRepository->revokeRefreshToken($refreshToken);
+
+                activity('oauth')
+                    ->performedOn($client)
+                    ->event('oauth.token.revoked')
+                    ->withProperties([
+                        'token_kind' => 'refresh_token',
+                        'token_id' => $refreshToken->id,
+                    ])
+                    ->log('OAuth refresh token revoked.');
+            }
+        });
+    }
+
+    private function normalizeTokenTypeHint(mixed $hint): ?string
+    {
+        if (! \is_string($hint)) {
+            return null;
+        }
+
+        $normalized = trim($hint);
+
+        return match ($normalized) {
+            'access_token' => 'access_token',
+            'refresh_token' => 'refresh_token',
+            default => null,
+        };
     }
 }

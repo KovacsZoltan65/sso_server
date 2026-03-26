@@ -29,6 +29,8 @@ use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use App\Repositories\Contracts\TokenRepositoryInterface;
+use App\Repositories\TokenRepository;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -43,6 +45,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ClientRepositoryInterface::class, ClientRepository::class);
         $this->app->bind(ScopeRepositoryInterface::class, ScopeRepository::class);
         $this->app->bind(TokenPolicyRepositoryInterface::class, TokenPolicyRepository::class);
+        $this->app->bind(TokenRepositoryInterface::class, TokenRepository::class);
     }
 
     /**
