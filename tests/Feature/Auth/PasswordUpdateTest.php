@@ -20,6 +20,13 @@ test('password can be updated', function () {
         ->assertRedirect('/profile');
 
     $this->assertTrue(Hash::check('new-password', $user->refresh()->password));
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'account',
+        'event' => 'profile.password_changed',
+        'causer_id' => $user->id,
+        'causer_type' => User::class,
+    ]);
 });
 
 test('correct password must be provided to update password', function () {

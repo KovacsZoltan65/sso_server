@@ -53,3 +53,21 @@ When adding a new security-critical test, include it in the Pest `security` grou
 Server-client OAuth/SSO integration contract is defined in:
 
 - [`docs/integration-contract.md`](/c:/wamp64/www/sso/sso_server/docs/integration-contract.md)
+
+## Self-Service Profile API
+
+The server remains the identity source of truth for profile self-service. The current contract is:
+
+- `GET /api/profile`
+- `PATCH /api/profile`
+- `PATCH /api/profile/password`
+
+Rules:
+
+- authenticated user can act on their own profile only
+- editable self-service fields: `name`
+- read-only self-service fields: `email`, `emailVerifiedAt`
+- password change is always a separate flow with current-password verification and server-side hashing
+- profile view, profile update, password change, and forbidden mutation attempts are audit logged
+
+For browser-to-browser client integration, configure `CORS_ALLOWED_ORIGINS` with the exact `sso_client` origin so the profile UI can call the server API with credentials.

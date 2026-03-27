@@ -15,10 +15,10 @@ it('seeds the portal client with the expected redirect uri and scopes', function
     expect($client)->not->toBeNull();
     expect($client->name)->toBe('Portal Client');
     expect($client->is_active)->toBeTrue();
-    expect($client->redirect_uris)->toBe(['https://portal.example.com/callback']);
+    expect($client->redirect_uris)->toBe(['http://sso-client.test/auth/sso/callback']);
     expect($client->scopes)->toBe(['openid', 'profile', 'email']);
     expect($client->redirectUris)->toHaveCount(1);
-    expect($client->redirectUris->first()?->uri)->toBe('https://portal.example.com/callback');
+    expect($client->redirectUris->first()?->uri)->toBe('http://sso-client.test/auth/sso/callback');
     expect($client->redirectUris->first()?->is_primary)->toBeTrue();
     expect($client->getRelation('scopes')->pluck('code')->all())->toBe(['email', 'openid', 'profile']);
     expect($client->activeSecrets)->toHaveCount(1);

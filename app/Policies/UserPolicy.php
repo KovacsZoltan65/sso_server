@@ -27,6 +27,21 @@ class UserPolicy
         return $user->can(UserPermissions::UPDATE);
     }
 
+    public function viewSelf(User $user, User $model): bool
+    {
+        return $user->is($model);
+    }
+
+    public function updateSelf(User $user, User $model): bool
+    {
+        return $user->is($model);
+    }
+
+    public function updateOwnPassword(User $user, User $model): bool
+    {
+        return $user->is($model);
+    }
+
     public function delete(User $user, User $model): bool
     {
         return $user->can(UserPermissions::DELETE) && ! $user->is($model);

@@ -14,12 +14,12 @@ test('profile page is displayed', function () {
 
 test('profile information can be updated', function () {
     $user = User::factory()->create();
+    $originalEmail = $user->email;
 
     $response = $this
         ->actingAs($user)
         ->patch('/profile', [
             'name' => 'Test User',
-            'email' => 'test@example.com',
         ]);
 
     $response
@@ -29,25 +29,26 @@ test('profile information can be updated', function () {
     $user->refresh();
 
     $this->assertSame('Test User', $user->name);
-    $this->assertSame('test@example.com', $user->email);
-    $this->assertNull($user->email_verified_at);
+    $this->assertSame($originalEmail, $user->email);
 });
 
-test('email verification status is unchanged when the email address is unchanged', function () {
+test('email field cannot be updated through the self-service profile form', function () {
     $user = User::factory()->create();
+    $originalEmail = $user->email;
 
     $response = $this
         ->actingAs($user)
+        ->from('/profile')
         ->patch('/profile', [
             'name' => 'Test User',
-            'email' => $user->email,
+            'email' => 'changed@example.com',
         ]);
 
     $response
-        ->assertSessionHasNoErrors()
+        ->assertSessionHasErrors('email')
         ->assertRedirect('/profile');
 
-    $this->assertNotNull($user->refresh()->email_verified_at);
+    $this->assertSame($originalEmail, $user->refresh()->email);
 });
 
 test('user can delete their account', function () {

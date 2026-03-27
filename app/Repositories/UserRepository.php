@@ -88,6 +88,28 @@ class UserRepository extends Repository implements UserRepositoryInterface
         return $user->load('roles');
     }
 
+    public function updateProfile(User $user, array $attributes): User
+    {
+        $user->fill($attributes);
+        $user->save();
+
+        return $user->refresh();
+    }
+
+    public function updatePassword(User $user, string $hashedPassword): User
+    {
+        $user->forceFill([
+            'password' => $hashedPassword,
+        ])->save();
+
+        return $user->refresh();
+    }
+
+    public function refreshUser(User $user): User
+    {
+        return $user->refresh();
+    }
+
     public function getByIds(array $ids): Collection
     {
         /** @var Collection<int, User> $users */

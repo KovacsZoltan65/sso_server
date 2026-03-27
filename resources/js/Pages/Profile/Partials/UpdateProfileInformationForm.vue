@@ -18,7 +18,6 @@ const user = usePage().props.auth.user;
 
 const form = useForm({
     name: user.name,
-    email: user.email,
 });
 </script>
 
@@ -30,7 +29,7 @@ const form = useForm({
             </h2>
 
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Update your account's profile information and email address.
+                Update your display name. Email changes stay outside the self-service flow.
             </p>
         </header>
 
@@ -61,12 +60,15 @@ const form = useForm({
                     id="email"
                     type="email"
                     class="mt-1 block w-full"
-                    v-model="form.email"
-                    required
+                    :model-value="user.email"
+                    disabled
+                    readonly
                     autocomplete="username"
                 />
 
-                <InputError class="mt-2" :message="form.errors.email" />
+                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    Email remains read-only in self-service to keep the shared SSO identity mapping stable.
+                </p>
             </div>
 
             <div v-if="mustVerifyEmail && user.email_verified_at === null">

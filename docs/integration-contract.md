@@ -120,7 +120,77 @@ Current explicit contract:
 - Session is fully cleared locally.
 - No single logout handshake with server is active in current contract.
 
-## 6. Session/Auth State Contract (Client)
+## 6. Self-Service Profile Contract
+Profile endpoints:
+- `GET /api/profile`
+- `PATCH /api/profile`
+- `PATCH /api/profile/password`
+
+Authentication model:
+- browser calls the server profile endpoints directly
+- server session remains the authentication authority
+- client sends credentialed requests and uses the explicit JSON envelope only
+
+Editable fields:
+- `name`
+
+Read-only fields:
+- `email`
+- `emailVerifiedAt`
+
+Rejected through self-service:
+- `roles`
+- `permissions`
+- `email_verified_at`
+- admin/status/security fields
+- any unexpected field not on the explicit whitelist
+
+Profile fetch success:
+```json
+{
+  "message": "Profile retrieved successfully.",
+  "data": {
+    "id": 123,
+    "name": "Example User",
+    "email": "user@example.test",
+    "emailVerifiedAt": "2026-03-27T15:00:00+00:00"
+  },
+  "meta": {
+    "editable_fields": ["name"],
+    "read_only_fields": ["email", "emailVerifiedAt"],
+    "csrf_token": "..."
+  },
+  "errors": {}
+}
+```
+
+Password update success:
+```json
+{
+  "message": "Password updated successfully.",
+  "data": {},
+  "meta": {
+    "editable_fields": ["name"],
+    "read_only_fields": ["email", "emailVerifiedAt"],
+    "csrf_token": "..."
+  },
+  "errors": {}
+}
+```
+
+Validation failure format remains the standard envelope:
+```json
+{
+  "message": "Validation failed.",
+  "data": [],
+  "meta": [],
+  "errors": {
+    "field": ["reason"]
+  }
+}
+```
+
+## 7. Session/Auth State Contract (Client)
 Local authenticated state is created only after:
 1. valid callback validation
 2. successful token exchange
@@ -132,7 +202,7 @@ Client becomes guest when:
 - local logout is called, or
 - protected route is accessed without valid session (`401` JSON for API-style request, redirect to login for browser).
 
-## 7. Error Contract Matrix
+## 8. Error Contract Matrix
 | Case | Server status/body | Transport | Client handling |
 |---|---|---|---|
 | invalid client (authorize) | 302 + validation session errors (`client_id`) | redirect on server side | not callback-based, user remains on server flow |
@@ -146,9 +216,10 @@ Client becomes guest when:
 | token endpoint failure/network | n/a | transport failure | client rejects token exchange |
 | userinfo unauthorized | 401 JSON envelope | JSON | client rejects userinfo phase |
 | userinfo forbidden | 403 JSON envelope | JSON | client rejects userinfo phase |
+| forbidden self-service profile field | 422 JSON envelope with per-field errors | JSON | client shows field/domain errors |
 | unauthorized protected route (client app) | 302 to login (HTML) / 401 JSON (`reauth_to`) | redirect or JSON | explicit re-auth behavior |
 
-## 8. Config Contract
+## 9. Config Contract
 Client configuration must define:
 - `SSO_SERVER_BASE_URL`
 - `SSO_AUTHORIZE_ENDPOINT`
@@ -164,14 +235,16 @@ Server configuration/data must align:
 - allowed `redirect_uri` includes `SSO_REDIRECT_URI` exactly
 - allowed scopes include client-requested scopes
 - token policy PKCE settings are compatible with client request
+- `CORS_ALLOWED_ORIGINS` includes the exact `sso_client` browser origin for direct self-service profile calls
 
-## 9. Contract Test Coverage
+## 10. Contract Test Coverage
 Server:
 - `tests/Feature/OAuth/OAuthAuthorizationCodeFlowTest.php`
 - `tests/Feature/OAuth/OAuthUserInfoTest.php`
+- `tests/Feature/Api/SelfServiceProfileApiTest.php`
 
 Client:
 - `tests/Feature/Auth/SsoAuthenticationTest.php`
+- `tests/Feature/ProfileTest.php`
 
 These tests are the regression guard for this contract.
-

@@ -2,7 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\ProfileUpdateRequest;
+use App\Http\Requests\Profile\UpdateSelfProfileRequest;
+use App\Services\Profile\SelfServiceProfileService;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,6 +14,11 @@ use Inertia\Response;
 
 class ProfileController extends Controller
 {
+    public function __construct(
+        private readonly SelfServiceProfileService $profileService,
+    ) {
+    }
+
     /**
      * Display the user's profile form.
      */
@@ -27,21 +33,9 @@ class ProfileController extends Controller
     /**
      * Update the user's profile information.
      */
-    public function update(ProfileUpdateRequest $request): RedirectResponse
+    public function update(UpdateSelfProfileRequest $request): RedirectResponse
     {
-        $request->user()->fill($request->validated());
-
-        if ($request->user()->isDirty('email')) {
-            $request->user()->email_verified_at = null;
-        }
-
-        $request->user()->save();
-
-        activity('admin')
-            ->causedBy($request->user())
-            ->performedOn($request->user())
-            ->event('profile.updated')
-            ->log('Profile updated.');
+        $this->profileService->updateProfile($request->user(), $request->validated(), $request);
 
         return Redirect::route('profile.edit')->with('success', 'Profile updated.');
     }

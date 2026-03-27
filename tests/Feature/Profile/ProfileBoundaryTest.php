@@ -21,26 +21,27 @@ it('allows self-service profile update for permitted profile fields only', funct
     ]);
 
     $this->actingAs($user)
+        ->from(route('profile.edit'))
         ->patch(route('profile.update'), [
             'name' => 'Updated Self',
-            'email' => 'updated-self@example.com',
             'roles' => ['admin'],
             'permissions' => ['users.update'],
             'password' => 'new-password',
         ])
+        ->assertSessionHasErrors(['roles', 'permissions', 'password'])
         ->assertRedirect(route('profile.edit'));
 
     $user->refresh();
 
-    expect($user->name)->toBe('Updated Self');
-    expect($user->email)->toBe('updated-self@example.com');
+    expect($user->name)->toBe('Original Name');
+    expect($user->email)->toBe('original@example.com');
     expect($user->hasRole('admin'))->toBeFalse();
     expect($user->can('users.update'))->toBeFalse();
     expect(Hash::check('password', $user->password))->toBeTrue();
 
     $this->assertDatabaseHas('activity_log', [
-        'log_name' => 'admin',
-        'event' => 'profile.updated',
+        'log_name' => 'security',
+        'event' => 'profile.forbidden_mutation_attempt',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);

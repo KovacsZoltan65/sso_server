@@ -37,6 +37,15 @@ interface UserRepositoryInterface
     public function updateWithRoles(User $user, array $attributes, array $roles = []): User;
 
     /**
+     * @param array<string, mixed> $attributes
+     */
+    public function updateProfile(User $user, array $attributes): User;
+
+    public function updatePassword(User $user, string $hashedPassword): User;
+
+    public function refreshUser(User $user): User;
+
+    /**
      * @param array<int, int> $ids
      * @return Collection<int, User>
      */
