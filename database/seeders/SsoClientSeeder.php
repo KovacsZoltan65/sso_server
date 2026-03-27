@@ -16,7 +16,7 @@ class SsoClientSeeder extends Seeder
         $plainSecret = null;
 
         DB::transaction(function () use (&$plainSecret): void {
-            $redirectUri = trim('https://portal.example.com/callback');
+            $redirectUri = trim('http://sso-client.test/auth/sso/callback');
             $scopeDefinitions = $this->scopeDefinitions();
             $scopeCodes = collect($scopeDefinitions)->pluck('code')->values()->all();
             $existingClient = SsoClient::query()

@@ -15,6 +15,40 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @phpstan-type OAuthTokenPayload array{
+ *     client_id: string,
+ *     client_secret?: string|null,
+ *     code?: string,
+ *     redirect_uri?: string,
+ *     code_verifier?: string|null,
+ *     refresh_token?: string,
+ *     token?: string,
+ *     token_type_hint?: string|null
+ * }
+ * @phpstan-type TokenPair array{
+ *     token_type: string,
+ *     access_token: string,
+ *     refresh_token: string,
+ *     expires_in: int,
+ *     refresh_token_expires_in: int,
+ *     scope: string
+ * }
+ * @phpstan-type IntrospectionResponse array{
+ *     active: bool,
+ *     token_type?: string,
+ *     client_id?: string,
+ *     scope?: string,
+ *     sub?: string,
+ *     exp?: int|null
+ * }
+ * @phpstan-type UserInfoClaims array{
+ *     sub: string,
+ *     name?: string,
+ *     email?: string,
+ *     email_verified?: bool
+ * }
+ */
 class OAuthTokenService
 {
     public function __construct(
@@ -25,8 +59,10 @@ class OAuthTokenService
     }
 
     /**
-     * @param array<string, mixed> $payload
-     * @return array<string, mixed>
+     * Exchange a validated authorization code for an access and refresh token pair.
+     *
+     * @param OAuthTokenPayload $payload
+     * @return TokenPair
      */
     public function exchangeAuthorizationCode(array $payload, ?string $ipAddress, ?string $userAgent): array
     {
@@ -90,8 +126,10 @@ class OAuthTokenService
     }
 
     /**
-     * @param array<string, mixed> $payload
-     * @return array<string, mixed>
+     * Refresh an access token using a validated refresh token grant payload.
+     *
+     * @param OAuthTokenPayload $payload
+     * @return TokenPair
      */
     public function refreshAccessToken(array $payload, ?string $ipAddress, ?string $userAgent): array
     {
@@ -143,6 +181,9 @@ class OAuthTokenService
         });
     }
 
+    /**
+     * Resolve an active confidential or public client by OAuth client identifier.
+     */
     private function resolveClient(string $clientId): SsoClient
     {
         /** @var SsoClient|null $client */
@@ -155,6 +196,9 @@ class OAuthTokenService
         return $client;
     }
 
+    /**
+     * Validate the provided client secret against the currently active secret set.
+     */
     private function assertClientAuthentication(SsoClient $client, string $clientSecret): void
     {
         $activeSecrets = $client->activeSecrets()->get();
@@ -172,6 +216,9 @@ class OAuthTokenService
         throw ValidationException::withMessages(['client_secret' => 'The provided client secret is invalid.']);
     }
 
+    /**
+     * Resolve the token policy explicitly attached to the request client or fall back to the active default.
+     */
     private function resolvePolicy(SsoClient $client, ?TokenPolicy $policy = null): TokenPolicy
     {
         if ($policy instanceof TokenPolicy && $policy->is_active) {
@@ -192,8 +239,10 @@ class OAuthTokenService
     }
 
     /**
+     * Issue and persist a fresh token pair for the given client and user context.
+     *
      * @param array<int, string> $scopes
-     * @return array<string, mixed>
+     * @return TokenPair
      */
     private function issueTokenPair(
         SsoClient $client,
@@ -237,7 +286,9 @@ class OAuthTokenService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * Revoke an OAuth access or refresh token owned by the requesting client.
+     *
+     * @param OAuthTokenPayload $payload
      */
     public function revokeToken(array $payload): void
     {
@@ -326,8 +377,10 @@ class OAuthTokenService
     }
 
     /**
-     * @param array<string, mixed> $payload
-     * @return array<string, mixed>
+     * Introspect an OAuth access or refresh token for the requesting client.
+     *
+     * @param OAuthTokenPayload $payload
+     * @return IntrospectionResponse
      */
     public function introspectToken(array $payload): array
     {
@@ -352,7 +405,9 @@ class OAuthTokenService
     }
 
     /**
-     * @return array<string, mixed>
+     * Resolve OIDC-compatible user info claims for a valid Bearer access token.
+     *
+     * @return UserInfoClaims
      */
     public function getUserInfo(?string $plainAccessToken, ?string $ipAddress, ?string $userAgent): array
     {
@@ -382,6 +437,9 @@ class OAuthTokenService
         return $claims;
     }
 
+    /**
+     * Normalize the optional token hint to the supported OAuth token type values.
+     */
     private function normalizeTokenTypeHint(mixed $hint): ?string
     {
         if (! \is_string($hint)) {
@@ -398,7 +456,7 @@ class OAuthTokenService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return IntrospectionResponse
      */
     private function resolveIntrospectionResponse(SsoClient $client, string $tokenHash, ?string $tokenTypeHint): array
     {
@@ -420,7 +478,7 @@ class OAuthTokenService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return IntrospectionResponse
      */
     private function introspectAccessToken(SsoClient $client, string $tokenHash): array
     {
@@ -438,7 +496,7 @@ class OAuthTokenService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return IntrospectionResponse
      */
     private function introspectRefreshToken(SsoClient $client, string $tokenHash): array
     {
@@ -455,6 +513,9 @@ class OAuthTokenService
         return $this->formatIntrospectionResponse($token, 'refresh_token');
     }
 
+    /**
+     * Determine whether the stored access token is still active and usable.
+     */
     private function isAccessTokenActive(Token $token): bool
     {
         return $token->access_token_revoked_at === null
@@ -462,6 +523,9 @@ class OAuthTokenService
             && ! $token->access_token_expires_at->isPast();
     }
 
+    /**
+     * Determine whether the stored refresh token is still active and usable.
+     */
     private function isRefreshTokenActive(Token $token): bool
     {
         return $token->refresh_token_revoked_at === null
@@ -470,7 +534,9 @@ class OAuthTokenService
     }
 
     /**
-     * @return array<string, mixed>
+     * Format a standards-aligned token introspection payload.
+     *
+     * @return IntrospectionResponse
      */
     private function formatIntrospectionResponse(Token $token, string $tokenType): array
     {
@@ -489,13 +555,16 @@ class OAuthTokenService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return IntrospectionResponse
      */
     private function inactiveIntrospectionResponse(): array
     {
         return ['active' => false];
     }
 
+    /**
+     * Resolve a Bearer access token to the persisted token model with client and user context.
+     */
     private function resolveUserInfoAccessToken(?string $plainAccessToken): Token
     {
         $normalizedToken = trim((string) $plainAccessToken);
@@ -514,8 +583,10 @@ class OAuthTokenService
     }
 
     /**
+     * Build the user info response body from the granted OpenID scopes.
+     *
      * @param array<int, string> $scopes
-     * @return array<string, mixed>
+     * @return UserInfoClaims
      */
     private function formatUserInfoClaims(User $user, array $scopes): array
     {

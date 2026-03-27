@@ -14,6 +14,47 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @phpstan-type AdminClientFilters array{
+ *     global?: string|null,
+ *     name?: string|null,
+ *     status?: string|null
+ * }
+ * @phpstan-type AdminClientRow array{
+ *     id: int,
+ *     name: string,
+ *     clientId: string,
+ *     redirectUris: array<int, string>,
+ *     redirectUriCount: int,
+ *     isActive: bool,
+ *     scopes: array<int, string>,
+ *     scopesCount: int,
+ *     tokenPolicyId: int|null,
+ *     createdAt: string,
+ *     canDelete: bool
+ * }
+ * @phpstan-type ClientSecretView array{
+ *     id: int,
+ *     name: string,
+ *     lastFour: string,
+ *     isActive: bool,
+ *     isRevoked: bool,
+ *     revokedAt: string|null,
+ *     expiresAt: string|null,
+ *     createdAt: string|null,
+ *     canRevoke: bool
+ * }
+ * @phpstan-type EditableClient array{
+ *     id: int,
+ *     name: string,
+ *     clientId: string,
+ *     redirectUris: array<int, string>,
+ *     isActive: bool,
+ *     scopes: array<int, string>,
+ *     tokenPolicyId: int|null,
+ *     secrets: array<int, ClientSecretView>
+ * }
+ */
 class ClientService
 {
     public function __construct(
@@ -22,7 +63,18 @@ class ClientService
     }
 
     /**
-     * @return array<string, mixed>
+     * Build the modal-first admin index payload for SSO clients.
+     *
+     * @param AdminClientFilters $filters
+     * @return array{
+     *     rows: array<int, ClientSummaryData>,
+     *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
+     *     tokenPolicies: array<int, array{id: int, name: string}>,
+     *     canManageClients: bool,
+     *     filters: AdminClientFilters,
+     *     sorting: array{field: string, order: int},
+     *     pagination: array{currentPage: int, lastPage: int, perPage: int, total: int, from: int|null, to: int|null, first: int}
+     * }
      */
     public function getIndexPayload(
         array $filters,
@@ -67,7 +119,10 @@ class ClientService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
+     *     tokenPolicies: array<int, array{id: int, name: string}>
+     * }
      */
     public function getCreatePayload(): array
     {
@@ -78,7 +133,12 @@ class ClientService
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array{
+     *     client: EditableClient,
+     *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
+     *     tokenPolicies: array<int, array{id: int, name: string}>,
+     *     canManageSecrets: bool
+     * }
      */
     public function getEditPayload(SsoClient $client): array
     {
@@ -97,6 +157,8 @@ class ClientService
     }
 
     /**
+     * Persist a new SSO client and return the one-time plain secret for secure display.
+     *
      * @param array<string, mixed> $payload
      * @return array{client: SsoClient, plainSecret: string}
      */
@@ -149,6 +211,8 @@ class ClientService
     }
 
     /**
+     * Update an existing SSO client together with its redirect URIs and scope assignments.
+     *
      * @param array<string, mixed> $payload
      */
     public function updateClient(SsoClient $client, array $payload): SsoClient
@@ -181,6 +245,8 @@ class ClientService
     }
 
     /**
+     * Rotate the currently active client secret and return the newly issued plain secret once.
+     *
      * @param array<string, mixed> $payload
      * @return array{client: SsoClient, plainSecret: string}
      */
@@ -216,6 +282,9 @@ class ClientService
         });
     }
 
+    /**
+     * Revoke one active client secret while preserving at least one usable secret.
+     */
     public function revokeSecret(SsoClient $client, ClientSecret $secret): SsoClient
     {
         return DB::transaction(function () use ($client, $secret): SsoClient {
@@ -249,6 +318,9 @@ class ClientService
         });
     }
 
+    /**
+     * Delete an SSO client after its deletion has been audited.
+     */
     public function deleteClient(SsoClient $client): void
     {
         $this->logEvent(
@@ -261,7 +333,9 @@ class ClientService
     }
 
     /**
-     * @return array<string, mixed>
+     * Build the edit payload slice that the frontend form consumes for an existing client.
+     *
+     * @return EditableClient
      */
     public function editableClient(SsoClient $client): array
     {
@@ -299,6 +373,12 @@ class ClientService
      * @param array<int, mixed> $uris
      * @return array<int, string>
      */
+    /**
+     * Normalize redirect URIs to a unique, trimmed string list.
+     *
+     * @param array<int, mixed> $uris
+     * @return array<int, string>
+     */
     private function sanitizeUris(array $uris): array
     {
         return collect($uris)
@@ -310,6 +390,12 @@ class ClientService
     }
 
     /**
+     * @param array<int, mixed> $scopes
+     * @return array<int, string>
+     */
+    /**
+     * Normalize scope codes and discard values that are not allowed by the current option set.
+     *
      * @param array<int, mixed> $scopes
      * @return array<int, string>
      */
@@ -325,12 +411,17 @@ class ClientService
             ->all();
     }
 
+    /**
+     * Generate a compact random OAuth client identifier for newly created clients.
+     */
     private function generateClientId(): string
     {
         return 'client_'.Str::lower(Str::random(24));
     }
 
     /**
+     * Record an auditable client management event without leaking sensitive secret material.
+     *
      * @param array<string, mixed> $properties
      */
     private function logEvent(SsoClient $client, string $event, string $message, array $properties = []): void

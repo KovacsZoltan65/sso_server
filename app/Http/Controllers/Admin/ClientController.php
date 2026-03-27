@@ -18,6 +18,9 @@ use Inertia\Response;
 
 class ClientController extends Controller
 {
+    /**
+     * Render the client index page with the current filter, sorting, and pagination payload.
+     */
     public function index(ClientIndexRequest $request, ClientService $clientService): Response
     {
         $this->authorize('viewAny', SsoClient::class);
@@ -37,6 +40,9 @@ class ClientController extends Controller
         ));
     }
 
+    /**
+     * Render the create form payload for a new OAuth client.
+     */
     public function create(ClientService $clientService): Response
     {
         $this->authorize('create', SsoClient::class);
@@ -44,6 +50,9 @@ class ClientController extends Controller
         return Inertia::render('Clients/Create', $clientService->getCreatePayload());
     }
 
+    /**
+     * Store a newly created OAuth client and flash its one-time visible secret.
+     */
     public function store(ClientStoreRequest $request, ClientService $clientService): RedirectResponse
     {
         $this->authorize('create', SsoClient::class);
@@ -59,6 +68,9 @@ class ClientController extends Controller
             ]);
     }
 
+    /**
+     * Render the client edit page and its secret-management metadata.
+     */
     public function edit(SsoClient $ssoClient, ClientService $clientService): Response
     {
         $this->authorize('update', $ssoClient);
@@ -66,6 +78,9 @@ class ClientController extends Controller
         return Inertia::render('Clients/Edit', $clientService->getEditPayload($ssoClient));
     }
 
+    /**
+     * Update an existing OAuth client from a validated admin payload.
+     */
     public function update(
         ClientUpdateRequest $request,
         SsoClient $ssoClient,
@@ -80,6 +95,9 @@ class ClientController extends Controller
             ->with('success', 'SSO client updated successfully.');
     }
 
+    /**
+     * Rotate the active client secret and flash the new plain secret once.
+     */
     public function rotateSecret(
         ClientRotateSecretRequest $request,
         SsoClient $ssoClient,
@@ -98,6 +116,9 @@ class ClientController extends Controller
             ]);
     }
 
+    /**
+     * Revoke a specific client secret and return JSON or redirect based on the request type.
+     */
     public function revokeSecret(
         ClientRevokeSecretRequest $request,
         SsoClient $ssoClient,
@@ -120,6 +141,9 @@ class ClientController extends Controller
             ->with('success', 'Client secret revoked successfully.');
     }
 
+    /**
+     * Delete an OAuth client and return the response format expected by the caller.
+     */
     public function destroy(SsoClient $ssoClient, ClientService $clientService): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $ssoClient);

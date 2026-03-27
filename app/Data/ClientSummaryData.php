@@ -5,6 +5,21 @@ namespace App\Data;
 use App\Models\SsoClient;
 use Spatie\LaravelData\Data;
 
+/**
+ * @phpstan-type ClientSummaryPayload array{
+ *     id: int,
+ *     name: string,
+ *     clientId: string,
+ *     redirectUris: array<int, string>,
+ *     redirectUriCount: int,
+ *     isActive: bool,
+ *     scopes: array<int, string>,
+ *     scopesCount: int,
+ *     tokenPolicyId: int|null,
+ *     createdAt: string,
+ *     canDelete: bool
+ * }
+ */
 class ClientSummaryData extends Data
 {
     /**
@@ -26,6 +41,9 @@ class ClientSummaryData extends Data
     ) {
     }
 
+    /**
+     * Create the client summary payload consumed by admin tables and selectors.
+     */
     public static function fromModel(SsoClient $client, bool $canDelete = true): self
     {
         $redirectUris = $client->normalizedRedirectUris();

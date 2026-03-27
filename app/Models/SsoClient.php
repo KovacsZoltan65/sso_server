@@ -13,6 +13,25 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 
+/**
+ * @property int $id
+ * @property string $name
+ * @property string $client_id
+ * @property string $client_secret_hash
+ * @property array<int, string>|null $redirect_uris
+ * @property bool $is_active
+ * @property array<int, string>|null $scopes
+ * @property int|null $token_policy_id
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, RedirectUri> $redirectUris
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Scope> $scopes
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $secrets
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $activeSecrets
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, AuthorizationCode> $authorizationCodes
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, Token> $tokens
+ * @property-read TokenPolicy|null $tokenPolicy
+ */
 #[Fillable([
     'name',
     'client_id',
@@ -33,6 +52,9 @@ class SsoClient extends Model
     /**
      * @return array<string, string>
      */
+    /**
+     * @return array<string, string>
+     */
     protected function casts(): array
     {
         return [
@@ -43,11 +65,17 @@ class SsoClient extends Model
         ];
     }
 
+    /**
+     * @return HasMany<RedirectUri, $this>
+     */
     public function redirectUris(): HasMany
     {
         return $this->hasMany(RedirectUri::class)->orderByDesc('is_primary')->orderBy('id');
     }
 
+    /**
+     * @return BelongsToMany<Scope, $this>
+     */
     public function scopes(): BelongsToMany
     {
         return $this->belongsToMany(Scope::class, 'client_scopes')
@@ -55,11 +83,17 @@ class SsoClient extends Model
             ->orderBy('scopes.name');
     }
 
+    /**
+     * @return HasMany<ClientSecret, $this>
+     */
     public function secrets(): HasMany
     {
         return $this->hasMany(ClientSecret::class)->orderByDesc('is_active')->orderByDesc('id');
     }
 
+    /**
+     * @return HasMany<ClientSecret, $this>
+     */
     public function activeSecrets(): HasMany
     {
         return $this->secrets()
@@ -67,22 +101,36 @@ class SsoClient extends Model
             ->whereNull('revoked_at');
     }
 
+    /**
+     * @return BelongsTo<TokenPolicy, $this>
+     */
     public function tokenPolicy(): BelongsTo
     {
         return $this->belongsTo(TokenPolicy::class);
     }
 
+    /**
+     * @return HasMany<AuthorizationCode, $this>
+     */
     public function authorizationCodes(): HasMany
     {
         return $this->hasMany(AuthorizationCode::class)->latest('id');
     }
 
+    /**
+     * @return HasMany<Token, $this>
+     */
     public function tokens(): HasMany
     {
         return $this->hasMany(Token::class)->latest('id');
     }
 
     /**
+     * @return array<int, string>
+     */
+    /**
+     * Return a stable list of redirect URIs from eager-loaded relations or the fallback attribute payload.
+     *
      * @return array<int, string>
      */
     public function normalizedRedirectUris(): array
@@ -106,6 +154,11 @@ class SsoClient extends Model
     /**
      * @return array<int, string>
      */
+    /**
+     * Resolve the client's granted scope codes from the loaded relation or a fresh query.
+     *
+     * @return array<int, string>
+     */
     public function normalizedScopeCodes(): array
     {
         $scopes = $this->relationLoaded('scopes')
@@ -120,6 +173,9 @@ class SsoClient extends Model
             ->all();
     }
 
+    /**
+     * Configure the audited attributes for SSO client lifecycle changes.
+     */
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
