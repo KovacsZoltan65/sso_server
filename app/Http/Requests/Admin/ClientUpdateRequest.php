@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Scope;
-use App\Support\Permissions\ClientPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,7 +10,7 @@ class ClientUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(ClientPermissions::UPDATE) ?? false;
+        return true;
     }
 
     protected function prepareForValidation(): void

@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Support\Permissions\TokenPolicyPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class TokenPolicyIndexRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(TokenPolicyPermissions::VIEW_ANY) ?? false;
+        return true;
     }
 
     /**

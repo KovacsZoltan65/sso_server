@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Support\Permissions\TokenPolicyPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class TokenPolicyBulkDestroyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(TokenPolicyPermissions::DELETE_ANY) ?? false;
+        return true;
     }
 
     /**

@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Support\Permissions\UserPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class UserIndexRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(UserPermissions::VIEW_ANY) ?? false;
+        return true;
     }
 
     /**

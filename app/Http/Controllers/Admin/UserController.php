@@ -19,6 +19,8 @@ class UserController extends Controller
 {
     public function index(UserIndexRequest $request, UserService $userService): Response
     {
+        $this->authorize('viewAny', User::class);
+
         $validated = $request->validated();
 
         return Inertia::render('Admin/Users/Index', $userService->getIndexPayload(
@@ -37,6 +39,8 @@ class UserController extends Controller
 
     public function store(UserStoreRequest $request, UserService $userService): RedirectResponse
     {
+        $this->authorize('create', User::class);
+
         $userService->createUser($request->validated());
 
         return back()->with('success', 'User created successfully.');
@@ -44,6 +48,8 @@ class UserController extends Controller
 
     public function update(UserUpdateRequest $request, User $user, UserService $userService): RedirectResponse
     {
+        $this->authorize('update', $user);
+
         $userService->updateUser($user, $request->validated());
 
         return back()->with('success', 'User updated successfully.');

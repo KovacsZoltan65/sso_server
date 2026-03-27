@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Support\Permissions\ScopePermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +9,7 @@ class ScopeStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(ScopePermissions::CREATE) ?? false;
+        return true;
     }
 
     /**

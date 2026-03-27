@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\TokenPolicy;
-use App\Support\Permissions\TokenPolicyPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Validator;
@@ -12,7 +11,7 @@ class TokenPolicyUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(TokenPolicyPermissions::UPDATE) ?? false;
+        return true;
     }
 
     /**

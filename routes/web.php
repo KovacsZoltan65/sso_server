@@ -24,69 +24,67 @@ Route::middleware(['auth'])->group(function () {
 
         // UserController routes
         Route::controller(UserController::class)->name('users.')->group(function () {
-            Route::get('/users', 'index')->middleware(PermissionMiddleware::using('users.viewAny'))->name('index');
-            Route::post('/users', 'store')->middleware(PermissionMiddleware::using('users.create'))->name('store');
-            Route::delete('/users', 'bulkDestroy')->middleware(PermissionMiddleware::using('users.deleteAny'))->name('bulk-destroy');
-            Route::put('/users/{user}', 'update')->middleware(PermissionMiddleware::using('users.update'))->name('update');
-            Route::delete('/users/{user}', 'destroy')->middleware(PermissionMiddleware::using('users.delete'))->name('destroy');
+            Route::get('/users', 'index')->name('index');
+            Route::post('/users', 'store')->name('store');
+            Route::delete('/users', 'bulkDestroy')->name('bulk-destroy');
+            Route::put('/users/{user}', 'update')->name('update');
+            Route::delete('/users/{user}', 'destroy')->name('destroy');
         });
 
         // RoleController routes
         Route::controller(RoleController::class)->name('roles.')->group(function () {
-            Route::get('/roles', 'index')->middleware(PermissionMiddleware::using('roles.viewAny'))->name('index');
-            Route::get('/roles/create', 'create')->middleware(PermissionMiddleware::using('roles.create'))->name('create');
-            Route::post('/roles', 'store')->middleware(PermissionMiddleware::using('roles.create'))->name('store');
-            Route::delete('/roles', 'bulkDestroy')->middleware(PermissionMiddleware::using('roles.deleteAny'))->name('bulk-destroy');
-            Route::get('/roles/{role}/edit', 'edit')->middleware(PermissionMiddleware::using('roles.update'))->name('edit');
-            Route::put('/roles/{role}', 'update')->middleware(PermissionMiddleware::using('roles.update'))->name('update');
-            Route::delete('/roles/{role}', 'destroy')->middleware(PermissionMiddleware::using('roles.delete'))->name('destroy');
+            Route::get('/roles', 'index')->name('index');
+            Route::get('/roles/create', 'create')->name('create');
+            Route::post('/roles', 'store')->name('store');
+            Route::delete('/roles', 'bulkDestroy')->name('bulk-destroy');
+            Route::get('/roles/{role}/edit', 'edit')->name('edit');
+            Route::put('/roles/{role}', 'update')->name('update');
+            Route::delete('/roles/{role}', 'destroy')->name('destroy');
         });
 
         // PermissionController routes
         Route::controller(PermissionController::class)->name('permissions.')->group(function () {
-            Route::get('/permissions', 'index')->middleware(PermissionMiddleware::using('permissions.viewAny'))->name('index');
-            Route::get('/permissions/create', 'create')->middleware(PermissionMiddleware::using('permissions.create'))->name('create');
-            Route::post('/permissions', 'store')->middleware(PermissionMiddleware::using('permissions.create'))->name('store');
-            Route::delete('/permissions', 'bulkDestroy')->middleware(PermissionMiddleware::using('permissions.deleteAny'))->name('bulk-destroy');
-            Route::get('/permissions/{permission}/edit', 'edit')->middleware(PermissionMiddleware::using('permissions.update'))->name('edit');
-            Route::put('/permissions/{permission}', 'update')->middleware(PermissionMiddleware::using('permissions.update'))->name('update');
-            Route::delete('/permissions/{permission}', 'destroy')->middleware(PermissionMiddleware::using('permissions.delete'))->name('destroy');
+            Route::get('/permissions', 'index')->name('index');
+            Route::get('/permissions/create', 'create')->name('create');
+            Route::post('/permissions', 'store')->name('store');
+            Route::delete('/permissions', 'bulkDestroy')->name('bulk-destroy');
+            Route::get('/permissions/{permission}/edit', 'edit')->name('edit');
+            Route::put('/permissions/{permission}', 'update')->name('update');
+            Route::delete('/permissions/{permission}', 'destroy')->name('destroy');
         });
 
         // ClientController routes
         Route::controller(ClientController::class)->name('sso-clients.')->group(function () {
-            Route::get('/sso-clients', 'index')->middleware(PermissionMiddleware::using('clients.viewAny'))->name('index');
-            Route::get('/sso-clients/create', 'create')->middleware(PermissionMiddleware::using('clients.create'))->name('create');
-            Route::post('/sso-clients', 'store')->middleware(PermissionMiddleware::using('clients.create'))->name('store');
-            Route::get('/sso-clients/{ssoClient}/edit', 'edit')->middleware(PermissionMiddleware::using('clients.update'))->name('edit');
-            Route::put('/sso-clients/{ssoClient}', 'update')->middleware(PermissionMiddleware::using('clients.update'))->name('update');
-            Route::post('/sso-clients/{ssoClient}/rotate-secret', 'rotateSecret')
-                ->middleware(PermissionMiddleware::using('clients.rotateSecret|clients.manageSecrets'))
-                ->name('rotate-secret');
+            Route::get('/sso-clients', 'index')->name('index');
+            Route::get('/sso-clients/create', 'create')->name('create');
+            Route::post('/sso-clients', 'store')->name('store');
+            Route::get('/sso-clients/{ssoClient}/edit', 'edit')->name('edit');
+            Route::put('/sso-clients/{ssoClient}', 'update')->name('update');
+            Route::post('/sso-clients/{ssoClient}/rotate-secret', 'rotateSecret')->name('rotate-secret');
 
-            Route::delete('/sso-clients/{ssoClient}/secrets/{clientSecret}', 'revokeSecret')->middleware(PermissionMiddleware::using('clients.revokeSecret|clients.manageSecrets'))->name('revoke-secret');
-            Route::delete('/sso-clients/{ssoClient}', 'destroy')->middleware(PermissionMiddleware::using('clients.delete'))->name('destroy');
+            Route::delete('/sso-clients/{ssoClient}/secrets/{clientSecret}', 'revokeSecret')->name('revoke-secret');
+            Route::delete('/sso-clients/{ssoClient}', 'destroy')->name('destroy');
         });
 
         // ScopeController routes
         Route::controller(ScopeController::class)->name('scopes.')->group(function () {
-            Route::get('/scopes', 'index')->middleware(PermissionMiddleware::using('scopes.viewAny'))->name('index');
-            Route::get('/scopes/create', 'create')->middleware(PermissionMiddleware::using('scopes.create'))->name('create');
-            Route::post('/scopes', 'store')->middleware(PermissionMiddleware::using('scopes.create'))->name('store');
-            Route::delete('/scopes', 'bulkDestroy')->middleware(PermissionMiddleware::using('scopes.deleteAny'))->name('bulk-destroy');
-            Route::get('/scopes/{scope}/edit', 'edit')->middleware(PermissionMiddleware::using('scopes.update'))->name('edit');
-            Route::put('/scopes/{scope}', 'update')->middleware(PermissionMiddleware::using('scopes.update'))->name('update');
-            Route::delete('/scopes/{scope}', 'destroy')->middleware(PermissionMiddleware::using('scopes.delete'))->name('destroy');
+            Route::get('/scopes', 'index')->name('index');
+            Route::get('/scopes/create', 'create')->name('create');
+            Route::post('/scopes', 'store')->name('store');
+            Route::delete('/scopes', 'bulkDestroy')->name('bulk-destroy');
+            Route::get('/scopes/{scope}/edit', 'edit')->name('edit');
+            Route::put('/scopes/{scope}', 'update')->name('update');
+            Route::delete('/scopes/{scope}', 'destroy')->name('destroy');
         });
 
         Route::controller(TokenPolicyController::class)->name('token-policies.')->group(function () {
-            Route::get('/token-policies', 'index')->middleware(PermissionMiddleware::using('token-policies.viewAny'))->name('index');
-            Route::get('/token-policies/create', 'create')->middleware(PermissionMiddleware::using('token-policies.create'))->name('create');
-            Route::post('/token-policies', 'store')->middleware(PermissionMiddleware::using('token-policies.create'))->name('store');
-            Route::delete('/token-policies', 'bulkDestroy')->middleware(PermissionMiddleware::using('token-policies.deleteAny'))->name('bulk-destroy');
-            Route::get('/token-policies/{tokenPolicy}/edit', 'edit')->middleware(PermissionMiddleware::using('token-policies.update'))->name('edit');
-            Route::put('/token-policies/{tokenPolicy}', 'update')->middleware(PermissionMiddleware::using('token-policies.update'))->name('update');
-            Route::delete('/token-policies/{tokenPolicy}', 'destroy')->middleware(PermissionMiddleware::using('token-policies.delete'))->name('destroy');
+            Route::get('/token-policies', 'index')->name('index');
+            Route::get('/token-policies/create', 'create')->name('create');
+            Route::post('/token-policies', 'store')->name('store');
+            Route::delete('/token-policies', 'bulkDestroy')->name('bulk-destroy');
+            Route::get('/token-policies/{tokenPolicy}/edit', 'edit')->name('edit');
+            Route::put('/token-policies/{tokenPolicy}', 'update')->name('update');
+            Route::delete('/token-policies/{tokenPolicy}', 'destroy')->name('destroy');
         });
 
         // PlaceholderPageController routes

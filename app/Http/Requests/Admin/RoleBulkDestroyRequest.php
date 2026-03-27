@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Support\Permissions\RolePermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RoleBulkDestroyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(RolePermissions::DELETE_ANY) ?? false;
+        return true;
     }
 
     /**

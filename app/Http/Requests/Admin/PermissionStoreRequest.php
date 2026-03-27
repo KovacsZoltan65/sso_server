@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Support\Permissions\PermissionPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +9,7 @@ class PermissionStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(PermissionPermissions::CREATE) ?? false;
+        return true;
     }
 
     /**

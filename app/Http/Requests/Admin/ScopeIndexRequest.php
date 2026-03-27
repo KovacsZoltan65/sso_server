@@ -2,14 +2,13 @@
 
 namespace App\Http\Requests\Admin;
 
-use App\Support\Permissions\ScopePermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ScopeIndexRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(ScopePermissions::VIEW_ANY) ?? false;
+        return true;
     }
 
     /**

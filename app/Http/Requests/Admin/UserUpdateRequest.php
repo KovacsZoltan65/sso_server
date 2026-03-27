@@ -3,7 +3,6 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\User;
-use App\Support\Permissions\UserPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -11,7 +10,7 @@ class UserUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can(UserPermissions::UPDATE) ?? false;
+        return true;
     }
 
     /**
