@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Permissions\RolePermissions;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -9,7 +10,7 @@ class RoleStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('roles.manage') ?? false;
+        return $this->user()?->can(RolePermissions::CREATE) ?? false;
     }
 
     /**

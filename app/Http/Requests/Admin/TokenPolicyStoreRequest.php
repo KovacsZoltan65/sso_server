@@ -11,8 +11,7 @@ class TokenPolicyStoreRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return ($this->user()?->can(TokenPolicyPermissions::CREATE)
-            || $this->user()?->can('token-policies.manage')) ?? false;
+        return $this->user()?->can(TokenPolicyPermissions::CREATE) ?? false;
     }
 
     /**

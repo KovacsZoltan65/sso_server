@@ -61,7 +61,7 @@ it('authorized user can view client index', function () {
     ]);
     $client->scopes()->sync(Scope::query()->whereIn('code', ['openid', 'profile'])->pluck('id')->all());
 
-    $user = clientManager(['sso-clients.view']);
+    $user = clientManager(['clients.viewAny']);
 
     $this->actingAs($user)
         ->get(route('admin.sso-clients.index', ['global' => 'Portal']))
@@ -87,7 +87,7 @@ it('unauthorized user is forbidden from client index', function () {
 });
 
 it('authorized user can view client create page', function () {
-    $user = clientManager(['sso-clients.manage']);
+    $user = clientManager(['clients.create']);
 
     $this->actingAs($user)
         ->get(route('admin.sso-clients.create'))
@@ -98,7 +98,7 @@ it('authorized user can view client create page', function () {
 });
 
 it('authorized user can store client and receives secret once', function () {
-    $user = clientManager(['sso-clients.manage']);
+    $user = clientManager(['clients.create']);
 
     $response = $this->actingAs($user)
         ->post(route('admin.sso-clients.store'), [
@@ -143,7 +143,7 @@ it('authorized user can store client and receives secret once', function () {
 });
 
 it('store validation fails for invalid client payload', function () {
-    $user = clientManager(['sso-clients.manage']);
+    $user = clientManager(['clients.create']);
 
     $this->actingAs($user)
         ->from(route('admin.sso-clients.create'))
@@ -169,7 +169,7 @@ it('authorized user can view client edit page without leaking secret', function 
         'is_active' => true,
     ]);
 
-    $user = clientManager(['sso-clients.manage', 'clients.manageSecrets']);
+    $user = clientManager(['clients.update', 'clients.manageSecrets']);
 
     $this->actingAs($user)
         ->get(route('admin.sso-clients.edit', $client))
@@ -205,7 +205,7 @@ it('authorized user can update client', function () {
     ]);
 
     $originalSecretHash = $client->client_secret_hash;
-    $user = clientManager(['sso-clients.manage']);
+    $user = clientManager(['clients.update']);
 
     $this->actingAs($user)
         ->put(route('admin.sso-clients.update', $client), [
@@ -229,7 +229,7 @@ it('authorized user can update client', function () {
 
 it('update validation fails for invalid client payload', function () {
     $client = SsoClient::factory()->create();
-    $user = clientManager(['sso-clients.manage']);
+    $user = clientManager(['clients.update']);
 
     $this->actingAs($user)
         ->from(route('admin.sso-clients.edit', $client))
@@ -336,7 +336,7 @@ it('cannot revoke the last active client secret', function () {
 
 it('authorized user can delete client', function () {
     $client = SsoClient::factory()->create();
-    $user = clientManager(['sso-clients.manage']);
+    $user = clientManager(['clients.delete']);
 
     $this->actingAs($user)
         ->delete(route('admin.sso-clients.destroy', $client))

@@ -2,15 +2,15 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Permissions\ClientPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ClientRotateSecretRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return ($this->user()?->can('clients.rotateSecret')
-            || $this->user()?->can('clients.manageSecrets')
-            || $this->user()?->can('sso-clients.manage')) ?? false;
+        return ($this->user()?->can(ClientPermissions::ROTATE_SECRET)
+            || $this->user()?->can(ClientPermissions::MANAGE_SECRETS)) ?? false;
     }
 
     protected function prepareForValidation(): void

@@ -12,8 +12,7 @@ class TokenPolicyUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return ($this->user()?->can(TokenPolicyPermissions::UPDATE)
-            || $this->user()?->can('token-policies.manage')) ?? false;
+        return $this->user()?->can(TokenPolicyPermissions::UPDATE) ?? false;
     }
 
     /**

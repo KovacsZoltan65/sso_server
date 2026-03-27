@@ -10,31 +10,31 @@ class ScopePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can(ScopePermissions::VIEW_ANY) || $user->can('scopes.view');
+        return $user->can(ScopePermissions::VIEW_ANY);
     }
 
     public function view(User $user, Scope $scope): bool
     {
-        return $user->can('scopes.view') || $user->can(ScopePermissions::VIEW_ANY);
+        return $user->can(ScopePermissions::VIEW);
     }
 
     public function create(User $user): bool
     {
-        return $user->can(ScopePermissions::CREATE) || $user->can('scopes.manage');
+        return $user->can(ScopePermissions::CREATE);
     }
 
     public function update(User $user, Scope $scope): bool
     {
-        return $user->can(ScopePermissions::UPDATE) || $user->can('scopes.manage');
+        return $user->can(ScopePermissions::UPDATE);
     }
 
     public function delete(User $user, Scope $scope): bool
     {
-        return $user->can(ScopePermissions::DELETE) || $user->can('scopes.manage');
+        return $user->can(ScopePermissions::DELETE);
     }
 
     public function bulkDelete(User $user): bool
     {
-        return $user->can(ScopePermissions::DELETE_ANY) || $user->can('scopes.manage');
+        return $user->can(ScopePermissions::DELETE_ANY);
     }
 }

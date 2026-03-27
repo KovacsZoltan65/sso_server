@@ -24,53 +24,48 @@ Route::middleware(['auth'])->group(function () {
 
         // UserController routes
         Route::controller(UserController::class)->name('users.')->group(function () {
-            Route::get('/users', 'index')->middleware(PermissionMiddleware::using('users.view'))->name('index');
-            Route::post('/users', 'store')->middleware(PermissionMiddleware::using('users.manage'))->name('store');
-            Route::delete('/users', 'bulkDestroy')->middleware(PermissionMiddleware::using('users.manage'))->name('bulk-destroy');
-            Route::put('/users/{user}', 'update')->middleware(PermissionMiddleware::using('users.manage'))->name('update');
-            Route::delete('/users/{user}', 'destroy')->middleware(PermissionMiddleware::using('users.manage'))->name('destroy');
+            Route::get('/users', 'index')->middleware(PermissionMiddleware::using('users.viewAny'))->name('index');
+            Route::post('/users', 'store')->middleware(PermissionMiddleware::using('users.create'))->name('store');
+            Route::delete('/users', 'bulkDestroy')->middleware(PermissionMiddleware::using('users.deleteAny'))->name('bulk-destroy');
+            Route::put('/users/{user}', 'update')->middleware(PermissionMiddleware::using('users.update'))->name('update');
+            Route::delete('/users/{user}', 'destroy')->middleware(PermissionMiddleware::using('users.delete'))->name('destroy');
         });
 
         // RoleController routes
         Route::controller(RoleController::class)->name('roles.')->group(function () {
-            Route::get('/roles', 'index')->middleware(PermissionMiddleware::using('roles.view'))->name('index');
-            Route::get('/roles/create', 'create')->middleware(PermissionMiddleware::using('roles.manage'))->name('create');
-            Route::post('/roles', 'store')->middleware(PermissionMiddleware::using('roles.manage'))->name('store');
-            Route::delete('/roles', 'bulkDestroy')->middleware(PermissionMiddleware::using('roles.manage'))->name('bulk-destroy');
-            Route::get('/roles/{role}/edit', 'edit')->middleware(PermissionMiddleware::using('roles.manage'))->name('edit');
-            Route::put('/roles/{role}', 'update')->middleware(PermissionMiddleware::using('roles.manage'))->name('update');
-            Route::delete('/roles/{role}', 'destroy')->middleware(PermissionMiddleware::using('roles.manage'))->name('destroy');
+            Route::get('/roles', 'index')->middleware(PermissionMiddleware::using('roles.viewAny'))->name('index');
+            Route::get('/roles/create', 'create')->middleware(PermissionMiddleware::using('roles.create'))->name('create');
+            Route::post('/roles', 'store')->middleware(PermissionMiddleware::using('roles.create'))->name('store');
+            Route::delete('/roles', 'bulkDestroy')->middleware(PermissionMiddleware::using('roles.deleteAny'))->name('bulk-destroy');
+            Route::get('/roles/{role}/edit', 'edit')->middleware(PermissionMiddleware::using('roles.update'))->name('edit');
+            Route::put('/roles/{role}', 'update')->middleware(PermissionMiddleware::using('roles.update'))->name('update');
+            Route::delete('/roles/{role}', 'destroy')->middleware(PermissionMiddleware::using('roles.delete'))->name('destroy');
         });
 
         // PermissionController routes
         Route::controller(PermissionController::class)->name('permissions.')->group(function () {
-            Route::get('/permissions', 'index')->middleware(PermissionMiddleware::using('permissions.view'))->name('index');
-            Route::get('/permissions/create', 'create')->middleware(PermissionMiddleware::using('permissions.manage'))->name('create');
-            Route::post('/permissions', 'store')->middleware(PermissionMiddleware::using('permissions.manage'))->name('store');
-            Route::delete('/permissions', 'bulkDestroy')->middleware(PermissionMiddleware::using('permissions.manage'))->name('bulk-destroy');
-            Route::get('/permissions/{permission}/edit', 'edit')->middleware(PermissionMiddleware::using('permissions.manage'))->name('edit');
-            Route::put('/permissions/{permission}', 'update')->middleware(PermissionMiddleware::using('permissions.manage'))->name('update');
-            Route::delete('/permissions/{permission}', 'destroy')->middleware(PermissionMiddleware::using('permissions.manage'))->name('destroy');
+            Route::get('/permissions', 'index')->middleware(PermissionMiddleware::using('permissions.viewAny'))->name('index');
+            Route::get('/permissions/create', 'create')->middleware(PermissionMiddleware::using('permissions.create'))->name('create');
+            Route::post('/permissions', 'store')->middleware(PermissionMiddleware::using('permissions.create'))->name('store');
+            Route::delete('/permissions', 'bulkDestroy')->middleware(PermissionMiddleware::using('permissions.deleteAny'))->name('bulk-destroy');
+            Route::get('/permissions/{permission}/edit', 'edit')->middleware(PermissionMiddleware::using('permissions.update'))->name('edit');
+            Route::put('/permissions/{permission}', 'update')->middleware(PermissionMiddleware::using('permissions.update'))->name('update');
+            Route::delete('/permissions/{permission}', 'destroy')->middleware(PermissionMiddleware::using('permissions.delete'))->name('destroy');
         });
 
         // ClientController routes
         Route::controller(ClientController::class)->name('sso-clients.')->group(function () {
-            Route::get('/sso-clients', 'index')->middleware(PermissionMiddleware::using('sso-clients.view'))->name('index');
-            Route::get('/sso-clients/create', 'create')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('create');
-            Route::post('/sso-clients', 'store')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('store');
-            Route::get('/sso-clients/{ssoClient}/edit', 'edit')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('edit');
-            Route::put('/sso-clients/{ssoClient}', 'update')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('update');
-            /*
-            Route::post('/sso-clients/{ssoClient}/rotate-secret', 'rotateSecret')
-                ->middleware(PermissionMiddleware::using('clients.rotateSecret'))
-                ->name('rotate-secret');
-            */
+            Route::get('/sso-clients', 'index')->middleware(PermissionMiddleware::using('clients.viewAny'))->name('index');
+            Route::get('/sso-clients/create', 'create')->middleware(PermissionMiddleware::using('clients.create'))->name('create');
+            Route::post('/sso-clients', 'store')->middleware(PermissionMiddleware::using('clients.create'))->name('store');
+            Route::get('/sso-clients/{ssoClient}/edit', 'edit')->middleware(PermissionMiddleware::using('clients.update'))->name('edit');
+            Route::put('/sso-clients/{ssoClient}', 'update')->middleware(PermissionMiddleware::using('clients.update'))->name('update');
             Route::post('/sso-clients/{ssoClient}/rotate-secret', 'rotateSecret')
                 ->middleware(PermissionMiddleware::using('clients.rotateSecret|clients.manageSecrets'))
                 ->name('rotate-secret');
 
-            Route::delete('/sso-clients/{ssoClient}/secrets/{clientSecret}', 'revokeSecret')->middleware(PermissionMiddleware::using('clients.manageSecrets'))->name('revoke-secret');
-            Route::delete('/sso-clients/{ssoClient}', 'destroy')->middleware(PermissionMiddleware::using('sso-clients.manage'))->name('destroy');
+            Route::delete('/sso-clients/{ssoClient}/secrets/{clientSecret}', 'revokeSecret')->middleware(PermissionMiddleware::using('clients.revokeSecret|clients.manageSecrets'))->name('revoke-secret');
+            Route::delete('/sso-clients/{ssoClient}', 'destroy')->middleware(PermissionMiddleware::using('clients.delete'))->name('destroy');
         });
 
         // ScopeController routes
@@ -96,7 +91,7 @@ Route::middleware(['auth'])->group(function () {
 
         // PlaceholderPageController routes
         Route::controller(PlaceholderPageController::class)->group(function () {
-            Route::get('/audit-logs', 'auditLogs')->middleware(PermissionMiddleware::using('audit-logs.view'))->name('audit-logs.index');
+            Route::get('/audit-logs', 'auditLogs')->middleware(PermissionMiddleware::using('audit-logs.viewAny'))->name('audit-logs.index');
         });
     });
 

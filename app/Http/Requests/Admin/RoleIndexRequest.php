@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Permissions\RolePermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RoleIndexRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('roles.view') ?? false;
+        return $this->user()?->can(RolePermissions::VIEW_ANY) ?? false;
     }
 
     /**

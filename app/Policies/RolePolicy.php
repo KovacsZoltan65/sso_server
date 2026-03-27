@@ -10,7 +10,7 @@ class RolePolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('roles.view');
+        return $user->can(RolePermissions::VIEW_ANY);
     }
 
     public function view(User $user, Role $role): bool
@@ -20,21 +20,21 @@ class RolePolicy
 
     public function create(User $user): bool
     {
-        return $user->can(RolePermissions::CREATE) || $user->can('roles.manage');
+        return $user->can(RolePermissions::CREATE);
     }
 
     public function update(User $user, Role $role): bool
     {
-        return $user->can(RolePermissions::UPDATE) || $user->can('roles.manage');
+        return $user->can(RolePermissions::UPDATE);
     }
 
     public function delete(User $user, Role $role): bool
     {
-        return $user->can(RolePermissions::DELETE) || $user->can('roles.manage');
+        return $user->can(RolePermissions::DELETE);
     }
 
     public function bulkDelete(User $user): bool
     {
-        return $user->can(RolePermissions::DELETE_ANY) || $user->can('roles.manage');
+        return $user->can(RolePermissions::DELETE_ANY);
     }
 }

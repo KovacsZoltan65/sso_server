@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\ScopeSummaryData;
 use App\Models\Scope;
 use App\Repositories\Contracts\ScopeRepositoryInterface;
+use App\Support\Permissions\ScopePermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -43,11 +44,10 @@ class ScopeService
                 ))
                 ->values()
                 ->all(),
-            'canManageScopes' => auth()->user()?->can('scopes.create')
-                || auth()->user()?->can('scopes.update')
-                || auth()->user()?->can('scopes.delete')
-                || auth()->user()?->can('scopes.deleteAny')
-                || auth()->user()?->can('scopes.manage')
+            'canManageScopes' => auth()->user()?->can(ScopePermissions::CREATE)
+                || auth()->user()?->can(ScopePermissions::UPDATE)
+                || auth()->user()?->can(ScopePermissions::DELETE)
+                || auth()->user()?->can(ScopePermissions::DELETE_ANY)
                 || false,
             'filters' => [
                 'global' => $filters['global'] ?? null,

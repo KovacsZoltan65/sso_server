@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\UserSummaryData;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Support\Permissions\UserPermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -50,7 +51,11 @@ class UserService
                 ->values()
                 ->all(),
             'roleOptions' => $this->roleOptions(),
-            'canManageUsers' => auth()->user()?->can('users.manage') ?? false,
+            'canManageUsers' => auth()->user()?->can(UserPermissions::CREATE)
+                || auth()->user()?->can(UserPermissions::UPDATE)
+                || auth()->user()?->can(UserPermissions::DELETE)
+                || auth()->user()?->can(UserPermissions::DELETE_ANY)
+                || false,
             'filters' => [
                 'global' => $filters['global'] ?? null,
                 'name' => $filters['name'] ?? null,

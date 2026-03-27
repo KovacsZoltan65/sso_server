@@ -29,7 +29,7 @@ it('authorized user can view role index', function () {
     Role::create(['name' => 'auditor', 'guard_name' => 'web']);
     Permission::create(['name' => 'reports.view', 'guard_name' => 'web']);
 
-    $user = roleUser(['roles.view']);
+    $user = roleUser(['roles.viewAny']);
 
     $this->actingAs($user)
         ->get(route('admin.roles.index', ['global' => 'auditor']))
@@ -54,7 +54,7 @@ it('unauthorized user is forbidden from role index', function () {
 it('authorized user can view role create page', function () {
     Permission::create(['name' => 'reports.view', 'guard_name' => 'web']);
 
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.create']);
 
     $this->actingAs($user)
         ->get(route('admin.roles.create'))
@@ -64,14 +64,14 @@ it('authorized user can view role create page', function () {
             ->where('guardName', 'web')
             ->has('permissionOptions', 2)
             ->where('permissionOptions.0.value', 'reports.view')
-            ->where('permissionOptions.1.value', 'roles.manage'));
+            ->where('permissionOptions.1.value', 'roles.create'));
 });
 
 it('authorized user can store role with permissions', function () {
     Permission::create(['name' => 'reports.view', 'guard_name' => 'web']);
     Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
 
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.create']);
 
     $this->actingAs($user)
         ->post(route('admin.roles.store'), [
@@ -90,7 +90,7 @@ it('authorized user can store role with permissions', function () {
 it('store validation fails for invalid role payload', function () {
     Role::create(['name' => 'auditor', 'guard_name' => 'web']);
 
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.create']);
 
     $this->actingAs($user)
         ->from(route('admin.roles.create'))
@@ -105,7 +105,7 @@ it('authorized user can view role edit page', function () {
     $permission = Permission::create(['name' => 'reports.view', 'guard_name' => 'web']);
     $role = Role::create(['name' => 'auditor', 'guard_name' => 'web']);
     $role->givePermissionTo($permission);
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.update']);
 
     $this->actingAs($user)
         ->get(route('admin.roles.edit', $role))
@@ -122,7 +122,7 @@ it('authorized user can update role and sync permissions', function () {
     Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
     $role = Role::create(['name' => 'auditor', 'guard_name' => 'web']);
     $role->givePermissionTo('reports.view');
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.update']);
 
     $this->actingAs($user)
         ->put(route('admin.roles.update', $role), [
@@ -142,7 +142,7 @@ it('authorized user can update role and sync permissions', function () {
 it('update validation fails for invalid role payload', function () {
     $role = Role::create(['name' => 'auditor', 'guard_name' => 'web']);
     Role::create(['name' => 'reviewer', 'guard_name' => 'web']);
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.update']);
 
     $this->actingAs($user)
         ->from(route('admin.roles.edit', $role))
@@ -155,7 +155,7 @@ it('update validation fails for invalid role payload', function () {
 
 it('authorized user can delete unassigned role', function () {
     $role = Role::create(['name' => 'auditor', 'guard_name' => 'web']);
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.delete']);
 
     $this->actingAs($user)
         ->delete(route('admin.roles.destroy', $role))
@@ -178,7 +178,7 @@ it('forbids role delete when unauthorized', function () {
 
 it('prevents deleting protected roles', function () {
     $role = Role::create(['name' => 'admin', 'guard_name' => 'web']);
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.delete']);
 
     $this->actingAs($user)
         ->delete(route('admin.roles.destroy', $role))
@@ -194,7 +194,7 @@ it('prevents deleting role assigned to users', function () {
     $role = Role::create(['name' => 'auditor', 'guard_name' => 'web']);
     $assignedUser = User::factory()->create();
     $assignedUser->assignRole($role);
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.delete']);
 
     $this->actingAs($user)
         ->delete(route('admin.roles.destroy', $role))
@@ -211,7 +211,7 @@ it('authorized user can bulk delete unassigned roles', function () {
         Role::create(['name' => 'auditor', 'guard_name' => 'web']),
         Role::create(['name' => 'reviewer', 'guard_name' => 'web']),
     ]);
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.deleteAny']);
 
     $this->actingAs($user)
         ->deleteJson(route('admin.roles.bulk-destroy'), [
@@ -237,7 +237,7 @@ it('blocks bulk delete when a protected role is selected', function () {
         Role::create(['name' => 'admin', 'guard_name' => 'web']),
         Role::create(['name' => 'auditor', 'guard_name' => 'web']),
     ]);
-    $user = roleUser(['roles.manage']);
+    $user = roleUser(['roles.deleteAny']);
 
     $this->actingAs($user)
         ->deleteJson(route('admin.roles.bulk-destroy'), [

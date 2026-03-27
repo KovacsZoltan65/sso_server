@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Permissions\ScopePermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ScopeBulkDestroyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return ($this->user()?->can('scopes.deleteAny') || $this->user()?->can('scopes.manage')) ?? false;
+        return $this->user()?->can(ScopePermissions::DELETE_ANY) ?? false;
     }
 
     /**

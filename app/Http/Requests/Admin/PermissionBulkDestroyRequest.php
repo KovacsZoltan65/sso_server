@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Permissions\PermissionPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class PermissionBulkDestroyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('permissions.manage') ?? false;
+        return $this->user()?->can(PermissionPermissions::DELETE_ANY) ?? false;
     }
 
     /**

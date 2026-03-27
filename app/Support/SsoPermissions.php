@@ -104,25 +104,7 @@ class SsoPermissions
      */
     public static function legacyPermissions(): array
     {
-        return [
-            'users.view',
-            'users.manage',
-            'roles.view',
-            'roles.manage',
-            'permissions.view',
-            'permissions.manage',
-            'sso-clients.view',
-            'sso-clients.manage',
-            'redirect-uris.view',
-            'redirect-uris.manage',
-            'scopes.view',
-            'scopes.manage',
-            'secrets.view',
-            'secrets.manage',
-            'token-policies.view',
-            'token-policies.manage',
-            'audit-logs.view',
-        ];
+        return [];
     }
 
     /**
@@ -168,13 +150,6 @@ class SsoPermissions
                     'roles.assignPermission',
                     'roles.revokePermission',
                     'dashboard.view',
-                    'users.view',
-                    'users.manage',
-                    'roles.view',
-                    'roles.manage',
-                    'permissions.view',
-                    'permissions.manage',
-                    'audit-logs.view',
                 ],
             ))),
             'sso' => array_values(array_unique(array_merge(
@@ -187,20 +162,9 @@ class SsoPermissions
                     'tokens.issueToken',
                     'tokens.revokeToken',
                     'tokens.refreshToken',
-                    'sso-clients.view',
-                    'sso-clients.manage',
-                    'redirect-uris.view',
-                    'redirect-uris.manage',
-                    'scopes.view',
-                    'scopes.manage',
-                    'secrets.view',
-                    'secrets.manage',
-                    'token-policies.view',
-                    'token-policies.manage',
                 ],
             ))),
             'standardized' => self::standardizedPermissions(),
-            'legacy' => self::legacyPermissions(),
         ];
     }
 
@@ -209,10 +173,7 @@ class SsoPermissions
      */
     public static function all(): array
     {
-        return array_values(array_unique(array_merge(
-            self::standardizedPermissions(),
-            self::legacyPermissions(),
-        )));
+        return self::standardizedPermissions();
     }
 
     /**
@@ -243,11 +204,11 @@ class SsoPermissions
                 'roles.revokePermission',
                 'clients.manageSecrets',
                 'clients.rotateSecret',
+                'clients.revokeSecret',
                 'tokens.issueToken',
                 'tokens.revokeToken',
                 'tokens.refreshToken',
             ],
-            self::legacyPermissions(),
         )));
     }
 }

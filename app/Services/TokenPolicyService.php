@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\TokenPolicySummaryData;
 use App\Models\TokenPolicy;
 use App\Repositories\Contracts\TokenPolicyRepositoryInterface;
+use App\Support\Permissions\TokenPolicyPermissions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use RuntimeException;
@@ -48,11 +49,10 @@ class TokenPolicyService
                 })
                 ->values()
                 ->all(),
-            'canManageTokenPolicies' => auth()->user()?->can('token-policies.create')
-                || auth()->user()?->can('token-policies.update')
-                || auth()->user()?->can('token-policies.delete')
-                || auth()->user()?->can('token-policies.deleteAny')
-                || auth()->user()?->can('token-policies.manage')
+            'canManageTokenPolicies' => auth()->user()?->can(TokenPolicyPermissions::CREATE)
+                || auth()->user()?->can(TokenPolicyPermissions::UPDATE)
+                || auth()->user()?->can(TokenPolicyPermissions::DELETE)
+                || auth()->user()?->can(TokenPolicyPermissions::DELETE_ANY)
                 || false,
             'filters' => [
                 'global' => $filters['global'] ?? null,

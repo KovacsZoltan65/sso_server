@@ -2,13 +2,14 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Support\Permissions\ClientPermissions;
 use Illuminate\Foundation\Http\FormRequest;
 
 class ClientIndexRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return ($this->user()?->can('clients.viewAny') || $this->user()?->can('sso-clients.view')) ?? false;
+        return $this->user()?->can(ClientPermissions::VIEW_ANY) ?? false;
     }
 
     /**

@@ -34,7 +34,7 @@ it('authorized user can view user index with modal-ready props', function () {
     ]);
     $listedUser->assignRole('admin');
 
-    $manager = userManager(['users.view']);
+    $manager = userManager(['users.viewAny']);
 
     $this->actingAs($manager)
         ->get(route('admin.users.index', ['global' => 'Taylor']))
@@ -61,7 +61,7 @@ it('unauthorized user is forbidden from user index', function () {
 
 it('authorized user can store user with roles', function () {
     Role::create(['name' => 'admin', 'guard_name' => 'web']);
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.create']);
 
     $this->actingAs($manager)
         ->post(route('admin.users.store'), [
@@ -81,7 +81,7 @@ it('authorized user can store user with roles', function () {
 });
 
 it('store validation fails for invalid user payload', function () {
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.create']);
 
     $this->actingAs($manager)
         ->post(route('admin.users.store'), [
@@ -114,7 +114,7 @@ it('authorized user can update user and sync roles', function () {
         'email' => 'old@example.com',
     ]);
     $targetUser->assignRole('admin');
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.update']);
 
     $this->actingAs($manager)
         ->put(route('admin.users.update', $targetUser), [
@@ -140,7 +140,7 @@ it('update validation fails for invalid user payload', function () {
     User::factory()->create([
         'email' => 'taken@example.com',
     ]);
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.update']);
 
     $this->actingAs($manager)
         ->put(route('admin.users.update', $targetUser), [
@@ -166,7 +166,7 @@ it('forbids user update when unauthorized', function () {
 
 it('authorized user can delete a regular user', function () {
     $targetUser = User::factory()->create();
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.delete']);
 
     $this->actingAs($manager)
         ->deleteJson(route('admin.users.destroy', $targetUser))
@@ -184,7 +184,7 @@ it('authorized user can delete a regular user', function () {
 });
 
 it('forbids deleting the currently signed-in user', function () {
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.delete']);
 
     $this->actingAs($manager)
         ->deleteJson(route('admin.users.destroy', $manager))
@@ -195,7 +195,7 @@ it('blocks deleting a protected system user', function () {
     $protectedUser = User::factory()->create([
         'email' => 'admin@sso.test',
     ]);
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.delete']);
 
     $this->actingAs($manager)
         ->deleteJson(route('admin.users.destroy', $protectedUser))
@@ -211,7 +211,7 @@ it('blocks deleting a protected system user', function () {
 
 it('authorized user can bulk delete regular users', function () {
     $targets = User::factory()->count(2)->create();
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.deleteAny']);
 
     $this->actingAs($manager)
         ->deleteJson(route('admin.users.bulk-destroy'), [
@@ -233,7 +233,7 @@ it('authorized user can bulk delete regular users', function () {
 });
 
 it('blocks bulk delete when the current user is included', function () {
-    $manager = userManager(['users.manage']);
+    $manager = userManager(['users.deleteAny']);
     $otherUser = User::factory()->create();
 
     $this->actingAs($manager)

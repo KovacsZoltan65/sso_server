@@ -17,18 +17,23 @@ class UserPolicy
         return $user->can(UserPermissions::VIEW);
     }
 
+    public function create(User $user): bool
+    {
+        return $user->can(UserPermissions::CREATE);
+    }
+
     public function update(User $user, User $model): bool
     {
-        return $user->can(UserPermissions::MANAGE) || $user->is($model);
+        return $user->can(UserPermissions::UPDATE) || $user->is($model);
     }
 
     public function delete(User $user, User $model): bool
     {
-        return $user->can(UserPermissions::MANAGE) && ! $user->is($model);
+        return $user->can(UserPermissions::DELETE) && ! $user->is($model);
     }
 
     public function bulkDelete(User $user): bool
     {
-        return $user->can('users.deleteAny') || $user->can(UserPermissions::MANAGE);
+        return $user->can(UserPermissions::DELETE_ANY);
     }
 }

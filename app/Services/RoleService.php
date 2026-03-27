@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Data\RoleSummaryData;
 use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Support\Permissions\RolePermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -44,7 +45,11 @@ class RoleService
                 ))
                 ->values()
                 ->all(),
-            'canManageRoles' => auth()->user()?->can('roles.manage') ?? false,
+            'canManageRoles' => auth()->user()?->can(RolePermissions::CREATE)
+                || auth()->user()?->can(RolePermissions::UPDATE)
+                || auth()->user()?->can(RolePermissions::DELETE)
+                || auth()->user()?->can(RolePermissions::DELETE_ANY)
+                || false,
             'filters' => [
                 'global' => $filters['global'] ?? null,
                 'name' => $filters['name'] ?? null,

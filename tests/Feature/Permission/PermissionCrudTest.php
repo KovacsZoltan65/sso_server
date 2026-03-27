@@ -27,7 +27,7 @@ function permissionUser(array $abilities = []): User
 it('authorized user can view permission index', function () {
     Permission::create(['name' => 'reports.view', 'guard_name' => 'web']);
 
-    $user = permissionUser(['permissions.view']);
+    $user = permissionUser(['permissions.viewAny']);
 
     $this->actingAs($user)
         ->get(route('admin.permissions.index', ['global' => 'reports.view']))
@@ -50,7 +50,7 @@ it('permission index returns paginator meta for the requested page', function ()
         'guard_name' => 'web',
     ]));
 
-    $user = permissionUser(['permissions.view']);
+    $user = permissionUser(['permissions.viewAny']);
 
     $this->actingAs($user)
         ->get(route('admin.permissions.index', [
@@ -81,7 +81,7 @@ it('unauthorized user is forbidden from permission index', function () {
 });
 
 it('authorized user can view permission create page', function () {
-    $user = permissionUser(['permissions.manage']);
+    $user = permissionUser(['permissions.create']);
 
     $this->actingAs($user)
         ->get(route('admin.permissions.create'))
@@ -92,7 +92,7 @@ it('authorized user can view permission create page', function () {
 });
 
 it('authorized user can store permission', function () {
-    $user = permissionUser(['permissions.manage']);
+    $user = permissionUser(['permissions.create']);
 
     $this->actingAs($user)
         ->post(route('admin.permissions.store'), [
@@ -110,7 +110,7 @@ it('authorized user can store permission', function () {
 it('store validation fails for invalid permission payload', function () {
     Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
 
-    $user = permissionUser(['permissions.manage']);
+    $user = permissionUser(['permissions.create']);
 
     $this->actingAs($user)
         ->from(route('admin.permissions.create'))
@@ -123,7 +123,7 @@ it('store validation fails for invalid permission payload', function () {
 
 it('authorized user can view permission edit page', function () {
     $permission = Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
-    $user = permissionUser(['permissions.manage']);
+    $user = permissionUser(['permissions.update']);
 
     $this->actingAs($user)
         ->get(route('admin.permissions.edit', $permission))
@@ -136,7 +136,7 @@ it('authorized user can view permission edit page', function () {
 
 it('authorized user can update permission', function () {
     $permission = Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
-    $user = permissionUser(['permissions.manage']);
+    $user = permissionUser(['permissions.update']);
 
     $this->actingAs($user)
         ->put(route('admin.permissions.update', $permission), [
@@ -155,7 +155,7 @@ it('authorized user can update permission', function () {
 it('update validation fails for invalid permission payload', function () {
     $permission = Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
     Permission::create(['name' => 'reports.download', 'guard_name' => 'web']);
-    $user = permissionUser(['permissions.manage']);
+    $user = permissionUser(['permissions.update']);
 
     $this->actingAs($user)
         ->from(route('admin.permissions.edit', $permission))
@@ -168,7 +168,7 @@ it('update validation fails for invalid permission payload', function () {
 
 it('authorized user can delete unassigned permission', function () {
     $permission = Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
-    $user = permissionUser(['permissions.manage']);
+    $user = permissionUser(['permissions.delete']);
 
     $this->actingAs($user)
         ->delete(route('admin.permissions.destroy', $permission))
@@ -191,7 +191,7 @@ it('forbids permission delete when unauthorized', function () {
 
 it('prevents deleting permission that is assigned to a role or user', function () {
     $permission = Permission::create(['name' => 'reports.export', 'guard_name' => 'web']);
-    $manager = permissionUser(['permissions.manage']);
+    $manager = permissionUser(['permissions.delete']);
     $assignedUser = User::factory()->create();
     $assignedUser->givePermissionTo($permission);
 
@@ -210,7 +210,7 @@ it('authorized user can bulk delete unassigned permissions', function () {
         Permission::create(['name' => 'reports.export', 'guard_name' => 'web']),
         Permission::create(['name' => 'reports.download', 'guard_name' => 'web']),
     ]);
-    $manager = permissionUser(['permissions.manage']);
+    $manager = permissionUser(['permissions.deleteAny']);
 
     $this->actingAs($manager)
         ->deleteJson(route('admin.permissions.bulk-destroy'), [
@@ -236,7 +236,7 @@ it('blocks bulk delete when an assigned permission is selected', function () {
     $freePermission = Permission::create(['name' => 'reports.download', 'guard_name' => 'web']);
     $assignedUser = User::factory()->create();
     $assignedUser->givePermissionTo($assignedPermission);
-    $manager = permissionUser(['permissions.manage']);
+    $manager = permissionUser(['permissions.deleteAny']);
 
     $this->actingAs($manager)
         ->deleteJson(route('admin.permissions.bulk-destroy'), [

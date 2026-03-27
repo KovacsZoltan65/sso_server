@@ -26,7 +26,7 @@ class AdminNavigation
                 'label' => 'Users',
                 'route' => 'admin.users.index',
                 'icon' => 'pi pi-users',
-                'permission' => 'users.view',
+                'permission' => 'users.viewAny',
                 'description' => 'Operator directory and read-model example backed by the repository layer.',
             ],
             [
@@ -34,7 +34,7 @@ class AdminNavigation
                 'label' => 'Roles',
                 'route' => 'admin.roles.index',
                 'icon' => 'pi pi-id-card',
-                'permission' => 'roles.view',
+                'permission' => 'roles.viewAny',
                 'description' => 'Role definitions and future access bundles.',
             ],
             [
@@ -42,7 +42,7 @@ class AdminNavigation
                 'label' => 'Permissions',
                 'route' => 'admin.permissions.index',
                 'icon' => 'pi pi-shield',
-                'permission' => 'permissions.view',
+                'permission' => 'permissions.viewAny',
                 'description' => 'Granular capability matrix for admin and SSO modules.',
             ],
             [
@@ -50,7 +50,7 @@ class AdminNavigation
                 'label' => 'SSO Clients',
                 'route' => 'admin.sso-clients.index',
                 'icon' => 'pi pi-desktop',
-                'permission' => 'sso-clients.view',
+                'permission' => 'clients.viewAny',
                 'description' => 'Client registrations, redirect targets, secrets, and token rules.',
             ],
             [
@@ -74,7 +74,7 @@ class AdminNavigation
                 'label' => 'Audit Logs',
                 'route' => 'admin.audit-logs.index',
                 'icon' => 'pi pi-history',
-                'permission' => 'audit-logs.view',
+                'permission' => 'audit-logs.viewAny',
                 'description' => 'Administrative actions and future security event review.',
             ],
         ];

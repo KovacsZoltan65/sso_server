@@ -7,6 +7,7 @@ use App\Models\ClientSecret;
 use App\Models\SsoClient;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use App\Support\ClientOptions;
+use App\Support\Permissions\ClientPermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -92,10 +93,9 @@ class ClientService
                 ->all(),
             'scopeOptions' => ClientOptions::scopeOptions(),
             'tokenPolicies' => ClientOptions::tokenPolicies(),
-            'canManageClients' => auth()->user()?->can('clients.create')
-                || auth()->user()?->can('clients.update')
-                || auth()->user()?->can('clients.delete')
-                || auth()->user()?->can('sso-clients.manage')
+            'canManageClients' => auth()->user()?->can(ClientPermissions::CREATE)
+                || auth()->user()?->can(ClientPermissions::UPDATE)
+                || auth()->user()?->can(ClientPermissions::DELETE)
                 || false,
             'filters' => [
                 'global' => $filters['global'] ?? null,
@@ -148,10 +148,9 @@ class ClientService
             'client' => $this->editableClient($client),
             'scopeOptions' => ClientOptions::scopeOptions(),
             'tokenPolicies' => ClientOptions::tokenPolicies(),
-            'canManageSecrets' => auth()->user()?->can('clients.manageSecrets')
-                || auth()->user()?->can('clients.rotateSecret')
-                || auth()->user()?->can('clients.revokeSecret')
-                || auth()->user()?->can('sso-clients.manage')
+            'canManageSecrets' => auth()->user()?->can(ClientPermissions::MANAGE_SECRETS)
+                || auth()->user()?->can(ClientPermissions::ROTATE_SECRET)
+                || auth()->user()?->can(ClientPermissions::REVOKE_SECRET)
                 || false,
         ];
     }

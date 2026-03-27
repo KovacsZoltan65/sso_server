@@ -9,9 +9,7 @@ class TokenPolicyIndexRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return ($this->user()?->can(TokenPolicyPermissions::VIEW_ANY)
-            || $this->user()?->can(TokenPolicyPermissions::VIEW)
-            || $this->user()?->can('token-policies.view')) ?? false;
+        return $this->user()?->can(TokenPolicyPermissions::VIEW_ANY) ?? false;
     }
 
     /**

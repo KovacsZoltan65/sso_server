@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Data\PermissionSummaryData;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
+use App\Support\Permissions\PermissionPermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 use RuntimeException;
@@ -38,7 +39,11 @@ class PermissionService
                 ))
                 ->values()
                 ->all(),
-            'canManagePermissions' => auth()->user()?->can('permissions.manage') ?? false,
+            'canManagePermissions' => auth()->user()?->can(PermissionPermissions::CREATE)
+                || auth()->user()?->can(PermissionPermissions::UPDATE)
+                || auth()->user()?->can(PermissionPermissions::DELETE)
+                || auth()->user()?->can(PermissionPermissions::DELETE_ANY)
+                || false,
             'filters' => [
                 'global' => $filters['global'] ?? null,
                 'name' => $filters['name'] ?? null,

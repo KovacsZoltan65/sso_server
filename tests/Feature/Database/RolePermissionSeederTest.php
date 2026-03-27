@@ -17,13 +17,15 @@ it('seeds the standardized resource action permissions', function () {
     expect(Permission::where('name', 'clients.rotateSecret')->where('guard_name', 'web')->exists())->toBeTrue();
 });
 
-it('keeps legacy permissions for current application compatibility', function () {
+it('seeds only the standardized permission names', function () {
     $this->seed(RolePermissionSeeder::class);
 
-    expect(Permission::where('name', 'users.view')->where('guard_name', 'web')->exists())->toBeTrue();
-    expect(Permission::where('name', 'users.manage')->where('guard_name', 'web')->exists())->toBeTrue();
-    expect(Permission::where('name', 'sso-clients.view')->where('guard_name', 'web')->exists())->toBeTrue();
-    expect(Permission::where('name', 'token-policies.manage')->where('guard_name', 'web')->exists())->toBeTrue();
+    expect(Permission::where('name', 'users.create')->where('guard_name', 'web')->exists())->toBeTrue();
+    expect(Permission::where('name', 'clients.viewAny')->where('guard_name', 'web')->exists())->toBeTrue();
+    expect(Permission::where('name', 'token-policies.deleteAny')->where('guard_name', 'web')->exists())->toBeTrue();
+    expect(Permission::where('name', 'users.manage')->where('guard_name', 'web')->exists())->toBeFalse();
+    expect(Permission::where('name', 'sso-clients.view')->where('guard_name', 'web')->exists())->toBeFalse();
+    expect(Permission::where('name', 'token-policies.manage')->where('guard_name', 'web')->exists())->toBeFalse();
 });
 
 it('assigns every permission to superadmin and the standard admin set to admin', function () {
@@ -37,7 +39,8 @@ it('assigns every permission to superadmin and the standard admin set to admin',
     expect($admin->hasPermissionTo('users.viewAny'))->toBeTrue();
     expect($admin->hasPermissionTo('users.deleteAny'))->toBeTrue();
     expect($admin->hasPermissionTo('users.assignRole'))->toBeTrue();
-    expect($admin->hasPermissionTo('users.manage'))->toBeTrue();
+    expect($admin->hasPermissionTo('users.create'))->toBeTrue();
+    expect($admin->hasPermissionTo('clients.viewAny'))->toBeTrue();
     expect($user->hasPermissionTo('dashboard.view'))->toBeTrue();
     expect($user->permissions()->pluck('name')->all())->toBe(['dashboard.view']);
 });

@@ -9,8 +9,7 @@ class TokenPolicyBulkDestroyRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return ($this->user()?->can(TokenPolicyPermissions::DELETE_ANY)
-            || $this->user()?->can('token-policies.manage')) ?? false;
+        return $this->user()?->can(TokenPolicyPermissions::DELETE_ANY) ?? false;
     }
 
     /**
