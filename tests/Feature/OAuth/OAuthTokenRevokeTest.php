@@ -243,4 +243,10 @@ it('rejects revoke request with invalid client credentials', function (): void {
                 ],
             ],
         ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.client.authentication_failed',
+        'description' => 'OAuth client authentication failed.',
+    ]);
 });

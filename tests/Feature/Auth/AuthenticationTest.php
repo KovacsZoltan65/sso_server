@@ -29,6 +29,33 @@ test('users can not authenticate with invalid password', function () {
     ]);
 
     $this->assertGuest();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'auth',
+        'event' => 'auth.login.failed',
+        'description' => 'User login failed.',
+    ]);
+});
+
+test('login attempts are locked out after too many failed requests', function () {
+    $user = User::factory()->create();
+
+    foreach (range(1, 6) as $attempt) {
+        $response = $this->from('/login')->post('/login', [
+            'email' => $user->email,
+            'password' => 'wrong-password',
+        ]);
+    }
+
+    $response
+        ->assertRedirect('/login')
+        ->assertSessionHasErrors('email');
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'auth',
+        'event' => 'auth.login.locked_out',
+        'description' => 'User login rate limited.',
+    ]);
 });
 
 test('users can logout', function () {

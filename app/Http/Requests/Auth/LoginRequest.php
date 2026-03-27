@@ -45,6 +45,15 @@ class LoginRequest extends FormRequest
         if (! Auth::attempt($this->only('email', 'password'), $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
 
+            activity('auth')
+                ->event('auth.login.failed')
+                ->withProperties([
+                    'email' => Str::lower((string) $this->input('email')),
+                    'ip_address' => $this->ip(),
+                    'user_agent' => $this->userAgent(),
+                ])
+                ->log('User login failed.');
+
             throw ValidationException::withMessages([
                 'email' => trans('auth.failed'),
             ]);
@@ -65,6 +74,15 @@ class LoginRequest extends FormRequest
         }
 
         event(new Lockout($this));
+
+        activity('auth')
+            ->event('auth.login.locked_out')
+            ->withProperties([
+                'email' => Str::lower((string) $this->input('email')),
+                'ip_address' => $this->ip(),
+                'user_agent' => $this->userAgent(),
+            ])
+            ->log('User login rate limited.');
 
         $seconds = RateLimiter::availableIn($this->throttleKey());
 

@@ -11,6 +11,7 @@ use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use Symfony\Component\HttpKernel\Exception\TooManyRequestsHttpException;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -69,6 +70,19 @@ return Application::configure(basePath: dirname(__DIR__))
                 'meta' => [],
                 'errors' => [],
             ], 403);
+        });
+
+        $exceptions->render(function (TooManyRequestsHttpException $exception, Request $request) {
+            if (! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'message' => 'Too many attempts. Please retry later.',
+                'data' => [],
+                'meta' => [],
+                'errors' => [],
+            ], 429, $exception->getHeaders());
         });
 
         $exceptions->render(function (\Throwable $exception, Request $request) {

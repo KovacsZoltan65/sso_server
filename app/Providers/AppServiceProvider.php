@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Providers;
-
 use App\Models\SsoClient;
 use App\Models\Scope;
 use App\Models\TokenPolicy;
@@ -24,7 +23,10 @@ use App\Repositories\RoleRepository;
 use App\Repositories\ScopeRepository;
 use App\Repositories\TokenPolicyRepository;
 use App\Repositories\UserRepository;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
@@ -60,6 +62,41 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Scope::class, ScopePolicy::class);
         Gate::policy(TokenPolicy::class, TokenPolicyPolicy::class);
 
+        $this->configureRateLimiting();
+
         Vite::prefetch(concurrency: 3);
+    }
+
+    private function configureRateLimiting(): void
+    {
+        RateLimiter::for('oauth-token', function (Request $request): array {
+            return [
+                Limit::perMinute(15)
+                    ->by('oauth-token:ip:'.$request->ip()),
+                Limit::perMinute(10)
+                    ->by('oauth-token:client:'.$this->clientAwareFingerprint($request)),
+            ];
+        });
+
+        RateLimiter::for('oauth-client', function (Request $request): array {
+            return [
+                Limit::perMinute(60)
+                    ->by('oauth-client:ip:'.$request->ip()),
+                Limit::perMinute(30)
+                    ->by('oauth-client:client:'.$this->clientAwareFingerprint($request)),
+            ];
+        });
+
+        RateLimiter::for('oauth-userinfo', function (Request $request): Limit {
+            return Limit::perMinute(120)
+                ->by('oauth-userinfo:'.$request->ip());
+        });
+    }
+
+    private function clientAwareFingerprint(Request $request): string
+    {
+        $clientId = trim((string) $request->input('client_id', 'guest'));
+
+        return $clientId.'|'.$request->ip();
     }
 }

@@ -190,6 +190,14 @@ class OAuthTokenService
         $client = SsoClient::query()->with(['activeSecrets', 'tokenPolicy'])->where('client_id', $clientId)->where('is_active', true)->first();
 
         if ($client === null) {
+            activity('oauth')
+                ->event('oauth.client.authentication_failed')
+                ->withProperties([
+                    'client_id' => $clientId,
+                    'reason' => 'invalid_client',
+                ])
+                ->log('OAuth client authentication failed.');
+
             throw ValidationException::withMessages(['client_id' => 'The provided client is invalid or inactive.']);
         }
 
@@ -212,6 +220,15 @@ class OAuthTokenService
                 return;
             }
         }
+
+        activity('oauth')
+            ->performedOn($client)
+            ->event('oauth.client.authentication_failed')
+            ->withProperties([
+                'client_id' => $client->client_id,
+                'reason' => 'invalid_client_secret',
+            ])
+            ->log('OAuth client authentication failed.');
 
         throw ValidationException::withMessages(['client_secret' => 'The provided client secret is invalid.']);
     }
