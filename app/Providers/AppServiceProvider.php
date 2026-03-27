@@ -5,6 +5,7 @@ use App\Models\SsoClient;
 use App\Models\Scope;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Policies\AuditLogPolicy;
 use App\Policies\ClientPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
@@ -28,6 +29,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
+use App\Support\AuditLogPage;
 use Illuminate\Support\ServiceProvider;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -61,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(SsoClient::class, ClientPolicy::class);
         Gate::policy(Scope::class, ScopePolicy::class);
         Gate::policy(TokenPolicy::class, TokenPolicyPolicy::class);
+        Gate::policy(AuditLogPage::class, AuditLogPolicy::class);
 
         $this->configureRateLimiting();
 

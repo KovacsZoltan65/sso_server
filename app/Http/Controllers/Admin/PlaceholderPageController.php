@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Support\AdminNavigation;
+use App\Support\AuditLogPage;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -36,6 +37,8 @@ class PlaceholderPageController extends Controller
 
     public function auditLogs(): Response
     {
+        $this->authorize('viewAny', AuditLogPage::class);
+
         return $this->render('audit-logs');
     }
 

@@ -24,15 +24,41 @@ class OAuthAuthorizationService
      */
     public function approve(User $user, array $payload): array
     {
-        /** @var SsoClient $client */
+        /** @var SsoClient|null $client */
         $client = SsoClient::query()
             ->with(['tokenPolicy', 'scopes'])
             ->where('client_id', (string) $payload['client_id'])
             ->where('is_active', true)
-            ->firstOrFail();
+            ->first();
+
+        if (! $client instanceof SsoClient) {
+            $this->logAuthorizationFailure(
+                user: $user,
+                event: 'oauth.authorization.denied',
+                message: 'OAuth authorization request denied.',
+                properties: [
+                    'client_id' => (string) $payload['client_id'],
+                    'reason' => 'invalid_client',
+                ],
+            );
+
+            throw ValidationException::withMessages([
+                'client_id' => 'The provided client is invalid or inactive.',
+            ]);
+        }
 
         $redirectUri = trim((string) $payload['redirect_uri']);
         if (! $this->redirectUriMatcher->matches($client, $redirectUri)) {
+            $this->logAuthorizationFailure(
+                user: $user,
+                event: 'oauth.authorization.denied',
+                message: 'OAuth authorization request denied.',
+                client: $client,
+                properties: [
+                    'reason' => 'redirect_uri_mismatch',
+                ],
+            );
+
             throw ValidationException::withMessages([
                 'redirect_uri' => 'The redirect URI does not match the registered client redirect URIs.',
             ]);
@@ -45,6 +71,16 @@ class OAuthAuthorizationService
         $codeChallengeMethod = trim((string) ($payload['code_challenge_method'] ?? ''));
 
         if ($policy?->pkce_required && $codeChallenge === '') {
+            $this->logAuthorizationFailure(
+                user: $user,
+                event: 'oauth.authorization.denied',
+                message: 'OAuth authorization request denied.',
+                client: $client,
+                properties: [
+                    'reason' => 'pkce_required',
+                ],
+            );
+
             throw ValidationException::withMessages([
                 'code_challenge' => 'PKCE is required for this client.',
             ]);
@@ -109,6 +145,17 @@ class OAuthAuthorizationService
 
         foreach ($requested as $scope) {
             if (! in_array($scope, $allowed, true)) {
+                $this->logAuthorizationFailure(
+                    user: auth()->user(),
+                    event: 'oauth.authorization.denied',
+                    message: 'OAuth authorization request denied.',
+                    client: $client,
+                    properties: [
+                        'reason' => 'scope_not_allowed',
+                        'scope' => $scope,
+                    ],
+                );
+
                 throw ValidationException::withMessages([
                     'scope' => sprintf('The requested scope [%s] is not allowed for this client.', $scope),
                 ]);
@@ -129,5 +176,28 @@ class OAuthAuthorizationService
             ->when($client->token_policy_id === null, fn ($query) => $query->where('is_default', true))
             ->where('is_active', true)
             ->first();
+    }
+
+    /**
+     * @param array<string, mixed> $properties
+     */
+    private function logAuthorizationFailure(
+        ?User $user,
+        string $event,
+        string $message,
+        ?SsoClient $client = null,
+        array $properties = [],
+    ): void {
+        $activity = activity('oauth')->event($event)->withProperties($properties);
+
+        if ($client instanceof SsoClient) {
+            $activity->performedOn($client);
+        }
+
+        if ($user instanceof User) {
+            $activity->causedBy($user);
+        }
+
+        $activity->log($message);
     }
 }

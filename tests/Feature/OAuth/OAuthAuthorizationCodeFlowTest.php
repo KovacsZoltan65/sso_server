@@ -141,6 +141,32 @@ it('rejects authorize requests when the client requests a scope it is not allowe
     expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
 });
 
+it('rejects authorize requests when the client is invalid with a validation error instead of 404', function () {
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => 'missing-client',
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'invalid-client-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'client_id' => 'The provided client is invalid or inactive.',
+        ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.authorization.denied',
+        'description' => 'OAuth authorization request denied.',
+    ]);
+});
+
 it('exchanges authorization code for tokens with valid pkce verifier', function () {
     [$client, $policy, $plainSecret] = oauthClient();
     $user = User::factory()->create();
@@ -264,6 +290,87 @@ it('rotates refresh token on refresh grant when policy requires rotation', funct
 
     $oldToken = Token::query()->where('refresh_token_hash', hash('sha256', $originalRefreshToken))->firstOrFail();
     expect($oldToken->refresh_token_revoked_at)->not->toBeNull();
+});
+
+it('rejects replay when the same authorization code is exchanged twice', function () {
+    [$client, , $plainSecret] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'replay-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $query['code'],
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])->assertOk();
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $query['code'],
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.code.0', 'The authorization code is expired, revoked, or already used.');
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.token.grant_failed',
+        'description' => 'OAuth token grant failed.',
+    ]);
+});
+
+it('rejects token exchange for an expired authorization code', function () {
+    [$client, , $plainSecret] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'expired-code-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+
+    \App\Models\AuthorizationCode::query()->update([
+        'expires_at' => now()->subMinute(),
+    ]);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $query['code'],
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.code.0', 'The authorization code is expired, revoked, or already used.');
 });
 
 it('continues the intended authorize flow after login and returns an inertia external redirect', function () {

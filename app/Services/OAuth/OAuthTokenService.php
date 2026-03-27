@@ -76,24 +76,29 @@ class OAuthTokenService
             ->first();
 
         if ($authorizationCode === null) {
+            $this->logGrantFailure($client, 'invalid_authorization_code');
             throw ValidationException::withMessages(['code' => 'The provided authorization code is invalid.']);
         }
 
         if ($authorizationCode->sso_client_id !== $client->id) {
+            $this->logGrantFailure($client, 'authorization_code_client_mismatch');
             throw ValidationException::withMessages(['code' => 'The authorization code does not belong to this client.']);
         }
 
         if ($authorizationCode->consumed_at !== null || $authorizationCode->revoked_at !== null || $authorizationCode->expires_at->isPast()) {
+            $this->logGrantFailure($client, 'authorization_code_inactive');
             throw ValidationException::withMessages(['code' => 'The authorization code is expired, revoked, or already used.']);
         }
 
         $redirectUri = trim((string) $payload['redirect_uri']);
         if (! $this->redirectUriMatcher->matches($client, $redirectUri) || ! hash_equals($authorizationCode->redirect_uri, $redirectUri)) {
+            $this->logGrantFailure($client, 'redirect_uri_mismatch');
             throw ValidationException::withMessages(['redirect_uri' => 'The redirect URI does not match the authorization request.']);
         }
 
         $verifier = trim((string) ($payload['code_verifier'] ?? ''));
         if ($verifier === '') {
+            $this->logGrantFailure($client, 'missing_code_verifier');
             throw ValidationException::withMessages(['code_verifier' => 'The code verifier field is required.']);
         }
 
@@ -143,10 +148,12 @@ class OAuthTokenService
             ->first();
 
         if ($token === null || $token->sso_client_id !== $client->id) {
+            $this->logGrantFailure($client, 'invalid_refresh_token');
             throw ValidationException::withMessages(['refresh_token' => 'The provided refresh token is invalid.']);
         }
 
         if ($token->refresh_token_revoked_at !== null || $token->refresh_token_expires_at === null || $token->refresh_token_expires_at->isPast()) {
+            $this->logGrantFailure($client, 'refresh_token_inactive');
             throw ValidationException::withMessages(['refresh_token' => 'The refresh token is expired or revoked.']);
         }
 
@@ -621,5 +628,14 @@ class OAuthTokenService
         }
 
         return $claims;
+    }
+
+    private function logGrantFailure(SsoClient $client, string $reason): void
+    {
+        activity('oauth')
+            ->performedOn($client)
+            ->event('oauth.token.grant_failed')
+            ->withProperties(['reason' => $reason])
+            ->log('OAuth token grant failed.');
     }
 }

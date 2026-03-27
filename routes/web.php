@@ -11,7 +11,6 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\OAuth\AuthorizationController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
-use Spatie\Permission\Middleware\PermissionMiddleware;
 
 Route::redirect('/', '/dashboard');
 
@@ -89,7 +88,7 @@ Route::middleware(['auth'])->group(function () {
 
         // PlaceholderPageController routes
         Route::controller(PlaceholderPageController::class)->group(function () {
-            Route::get('/audit-logs', 'auditLogs')->middleware(PermissionMiddleware::using('audit-logs.viewAny'))->name('audit-logs.index');
+            Route::get('/audit-logs', 'auditLogs')->name('audit-logs.index');
         });
     });
 

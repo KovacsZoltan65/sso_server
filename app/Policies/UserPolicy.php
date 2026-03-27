@@ -24,7 +24,7 @@ class UserPolicy
 
     public function update(User $user, User $model): bool
     {
-        return $user->can(UserPermissions::UPDATE) || $user->is($model);
+        return $user->can(UserPermissions::UPDATE);
     }
 
     public function delete(User $user, User $model): bool
