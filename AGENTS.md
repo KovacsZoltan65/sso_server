@@ -520,17 +520,27 @@ non-editable from admin UI
 
 Testing is mandatory for all meaningful feature work. A change is not complete until the required automated tests exist, are updated for the new behavior, and pass locally.
 
+Test tooling rule
+
+- Verify backend and frontend test tooling before implementing non-trivial work
+- If a required test package, config file, setup file, or script is missing or broken, fix that first
+- Do not leave Pest, PHPUnit, Vitest, jsdom, Vue Test Utils, or related setup half-configured
+- Frontend interactive work is not complete without a working Vitest setup
+- Backend feature work is not complete without a working Laravel test setup
+
 Backend test stack
 
 - Use the existing Laravel test stack
 - Prefer Pest for new backend tests
 - Keep PHPUnit compatibility intact
+- Do not replace the established backend test style without a strong reason
 
 Frontend test stack
 
 - Use Vitest for frontend tests
 - Use Vue Test Utils for Vue component and page tests
 - Do not introduce alternate frontend test frameworks without explicit approval
+- Reuse the existing Vitest mocks, setup helpers, and stubbing patterns where practical
 
 Mandatory backend coverage
 
@@ -554,18 +564,25 @@ Mandatory frontend coverage
 - shared form partial contracts
 - page-to-modal state synchronization
 - modal-first CRUD pages such as Users, Roles, and Permissions
+- paginator, refresh, row-action, and orphan-page recovery behavior for shared admin tables
+- create-page and edit-page orchestration for page-based CRUD modules such as Clients, Scopes, and Token Policies
 
 CRUD rule
 
 - Every CRUD module must have backend tests for index, happy-path mutations, validation failures, and authorization failures
 - Every interactive CRUD frontend must have Vitest coverage for its primary create/edit/delete orchestration and shared form behavior
 - If a module has delete restrictions or relation-sensitive rules, those rules must be explicitly tested
+- If a module supports bulk delete, bulk delete success, validation, authorization, and protected-record behavior must be tested
+- If a module uses modal-first flows, tests must cover modal open/close, selected-record hydration, submit behavior, and list refresh expectations
+- If a module uses page-based create/edit flows, tests must cover page payload, form submission, validation rendering, and navigation or redirect behavior
 
 Maintenance rule
 
 - When behavior changes, update the existing tests in the same task
 - Do not leave outdated tests behind
 - Do not delete useful failing tests to get green output; fix the implementation or replace the test with a better one that covers the real behavior
+- Every bug fix must add or update at least one regression test unless the failure is fully covered already
+- If the audit finds a critical gap in coverage for touched code, fill that gap in the same task
 
 Execution rule
 
@@ -573,6 +590,9 @@ Execution rule
 - Run the relevant frontend Vitest suite after frontend changes
 - After cross-cutting or CRUD work, run both backend and frontend tests
 - Report the commands used and whether the suites passed
+- Do not claim completion while known relevant tests are failing
+- If a full affected suite is too expensive to run, run the narrowest relevant suite first, then the broader project suite before closing the task when feasible
+- Failing tests must be investigated and fixed at the root cause; they must not be skipped or ignored without explicit approval
 
 Test principles
 
@@ -584,6 +604,7 @@ Test principles
 - test redirect URI strict matching
 - test revocation behavior
 - prefer focused, high-value tests over noisy low-value assertions
+- prefer assertions that verify user-visible behavior, authorization outcomes, and data integrity over internal implementation details
 11. Implementation Priorities
 
 When building features, prefer this order:

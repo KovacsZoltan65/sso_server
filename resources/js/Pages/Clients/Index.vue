@@ -106,6 +106,8 @@ const {
     buildParams,
     clearSelection: () => {},
     selectedIds: ref([]),
+    pageState: tableState,
+    getCurrentRowCount: () => rows.value.length,
 });
 
 const flashClientSecret = computed(() => page.props.flash?.clientSecret ?? null);

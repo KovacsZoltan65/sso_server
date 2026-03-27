@@ -99,6 +99,31 @@ describe('Roles page CRUD frontend', () => {
         }));
     });
 
+    it('falls back to the previous page after deleting the last row on a page', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 5, name: 'reviewer', guardName: 'web', permissions: ['reports.view'], usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 2, lastPage: 2, perPage: 10, total: 11, from: 11, to: 11, first: 10 },
+                sorting: { field: 'name', order: 1 },
+                canManageRoles: true,
+            },
+        });
+
+        await nextTick();
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(router.get).toHaveBeenLastCalledWith(
+            route('admin.roles.index'),
+            expect.objectContaining({
+                page: 1,
+                perPage: 10,
+            }),
+            expect.any(Object),
+        );
+    });
+
     it('submits the create page form', async () => {
         const wrapper = mount(Create, {
             props: {

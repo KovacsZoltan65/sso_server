@@ -327,7 +327,11 @@ describe('Clients CRUD frontend', () => {
 
         expect(wrapper.text()).toContain('rotated-secret-value');
         await wrapper.find('#secret-name').setValue('Rotation before deploy');
-        await wrapper.find('form:last-of-type').trigger('submit.prevent');
+        wrapper.element.querySelector('#secret-name')?.closest('form')?.dispatchEvent(new Event('submit', {
+            bubbles: true,
+            cancelable: true,
+        }));
+        await nextTick();
         expect(rotateForm.post).toHaveBeenCalledTimes(1);
 
         const revokeButton = wrapper.findAll('button').find((button) => button.text() === 'Revoke');
@@ -337,5 +341,32 @@ describe('Clients CRUD frontend', () => {
         expect(router.delete).toHaveBeenCalledWith(route('admin.sso-clients.revoke-secret', [4, 1]), {
             preserveScroll: true,
         });
+    });
+
+    it('falls back to the previous page after deleting the last row on a page', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 7, name: 'Portal', clientId: 'client_portal', redirectUris: ['https://portal.example.com/callback'], redirectUriCount: 1, isActive: true, scopes: ['openid'], scopesCount: 1, createdAt: '2026-03-25 10:00:00' }],
+                scopeOptions,
+                tokenPolicies: [],
+                filters: { global: null, name: null, status: null },
+                pagination: { currentPage: 2, lastPage: 2, perPage: 10, total: 11, from: 11, to: 11, first: 10 },
+                sorting: { field: 'name', order: 1 },
+                canManageClients: true,
+            },
+        });
+
+        await nextTick();
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(router.get).toHaveBeenLastCalledWith(
+            route('admin.sso-clients.index'),
+            expect.objectContaining({
+                page: 1,
+                perPage: 10,
+            }),
+            expect.any(Object),
+        );
     });
 });

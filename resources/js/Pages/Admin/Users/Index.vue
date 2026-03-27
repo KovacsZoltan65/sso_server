@@ -120,6 +120,8 @@ const {
     buildParams,
     clearSelection,
     selectedIds,
+    pageState: tableState,
+    getCurrentRowCount: () => rows.value.length,
 });
 
 const onGlobalFilterInput = (value) => {

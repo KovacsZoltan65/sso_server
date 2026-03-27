@@ -89,6 +89,58 @@ it('issues an authorization code and redirects back to the registered callback',
     ]);
 });
 
+it('rejects authorize requests when the redirect uri does not strictly match the registered client uri', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback/',
+        'scope' => 'openid profile',
+        'state' => 'strict-redirect-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'redirect_uri' => 'The redirect URI does not match the registered client redirect URIs.',
+        ]);
+
+    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+});
+
+it('rejects authorize requests when the client requests a scope it is not allowed to use', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    Scope::factory()->create([
+        'name' => 'Email',
+        'code' => 'email',
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid email',
+        'state' => 'invalid-scope-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'scope' => 'The requested scope [email] is not allowed for this client.',
+        ]);
+
+    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+});
+
 it('exchanges authorization code for tokens with valid pkce verifier', function () {
     [$client, $policy, $plainSecret] = oauthClient();
     $user = User::factory()->create();

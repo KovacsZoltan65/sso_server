@@ -124,4 +124,28 @@ describe('Admin Users index', () => {
 
         expect(wrapper.find('[data-create-modal]').attributes('data-visible')).toBe('false');
     });
+
+    it('falls back to the previous page after deleting the last row on a page', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                ...baseProps,
+                rows: [baseProps.rows[0]],
+                pagination: { currentPage: 2, lastPage: 2, perPage: 10, total: 11, from: 11, to: 11, first: 10 },
+            },
+        });
+
+        await nextTick();
+
+        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(router.get).toHaveBeenLastCalledWith(
+            route('admin.users.index'),
+            expect.objectContaining({
+                page: 1,
+                perPage: 10,
+            }),
+            expect.any(Object),
+        );
+    });
 });

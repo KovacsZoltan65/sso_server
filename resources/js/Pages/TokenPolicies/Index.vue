@@ -90,6 +90,8 @@ const { busy, reload, refresh, confirmDelete, confirmBulkDelete } = useAdminList
     buildParams,
     clearSelection,
     selectedIds,
+    pageState: tableState,
+    getCurrentRowCount: () => rows.value.length,
 });
 
 const onGlobalFilterInput = (value) => {

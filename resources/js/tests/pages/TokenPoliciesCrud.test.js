@@ -121,6 +121,50 @@ describe('Token Policies CRUD frontend', () => {
         expect(confirmRequire).toHaveBeenCalledTimes(1);
     });
 
+    it('falls back to the previous page after deleting the last row on a page', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{
+                    id: 9,
+                    name: 'Default Web Policy',
+                    code: 'default.web',
+                    description: 'Balanced default settings.',
+                    accessTokenTtlMinutes: 60,
+                    refreshTokenTtlMinutes: 43200,
+                    refreshTokenRotationEnabled: true,
+                    pkceRequired: false,
+                    reuseRefreshTokenForbidden: true,
+                    isDefault: false,
+                    isActive: true,
+                    createdAt: '2026-03-25 17:00:00',
+                    clientsCount: 0,
+                    canDelete: true,
+                    deleteBlockCode: null,
+                    deleteBlockReason: null,
+                }],
+                filters: { global: null, status: null },
+                pagination: { currentPage: 2, lastPage: 2, perPage: 10, total: 11, from: 11, to: 11, first: 10 },
+                sorting: { field: 'name', order: 1 },
+                canManageTokenPolicies: true,
+            },
+        });
+
+        await nextTick();
+
+        const deleteButton = wrapper.findAll('button').find((button) => button.attributes('data-row-action') === 'Delete');
+        await deleteButton.trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+
+        expect(router.get).toHaveBeenLastCalledWith(
+            route('admin.token-policies.index'),
+            expect.objectContaining({
+                page: 1,
+                perPage: 10,
+            }),
+            expect.any(Object),
+        );
+    });
+
     it('submits the create page form', async () => {
         const wrapper = mountPage(Create);
         const form = getLastForm();
