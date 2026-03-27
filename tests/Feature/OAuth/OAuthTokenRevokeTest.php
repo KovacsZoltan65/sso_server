@@ -57,8 +57,11 @@ it('revokes an active access token for the authenticated client', function (): v
         'token_type_hint' => 'access_token',
     ])
         ->assertOk()
-        ->assertJson([
+        ->assertExactJson([
             'message' => 'Token revoked successfully.',
+            'data' => null,
+            'meta' => [],
+            'errors' => [],
         ]);
 
     expect($token->fresh()?->access_token_revoked_at)->not->toBeNull();
@@ -107,8 +110,11 @@ it('revokes an active refresh token for the authenticated client', function (): 
         'token_type_hint' => 'refresh_token',
     ])
         ->assertOk()
-        ->assertJson([
+        ->assertExactJson([
             'message' => 'Token revoked successfully.',
+            'data' => null,
+            'meta' => [],
+            'errors' => [],
         ]);
 
     expect($token->fresh()?->refresh_token_revoked_at)->not->toBeNull();
@@ -141,8 +147,11 @@ it('returns success even when token does not exist', function (): void {
         'token_type_hint' => 'access_token',
     ])
         ->assertOk()
-        ->assertJson([
+        ->assertExactJson([
             'message' => 'Token revoked successfully.',
+            'data' => null,
+            'meta' => [],
+            'errors' => [],
         ]);
 });
 
@@ -222,5 +231,16 @@ it('rejects revoke request with invalid client credentials', function (): void {
         'client_secret' => 'wrong-secret',
         'token' => str_repeat('x', 40),
         'token_type_hint' => 'access_token',
-    ])->assertStatus(422);
+    ])
+        ->assertStatus(422)
+        ->assertExactJson([
+            'message' => 'OAuth token revoke request failed.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'client_secret' => [
+                    'The provided client secret is invalid.',
+                ],
+            ],
+        ]);
 });

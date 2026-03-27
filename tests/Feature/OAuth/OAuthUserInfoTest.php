@@ -168,14 +168,32 @@ it('returns only sub when the token has openid scope without optional claims sco
 it('rejects userinfo request without bearer token', function (): void {
     $this->getJson(route('oauth.userinfo'))
         ->assertStatus(401)
-        ->assertJsonPath('message', 'Authentication failed.');
+        ->assertExactJson([
+            'message' => 'Authentication failed.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'token' => [
+                    'A valid Bearer access token is required.',
+                ],
+            ],
+        ]);
 });
 
 it('rejects userinfo request with unknown bearer token', function (): void {
     $this->withHeader('Authorization', 'Bearer '.str_repeat('x', 40))
         ->getJson(route('oauth.userinfo'))
         ->assertStatus(401)
-        ->assertJsonPath('message', 'Authentication failed.');
+        ->assertExactJson([
+            'message' => 'Authentication failed.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'token' => [
+                    'The provided access token is invalid, expired, or revoked.',
+                ],
+            ],
+        ]);
 });
 
 it('rejects userinfo request with a revoked access token', function (): void {
@@ -199,7 +217,16 @@ it('rejects userinfo request with a revoked access token', function (): void {
     $this->withHeader('Authorization', 'Bearer '.$plainAccessToken)
         ->getJson(route('oauth.userinfo'))
         ->assertStatus(401)
-        ->assertJsonPath('message', 'Authentication failed.');
+        ->assertExactJson([
+            'message' => 'Authentication failed.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'token' => [
+                    'The provided access token is invalid, expired, or revoked.',
+                ],
+            ],
+        ]);
 });
 
 it('rejects userinfo request with an expired access token', function (): void {
@@ -222,7 +249,16 @@ it('rejects userinfo request with an expired access token', function (): void {
     $this->withHeader('Authorization', 'Bearer '.$plainAccessToken)
         ->getJson(route('oauth.userinfo'))
         ->assertStatus(401)
-        ->assertJsonPath('message', 'Authentication failed.');
+        ->assertExactJson([
+            'message' => 'Authentication failed.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'token' => [
+                    'The provided access token is invalid, expired, or revoked.',
+                ],
+            ],
+        ]);
 });
 
 it('rejects userinfo request when the bearer token matches only a refresh token hash', function (): void {
@@ -245,7 +281,16 @@ it('rejects userinfo request when the bearer token matches only a refresh token 
     $this->withHeader('Authorization', 'Bearer '.$plainRefreshToken)
         ->getJson(route('oauth.userinfo'))
         ->assertStatus(401)
-        ->assertJsonPath('message', 'Authentication failed.');
+        ->assertExactJson([
+            'message' => 'Authentication failed.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'token' => [
+                    'The provided access token is invalid, expired, or revoked.',
+                ],
+            ],
+        ]);
 });
 
 it('rejects userinfo request when the access token lacks openid scope', function (): void {
@@ -268,7 +313,16 @@ it('rejects userinfo request when the access token lacks openid scope', function
     $this->withHeader('Authorization', 'Bearer '.$plainAccessToken)
         ->getJson(route('oauth.userinfo'))
         ->assertStatus(403)
-        ->assertJsonPath('message', 'User info request forbidden.');
+        ->assertExactJson([
+            'message' => 'User info request forbidden.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'scope' => [
+                    'The access token does not grant the openid scope.',
+                ],
+            ],
+        ]);
 });
 
 it('updates last used timestamp after successful userinfo request', function (): void {

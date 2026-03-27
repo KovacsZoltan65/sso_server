@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\OAuth\OAuthRevokeRequest;
 use App\Services\OAuth\OAuthTokenService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Validation\ValidationException;
 
 class OAuthRevokeController extends Controller
 {
@@ -15,13 +16,19 @@ class OAuthRevokeController extends Controller
         OAuthRevokeRequest $request,
         OAuthTokenService $tokenService,
     ): JsonResponse {
-        $tokenService->revokeToken($request->validated());
+        try {
+            $tokenService->revokeToken($request->validated());
+        } catch (ValidationException $exception) {
+            return $this->errorResponse(
+                message: 'OAuth token revoke request failed.',
+                errors: $exception->errors(),
+                status: $exception->status,
+            );
+        }
 
-        return response()->json([
-            'message' => 'Token revoked successfully.',
-            'data' => null,
-            'meta' => [],
-            'errors' => [],
-        ]);
+        return $this->successResponse(
+            message: 'Token revoked successfully.',
+            data: null,
+        );
     }
 }

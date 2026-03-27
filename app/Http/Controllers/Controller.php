@@ -10,13 +10,13 @@ abstract class Controller
     use AuthorizesRequests;
 
     /**
-     * @param array<string, mixed> $data
+     * @param mixed $data
      * @param array<string, mixed> $meta
      * @param array<string, mixed> $errors
      */
     protected function successResponse(
         string $message,
-        array $data = [],
+        mixed $data = [],
         array $meta = [],
         array $errors = [],
         int $status = 200,

@@ -303,7 +303,17 @@ it('rejects introspection with invalid client credentials', function (): void {
         'token' => str_repeat('x', 40),
         'token_type_hint' => 'access_token',
     ])
-        ->assertStatus(422);
+        ->assertStatus(422)
+        ->assertExactJson([
+            'message' => 'Token introspection failed.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'client_secret' => [
+                    'The provided client secret is invalid.',
+                ],
+            ],
+        ]);
 });
 
 it('resolves an access token without a type hint', function (): void {
