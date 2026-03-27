@@ -156,122 +156,126 @@ const confirmRevoke = (secret) => {
                 </div>
             </div>
 
-            <div class="admin-form-shell space-y-6">
-                <AdminFormCard>
-                    <template #header>
-                        <div class="space-y-1">
-                            <div class="text-sm font-semibold text-slate-900">Client Configuration</div>
-                            <p class="text-sm text-slate-500">
-                                A client secret korábbi értékei nem olvashatók vissza. Secret módosításhoz használd az alábbi külön kezelőpanelt.
-                            </p>
-                        </div>
-                    </template>
+            <div class="admin-form-shell space-y-6 overflow-y-auto pr-1">
+                <div class="flex flex-col">
+                    <AdminFormCard>
+                        <template #header>
+                            <div class="space-y-1">
+                                <div class="text-sm font-semibold text-slate-900">Client Configuration</div>
+                                <p class="text-sm text-slate-500">
+                                    A client secret korábbi értékei nem olvashatók vissza. Secret módosításhoz használd az alábbi külön kezelőpanelt.
+                                </p>
+                            </div>
+                        </template>
 
-                    <ClientForm
-                        :formId="formId"
-                        :form="form"
-                        mode="edit"
-                        :loading="form.processing"
-                        :scopeOptions="scopeOptions"
-                        :tokenPolicies="tokenPolicies"
-                        @submit="submit"
-                    />
+                        <ClientForm
+                            :formId="formId"
+                            :form="form"
+                            mode="edit"
+                            :loading="form.processing"
+                            :scopeOptions="scopeOptions"
+                            :tokenPolicies="tokenPolicies"
+                            @submit="submit"
+                        />
 
-                    <template #footer>
-                        <div class="flex flex-wrap justify-end gap-3">
-                            <Button
-                                type="button"
-                                label="Cancel"
-                                severity="secondary"
-                                outlined
-                                :disabled="form.processing"
-                                @click="cancel"
-                            />
-                            <Button
-                                type="submit"
-                                form="client-edit-form"
-                                label="Save Changes"
-                                icon="pi pi-save"
-                                :loading="form.processing"
-                                :disabled="form.processing"
-                            />
-                        </div>
-                    </template>
-                </AdminFormCard>
+                        <template #footer>
+                            <div class="flex flex-wrap justify-end gap-3">
+                                <Button
+                                    type="button"
+                                    label="Cancel"
+                                    severity="secondary"
+                                    outlined
+                                    :disabled="form.processing"
+                                    @click="cancel"
+                                />
+                                <Button
+                                    type="submit"
+                                    form="client-edit-form"
+                                    label="Save Changes"
+                                    icon="pi pi-save"
+                                    :loading="form.processing"
+                                    :disabled="form.processing"
+                                />
+                            </div>
+                        </template>
+                    </AdminFormCard>
+                </div>
 
-                <AdminFormCard v-if="canManageSecrets">
-                    <template #header>
-                        <div class="space-y-1">
-                            <div class="text-sm font-semibold text-slate-900">Secret lifecycle</div>
-                            <p class="text-sm text-slate-500">
-                                Forgatáskor az előző aktív secret azonnal visszavonásra kerül. A plain secret csak egyszer jelenik meg.
-                            </p>
-                        </div>
-                    </template>
+                <div v-if="canManageSecrets" class="flex flex-col">
+                    <AdminFormCard>
+                        <template #header>
+                            <div class="space-y-1">
+                                <div class="text-sm font-semibold text-slate-900">Secret lifecycle</div>
+                                <p class="text-sm text-slate-500">
+                                    Forgatáskor az előző aktív secret azonnal visszavonásra kerül. A plain secret csak egyszer jelenik meg.
+                                </p>
+                            </div>
+                        </template>
 
-                    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
-                        <div class="space-y-3">
-                            <div
-                                v-for="secret in secrets"
-                                :key="secret.id"
-                                class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
-                            >
-                                <div class="flex flex-wrap items-start justify-between gap-3">
-                                    <div class="space-y-2">
-                                        <div class="font-medium text-slate-900">{{ secret.name || 'Unnamed secret' }}</div>
-                                        <div class="text-sm text-slate-600">
-                                            Suffix: <span class="font-mono">...{{ secret.lastFour || '----' }}</span>
+                        <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
+                            <div class="space-y-3">
+                                <div
+                                    v-for="secret in secrets"
+                                    :key="secret.id"
+                                    class="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                                >
+                                    <div class="flex flex-wrap items-start justify-between gap-3">
+                                        <div class="space-y-2">
+                                            <div class="font-medium text-slate-900">{{ secret.name || 'Unnamed secret' }}</div>
+                                            <div class="text-sm text-slate-600">
+                                                Suffix: <span class="font-mono">...{{ secret.lastFour || '----' }}</span>
+                                            </div>
+                                            <div class="text-xs text-slate-500">Created: {{ secret.createdAt || '—' }}</div>
+                                            <div v-if="secret.revokedAt" class="text-xs text-rose-600">Revoked: {{ secret.revokedAt }}</div>
                                         </div>
-                                        <div class="text-xs text-slate-500">Created: {{ secret.createdAt || '—' }}</div>
-                                        <div v-if="secret.revokedAt" class="text-xs text-rose-600">Revoked: {{ secret.revokedAt }}</div>
-                                    </div>
 
-                                    <div class="flex flex-wrap items-center gap-2">
-                                        <Tag :value="secret.isRevoked ? 'Revoked' : (secret.isActive ? 'Active' : 'Inactive')" :severity="secret.isRevoked ? 'danger' : (secret.isActive ? 'success' : 'secondary')" />
-                                        <Button
-                                            v-if="secret.canRevoke"
-                                            type="button"
-                                            label="Revoke"
-                                            severity="danger"
-                                            text
-                                            icon="pi pi-ban"
-                                            @click="confirmRevoke(secret)"
-                                        />
+                                        <div class="flex flex-wrap items-center gap-2">
+                                            <Tag :value="secret.isRevoked ? 'Revoked' : (secret.isActive ? 'Active' : 'Inactive')" :severity="secret.isRevoked ? 'danger' : (secret.isActive ? 'success' : 'secondary')" />
+                                            <Button
+                                                v-if="secret.canRevoke"
+                                                type="button"
+                                                label="Revoke"
+                                                severity="danger"
+                                                text
+                                                icon="pi pi-ban"
+                                                @click="confirmRevoke(secret)"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <form class="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4" @submit.prevent="rotateSecret">
-                            <div class="space-y-1">
-                                <div class="text-sm font-semibold text-slate-900">Rotate secret</div>
-                                <p class="text-sm text-slate-500">
-                                    Opcionálisan adhatsz egy admin címkét az új secretnek.
-                                </p>
-                            </div>
+                            <form class="space-y-4 rounded-3xl border border-slate-200 bg-slate-50/80 p-4" @submit.prevent="rotateSecret">
+                                <div class="space-y-1">
+                                    <div class="text-sm font-semibold text-slate-900">Rotate secret</div>
+                                    <p class="text-sm text-slate-500">
+                                        Opcionálisan adhatsz egy admin címkét az új secretnek.
+                                    </p>
+                                </div>
 
-                            <div class="grid gap-2">
-                                <label for="secret-name" class="text-sm font-medium text-slate-700">Secret label</label>
-                                <InputText
-                                    id="secret-name"
-                                    v-model="rotateForm.name"
-                                    placeholder="Pl. Rotated before mobile rollout"
+                                <div class="grid gap-2">
+                                    <label for="secret-name" class="text-sm font-medium text-slate-700">Secret label</label>
+                                    <InputText
+                                        id="secret-name"
+                                        v-model="rotateForm.name"
+                                        placeholder="Pl. Rotated before mobile rollout"
+                                        fluid
+                                    />
+                                    <small v-if="rotateForm.errors.name" class="text-red-500">{{ rotateForm.errors.name }}</small>
+                                </div>
+
+                                <Button
+                                    type="submit"
+                                    label="Rotate Secret"
+                                    icon="pi pi-refresh"
+                                    :loading="rotateForm.processing"
+                                    :disabled="rotateForm.processing"
                                     fluid
                                 />
-                                <small v-if="rotateForm.errors.name" class="text-red-500">{{ rotateForm.errors.name }}</small>
-                            </div>
-
-                            <Button
-                                type="submit"
-                                label="Rotate Secret"
-                                icon="pi pi-refresh"
-                                :loading="rotateForm.processing"
-                                :disabled="rotateForm.processing"
-                                fluid
-                            />
-                        </form>
-                    </div>
-                </AdminFormCard>
+                            </form>
+                        </div>
+                    </AdminFormCard>
+                </div>
             </div>
         </div>
     </AuthenticatedLayout>

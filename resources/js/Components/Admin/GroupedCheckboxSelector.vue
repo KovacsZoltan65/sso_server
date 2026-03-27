@@ -41,6 +41,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    twoColumnGrid: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(['update:modelValue']);
@@ -218,7 +222,9 @@ const clearGroup = (group) => {
                 <div
                     :class="[
                         'mt-4 grid min-w-0 gap-3',
-                        denseGrid ? 'grid-cols-1 2xl:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3',
+                        denseGrid
+                            ? 'grid-cols-1 2xl:grid-cols-2'
+                            : (twoColumnGrid ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1 lg:grid-cols-2 xl:grid-cols-3'),
                     ]"
                 >
                     <label

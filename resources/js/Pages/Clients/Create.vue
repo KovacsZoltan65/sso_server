@@ -48,48 +48,50 @@ const cancel = () => {
                 description="Register a new client with redirect URIs, scopes, and activity state in the same admin form shell used for complex edit screens."
             />
 
-            <div class="admin-form-shell">
-                <AdminFormCard>
-                    <template #header>
-                        <div class="space-y-1">
-                            <div class="text-sm font-semibold text-slate-900">Client Configuration</div>
-                            <p class="text-sm text-slate-500">
-                                The client ID and client secret are generated automatically during creation.
-                            </p>
-                        </div>
-                    </template>
+            <div class="admin-form-shell overflow-y-auto pr-1">
+                <div class="flex flex-col">
+                    <AdminFormCard>
+                        <template #header>
+                            <div class="space-y-1">
+                                <div class="text-sm font-semibold text-slate-900">Client Configuration</div>
+                                <p class="text-sm text-slate-500">
+                                    The client ID and client secret are generated automatically during creation.
+                                </p>
+                            </div>
+                        </template>
 
-                    <ClientForm
-                        :formId="formId"
-                        :form="form"
-                        mode="create"
-                        :loading="form.processing"
-                        :scopeOptions="scopeOptions"
-                        :tokenPolicies="tokenPolicies"
-                        @submit="submit"
-                    />
+                        <ClientForm
+                            :formId="formId"
+                            :form="form"
+                            mode="create"
+                            :loading="form.processing"
+                            :scopeOptions="scopeOptions"
+                            :tokenPolicies="tokenPolicies"
+                            @submit="submit"
+                        />
 
-                    <template #footer>
-                        <div class="flex flex-wrap justify-end gap-3">
-                            <Button
-                                type="button"
-                                label="Cancel"
-                                severity="secondary"
-                                outlined
-                                :disabled="form.processing"
-                                @click="cancel"
-                            />
-                            <Button
-                                type="submit"
-                                form="client-create-form"
-                                label="Create Client"
-                                icon="pi pi-check"
-                                :loading="form.processing"
-                                :disabled="form.processing"
-                            />
-                        </div>
-                    </template>
-                </AdminFormCard>
+                        <template #footer>
+                            <div class="flex flex-wrap justify-end gap-3">
+                                <Button
+                                    type="button"
+                                    label="Cancel"
+                                    severity="secondary"
+                                    outlined
+                                    :disabled="form.processing"
+                                    @click="cancel"
+                                />
+                                <Button
+                                    type="submit"
+                                    form="client-create-form"
+                                    label="Create Client"
+                                    icon="pi pi-check"
+                                    :loading="form.processing"
+                                    :disabled="form.processing"
+                                />
+                            </div>
+                        </template>
+                    </AdminFormCard>
+                </div>
             </div>
         </div>
     </AuthenticatedLayout>

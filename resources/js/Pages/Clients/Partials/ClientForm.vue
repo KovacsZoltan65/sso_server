@@ -179,6 +179,7 @@ const removeRedirectUri = (index) => {
                         groupCountLabel="scopes"
                         :allowInternalScroll="!isModalLayout"
                         :denseGrid="isModalLayout"
+                        :twoColumnGrid="!isModalLayout"
                         :disabled="loading"
                     />
                     <small v-if="form.errors.scopes" class="text-red-500">{{ form.errors.scopes }}</small>
