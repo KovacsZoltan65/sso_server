@@ -18,6 +18,22 @@ pest()->extend(TestCase::class)
     ->use(RefreshDatabase::class)
     ->in('Feature');
 
+pest()->group('security')->in(
+    'Feature/Auth/AuthenticationTest.php',
+    'Feature/OAuth/OAuthAuthorizationCodeFlowTest.php',
+    'Feature/OAuth/OAuthTokenRevokeTest.php',
+    'Feature/OAuth/OAuthTokenIntrospectTest.php',
+    'Feature/OAuth/OAuthRateLimitTest.php',
+    'Feature/Admin/AuditLogAccessTest.php',
+    'Feature/Profile/ProfileBoundaryTest.php',
+    'Feature/Client/ClientAbuseTest.php',
+    'Feature/User/UserAbuseTest.php',
+    'Feature/Role/RoleAbuseTest.php',
+    'Feature/Permission/PermissionAbuseTest.php',
+    'Feature/Scope/ScopeAbuseTest.php',
+    'Feature/TokenPolicy/TokenPolicyAbuseTest.php',
+);
+
 /*
 |--------------------------------------------------------------------------
 | Expectations
