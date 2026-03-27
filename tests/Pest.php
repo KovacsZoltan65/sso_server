@@ -21,6 +21,7 @@ pest()->extend(TestCase::class)
 pest()->group('security')->in(
     'Feature/Auth/AuthenticationTest.php',
     'Feature/OAuth/OAuthAuthorizationCodeFlowTest.php',
+    'Feature/OAuth/OAuthIntegrationContractTest.php',
     'Feature/OAuth/OAuthTokenRevokeTest.php',
     'Feature/OAuth/OAuthTokenIntrospectTest.php',
     'Feature/OAuth/OAuthRateLimitTest.php',

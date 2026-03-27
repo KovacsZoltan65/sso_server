@@ -197,7 +197,22 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
     $tokenResponse
         ->assertOk()
         ->assertJsonPath('message', 'OAuth token issued successfully.')
-        ->assertJsonPath('data.token_type', 'Bearer');
+        ->assertJsonPath('data.token_type', 'Bearer')
+        ->assertJsonPath('meta', [])
+        ->assertJsonPath('errors', [])
+        ->assertJsonStructure([
+            'message',
+            'data' => [
+                'token_type',
+                'access_token',
+                'refresh_token',
+                'expires_in',
+                'refresh_token_expires_in',
+                'scope',
+            ],
+            'meta',
+            'errors',
+        ]);
 
     $data = $tokenResponse->json('data');
     expect($data['access_token'])->not->toBeEmpty()

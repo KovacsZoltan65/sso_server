@@ -303,8 +303,8 @@ class OAuthTokenService
             'token_type' => 'Bearer',
             'access_token' => $plainAccessToken,
             'refresh_token' => $plainRefreshToken,
-            'expires_in' => now()->diffInSeconds($accessExpiresAt),
-            'refresh_token_expires_in' => now()->diffInSeconds($refreshExpiresAt),
+            'expires_in' => (int) ceil(now()->diffInSeconds($accessExpiresAt)),
+            'refresh_token_expires_in' => (int) ceil(now()->diffInSeconds($refreshExpiresAt)),
             'scope' => implode(' ', $scopes),
         ];
     }

@@ -47,3 +47,9 @@ composer test:security
 The same command is executed in CI by [`.github/workflows/security-regression.yml`](/c:/wamp64/www/sso/sso_server/.github/workflows/security-regression.yml). A pull request or push fails if any test in the Pest `security` group fails.
 
 When adding a new security-critical test, include it in the Pest `security` group in [`tests/Pest.php`](/c:/wamp64/www/sso/sso_server/tests/Pest.php). New auth, authorization, token, audit-log, or privilege-boundary behavior changes should add or update at least one security regression test.
+
+## Integration Contract
+
+Server-client OAuth/SSO integration contract is defined in:
+
+- [`docs/integration-contract.md`](/c:/wamp64/www/sso/sso_server/docs/integration-contract.md)
