@@ -31,6 +31,29 @@ use Spatie\Activitylog\Traits\LogsActivity;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, AuthorizationCode> $authorizationCodes
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Token> $tokens
  * @property-read TokenPolicy|null $tokenPolicy
+ * @property-read int|null $active_secrets_count
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read int|null $activities_count
+ * @property-read int|null $authorization_codes_count
+ * @property-read int|null $redirect_uris_count
+ * @property-read int|null $scopes_count
+ * @property-read int|null $secrets_count
+ * @property-read int|null $tokens_count
+ * @method static \Database\Factories\SsoClientFactory factory($count = null, $state = [])
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientSecretHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereName($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereRedirectUris($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereScopes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereTokenPolicyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereUpdatedAt($value)
+ * @mixin \Eloquent
  */
 #[Fillable([
     'name',

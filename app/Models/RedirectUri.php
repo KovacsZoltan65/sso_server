@@ -8,6 +8,27 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property int $sso_client_id
+ * @property string $uri
+ * @property string $uri_hash
+ * @property bool $is_primary
+ * @property \Illuminate\Support\Carbon|null $created_at
+ * @property \Illuminate\Support\Carbon|null $updated_at
+ * @property-read \App\Models\SsoClient $client
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri whereIsPrimary($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri whereSsoClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri whereUri($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|RedirectUri whereUriHash($value)
+ * @mixin \Eloquent
+ */
 class RedirectUri extends Model
 {
     protected $fillable = [

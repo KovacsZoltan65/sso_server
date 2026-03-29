@@ -1,59 +1,73 @@
-# SSO Server <-> SSO Client Integration Contract
+# SSO Server <-> SSO Client integrációs szerződés
 
-## Scope
-This document defines the explicit, test-backed integration contract between:
+## Hatókör
+
+Ez a dokumentum az explicit, tesztekkel védett integrációs szerződést írja le az alábbiak között:
+
 - `sso_server`
 - `sso_client`
 
-It describes the current production behavior only.
+Csak a jelenlegi, ténylegesen implementált működést írja le.
 
-## 1. Authorize Request Contract
-Client starts login by redirecting to:
+## 1. Authorize request szerződés
+
+A kliens a bejelentkezést ide irányítással indítja:
+
 - `GET {SSO_SERVER_BASE_URL}{SSO_AUTHORIZE_ENDPOINT}`
-- Default: `GET /oauth/authorize`
+- alapértelmezés szerint: `GET /oauth/authorize`
 
-Required query params sent by `sso_client`:
+Az `sso_client` által küldött kötelező query paraméterek:
+
 - `response_type=code`
 - `client_id`
 - `redirect_uri`
-- `scope` (space-separated, configured via `SSO_SCOPES`)
-- `state` (random 64 chars, stored in session)
+- `scope` szóközzel elválasztva, `SSO_SCOPES` alapján
+- `state` véletlen 64 karakter, sessionben tárolva
 - `code_challenge`
 - `code_challenge_method=S256`
 
-Server-side behavior:
-- Valid request and authenticated user -> `302` redirect to `redirect_uri` with `code` and echoed `state`.
-- Invalid client / redirect / scope -> current server behavior is validation failure on the authorize route (`302` with session validation errors on server side), not callback redirect.
+Szerver oldali viselkedés:
 
-## 2. Callback Contract (`sso_client`)
-Client callback endpoint:
+- érvényes kérés és hitelesített user esetén `302` redirect a `redirect_uri` címre `code` és visszaechozott `state` paraméterrel
+- érvénytelen kliens / redirect / scope esetén a jelenlegi szerver oldali működés validation hiba az authorize route-on (`302` session validation hibákkal), nem callback redirect
+
+## 2. Callback szerződés (`sso_client`)
+
+A kliens callback végpontja:
+
 - `GET /auth/sso/callback`
 
-Client expects:
-- success path: `code` and `state`
-- failure path: optional OAuth-style `error`
+A kliens elvárása:
 
-Validation rules in client:
-- `code` missing -> fail
-- `state` missing -> fail
-- `state` mismatch / missing expected session state -> fail
-- missing PKCE verifier in session -> fail
-- `error` present in callback query -> fail
+- sikeres ág: `code` és `state`
+- hibaág: opcionális OAuth-stílusú `error`
 
-## 3. Token Response Contract
-Token endpoint:
+A kliens oldali validáció szabályai:
+
+- hiányzó `code` -> hiba
+- hiányzó `state` -> hiba
+- eltérő `state` vagy hiányzó várt session state -> hiba
+- hiányzó PKCE verifier a sessionből -> hiba
+- callback queryben jelen lévő `error` -> hiba
+
+## 3. Token response szerződés
+
+Token végpont:
+
 - `POST {SSO_SERVER_BASE_URL}{SSO_TOKEN_ENDPOINT}`
-- Default: `POST /api/oauth/token`
+- alapértelmezés szerint: `POST /api/oauth/token`
 
-Request grant used by client:
+A kliens által használt grant:
+
 - `grant_type=authorization_code`
 - `client_id`
-- `client_secret` (if configured)
+- `client_secret` ha konfigurálva van
 - `redirect_uri`
 - `code`
 - `code_verifier`
 
-Successful response (authoritative format):
+Sikeres válasz hiteles formátuma:
+
 ```json
 {
   "message": "OAuth token issued successfully.",
@@ -70,10 +84,12 @@ Successful response (authoritative format):
 }
 ```
 
-Contract rule:
-- `sso_client` reads `data.access_token` only (no top-level fallback).
+Szerződés szabály:
 
-Failure response format:
+- az `sso_client` kizárólag a `data.access_token` mezőt olvassa, nincs top-level fallback
+
+Hibás válasz formátuma:
+
 ```json
 {
   "message": "OAuth token request failed.",
@@ -85,13 +101,16 @@ Failure response format:
 }
 ```
 
-## 4. UserInfo Response Contract
-Userinfo endpoint:
-- `GET {SSO_SERVER_BASE_URL}{SSO_USERINFO_ENDPOINT}`
-- Default: `GET /api/oauth/userinfo`
-- Authorization: `Bearer {access_token}`
+## 4. UserInfo response szerződés
 
-Successful response:
+Userinfo végpont:
+
+- `GET {SSO_SERVER_BASE_URL}{SSO_USERINFO_ENDPOINT}`
+- alapértelmezés szerint: `GET /api/oauth/userinfo`
+- authorizáció: `Bearer {access_token}`
+
+Sikeres válasz:
+
 ```json
 {
   "message": "User info retrieved successfully.",
@@ -106,46 +125,57 @@ Successful response:
 }
 ```
 
-Claims contract:
-- Guaranteed: `data.sub`
-- Optional by scope: `data.name`, `data.email`, `data.email_verified`
+Claim szerződés:
 
-Client contract:
-- Reads userinfo from `data` only (no top-level fallback).
-- Requires `data.email` to build local user session.
+- garantált: `data.sub`
+- scope-függően opcionális: `data.name`, `data.email`, `data.email_verified`
 
-## 5. Logout Contract
-Current explicit contract:
-- `sso_client` performs local logout only (`POST /auth/logout`).
-- Session is fully cleared locally.
-- No single logout handshake with server is active in current contract.
+Kliens oldali szerződés:
 
-## 6. Self-Service Profile Contract
-Profile endpoints:
+- a userinfo választ csak a `data` mezőből olvassa
+- a lokális user session felépítéséhez szükséges a `data.email`
+
+## 5. Logout szerződés
+
+Jelenlegi explicit szerződés:
+
+- az `sso_client` csak lokális logoutot hajt végre (`POST /auth/logout`)
+- a session teljesen törlődik lokálisan
+- jelenleg nincs aktív single logout handshake a szerverrel
+
+## 6. Self-service profile szerződés
+
+Profile végpontok:
+
 - `GET /api/profile`
 - `PATCH /api/profile`
 - `PATCH /api/profile/password`
 
-Authentication model:
-- browser calls the server profile endpoints directly
-- server session remains the authentication authority
-- client sends credentialed requests and uses the explicit JSON envelope only
+Authentikációs modell:
 
-Editable fields:
+- a böngésző közvetlenül a szerver profile végpontjait hívja
+- a szerver session marad a hitelesítés forrása
+- a kliens credentialdel küldi a kéréseket, és csak az explicit JSON envelope-ot használja
+
+Szerkeszthető mezők:
+
 - `name`
 
-Read-only fields:
+Csak olvasható mezők:
+
 - `email`
 - `emailVerifiedAt`
 
-Rejected through self-service:
+Self-service-en keresztül tiltott mezők:
+
 - `roles`
 - `permissions`
 - `email_verified_at`
-- admin/status/security fields
-- any unexpected field not on the explicit whitelist
+- admin / status / security mezők
+- minden olyan váratlan mező, amely nincs rajta az explicit whitelistán
 
-Profile fetch success:
+Sikeres profile lekérés:
+
 ```json
 {
   "message": "Profile retrieved successfully.",
@@ -164,7 +194,8 @@ Profile fetch success:
 }
 ```
 
-Password update success:
+Sikeres jelszófrissítés:
+
 ```json
 {
   "message": "Password updated successfully.",
@@ -178,7 +209,8 @@ Password update success:
 }
 ```
 
-Validation failure format remains the standard envelope:
+Validation hiba esetén a formátum marad a standard envelope:
+
 ```json
 {
   "message": "Validation failed.",
@@ -190,61 +222,72 @@ Validation failure format remains the standard envelope:
 }
 ```
 
-## 7. Session/Auth State Contract (Client)
-Local authenticated state is created only after:
-1. valid callback validation
-2. successful token exchange
-3. successful userinfo fetch with usable `email`
-4. local user resolution by email
-5. Laravel web login + session regeneration
+## 7. Session/Auth state szerződés (kliens)
 
-Client becomes guest when:
-- local logout is called, or
-- protected route is accessed without valid session (`401` JSON for API-style request, redirect to login for browser).
+Lokális hitelesített állapot csak az alábbiak után jön létre:
 
-## 8. Error Contract Matrix
-| Case | Server status/body | Transport | Client handling |
+1. érvényes callback validáció
+2. sikeres token exchange
+3. sikeres userinfo lekérés használható `email` mezővel
+4. lokális user feloldás email alapján
+5. Laravel web login + session regenerate
+
+A kliens guest állapotba kerül, ha:
+
+- lokális logout történik, vagy
+- a user védett route-ot ér el érvényes session nélkül (`401` JSON API jellegű kérésnél, login redirect böngészőnél)
+
+## 8. Hiba szerződés mátrix
+
+| Eset | Szerver státusz/body | Transport | Kliens viselkedés |
 |---|---|---|---|
-| invalid client (authorize) | 302 + validation session errors (`client_id`) | redirect on server side | not callback-based, user remains on server flow |
-| inactive client (authorize/token) | 302 validation (authorize) / 422 JSON (token) | redirect or JSON | token phase fails and client returns login error |
-| redirect mismatch (authorize/token) | 302 validation (authorize) / 422 JSON (token) | redirect or JSON | token phase fails |
-| disallowed scope (authorize) | 302 + validation session errors (`scope`) | redirect on server side | not callback-based |
-| missing state (callback) | n/a (client-side callback validation) | query to client callback | client rejects |
-| invalid state (callback) | n/a (client-side callback validation) | query to client callback | client rejects |
-| missing code (callback) | n/a (client-side callback validation) | query to client callback | client rejects |
-| invalid/expired/reused code (token) | 422 JSON envelope with `errors.code` | JSON | client rejects token exchange |
-| token endpoint failure/network | n/a | transport failure | client rejects token exchange |
-| userinfo unauthorized | 401 JSON envelope | JSON | client rejects userinfo phase |
-| userinfo forbidden | 403 JSON envelope | JSON | client rejects userinfo phase |
-| forbidden self-service profile field | 422 JSON envelope with per-field errors | JSON | client shows field/domain errors |
-| unauthorized protected route (client app) | 302 to login (HTML) / 401 JSON (`reauth_to`) | redirect or JSON | explicit re-auth behavior |
+| invalid client (authorize) | 302 + validation session hibák (`client_id`) | szerver oldali redirect | nem callback-alapú, a user a szerver flow-ban marad |
+| inactive client (authorize/token) | 302 validation (authorize) / 422 JSON (token) | redirect vagy JSON | a token fázis elbukik, a kliens login hibát ad |
+| redirect mismatch (authorize/token) | 302 validation (authorize) / 422 JSON (token) | redirect vagy JSON | a token fázis elbukik |
+| disallowed scope (authorize) | 302 + validation session hibák (`scope`) | szerver oldali redirect | nem callback-alapú |
+| missing state (callback) | n/a, kliens oldali callback validáció | query a kliens callbackre | a kliens elutasítja |
+| invalid state (callback) | n/a, kliens oldali callback validáció | query a kliens callbackre | a kliens elutasítja |
+| missing code (callback) | n/a, kliens oldali callback validáció | query a kliens callbackre | a kliens elutasítja |
+| invalid/expired/reused code (token) | 422 JSON envelope `errors.code` mezővel | JSON | a kliens elutasítja a token exchange-et |
+| token endpoint failure/network | n/a | transport hiba | a kliens elutasítja a token exchange-et |
+| userinfo unauthorized | 401 JSON envelope | JSON | a kliens elutasítja a userinfo fázist |
+| userinfo forbidden | 403 JSON envelope | JSON | a kliens elutasítja a userinfo fázist |
+| forbidden self-service profile field | 422 JSON envelope mezőszintű hibákkal | JSON | a kliens mező- vagy domain hibákat jelenít meg |
+| unauthorized protected route (client app) | 302 login redirect (HTML) / 401 JSON (`reauth_to`) | redirect vagy JSON | explicit re-auth viselkedés |
 
-## 9. Config Contract
-Client configuration must define:
+## 9. Konfigurációs szerződés
+
+A kliens konfigurációjának tartalmaznia kell:
+
 - `SSO_SERVER_BASE_URL`
 - `SSO_AUTHORIZE_ENDPOINT`
 - `SSO_TOKEN_ENDPOINT`
 - `SSO_USERINFO_ENDPOINT`
 - `SSO_CLIENT_ID`
-- `SSO_CLIENT_SECRET` (when confidential client auth is required)
+- `SSO_CLIENT_SECRET` ha confidential client auth szükséges
 - `SSO_REDIRECT_URI`
-- `SSO_SCOPES` (must include `email`, because client session mapping requires `userinfo.email`)
+- `SSO_SCOPES`, és kötelezően tartalmaznia kell az `email` scope-ot, mert a kliens session mappinghez szükséges a `userinfo.email`
 
-Server configuration/data must align:
-- OAuth client exists with same `client_id`
-- allowed `redirect_uri` includes `SSO_REDIRECT_URI` exactly
-- allowed scopes include client-requested scopes
-- token policy PKCE settings are compatible with client request
-- `CORS_ALLOWED_ORIGINS` includes the exact `sso_client` browser origin for direct self-service profile calls
+A szerver konfigurációjának / adatainak ehhez igazodnia kell:
 
-## 10. Contract Test Coverage
-Server:
+- létezik OAuth kliens ugyanazzal a `client_id` értékkel
+- az engedélyezett `redirect_uri` pontosan tartalmazza a `SSO_REDIRECT_URI` értéket
+- az engedélyezett scope-ok tartalmazzák a kliens által kért scope-okat
+- a token policy PKCE beállításai kompatibilisek a kliens kérésével
+- a `CORS_ALLOWED_ORIGINS` tartalmazza a pontos `sso_client` browser origint a közvetlen self-service profile hívásokhoz
+
+## 10. Szerződést védő tesztlefedettség
+
+Szerver:
+
 - `tests/Feature/OAuth/OAuthAuthorizationCodeFlowTest.php`
 - `tests/Feature/OAuth/OAuthUserInfoTest.php`
 - `tests/Feature/Api/SelfServiceProfileApiTest.php`
 
-Client:
+Kliens:
+
 - `tests/Feature/Auth/SsoAuthenticationTest.php`
 - `tests/Feature/ProfileTest.php`
 
-These tests are the regression guard for this contract.
+Ezek a tesztek adják ennek a szerződésnek a regressziós védelmét.
+
