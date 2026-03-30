@@ -101,7 +101,7 @@ describe('Permissions modal CRUD frontend', () => {
         expect(confirmClose).toHaveBeenCalled();
     });
 
-    it('wires the shared paginator props into the permissions table', async () => {
+    it('renders a visible paginator with the shared admin pagination props', async () => {
         const wrapper = mountPage(Index, {
             props: {
                 rows: [{ id: 1, name: 'reports.view', guardName: 'web', rolesCount: 0, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
@@ -114,15 +114,15 @@ describe('Permissions modal CRUD frontend', () => {
 
         await nextTick();
 
-        const dataTable = wrapper.find('.datatable-stub');
+        const paginator = wrapper.find('.paginator-stub');
 
-        expect(dataTable.attributes('data-paginator')).toBe('true');
-        expect(dataTable.attributes('data-rows')).toBe('15');
-        expect(dataTable.attributes('data-first')).toBe('15');
-        expect(dataTable.attributes('data-total-records')).toBe('31');
-        expect(dataTable.attributes('data-rows-per-page-options')).toBe('5,10,15,25');
-        expect(dataTable.attributes('data-always-show-paginator')).toBe('true');
-        expect(dataTable.attributes('data-paginator-template')).toContain('RowsPerPageDropdown');
+        expect(paginator.exists()).toBe(true);
+        expect(paginator.attributes('data-rows')).toBe('15');
+        expect(paginator.attributes('data-first')).toBe('15');
+        expect(paginator.attributes('data-total-records')).toBe('31');
+        expect(paginator.attributes('data-rows-per-page-options')).toBe('5,10,15,25');
+        expect(paginator.attributes('data-always-show')).toBe('true');
+        expect(paginator.attributes('data-template')).toContain('RowsPerPageDropdown');
     });
 
     it('falls back to the previous page after deleting the last row on a page', async () => {

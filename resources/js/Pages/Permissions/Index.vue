@@ -23,6 +23,7 @@ import DataTable from 'primevue/datatable';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import InputText from 'primevue/inputtext';
+import Paginator from 'primevue/paginator';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
 import { computed, reactive, ref } from 'vue';
@@ -230,31 +231,25 @@ const permissionActionItems = (permission) => [
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <DataTable
-                    :value="rows"
-                    v-model:filters="tableFilters"
-                    :rows="tableState.perPage"
-                    :first="pagination.first"
-                    :totalRecords="pagination.total"
-                    :rowsPerPageOptions="adminRowsPerPageOptions"
-                    :sortField="tableState.sortField"
-                    :sortOrder="tableState.sortOrder"
-                    :loading="busy"
-                    :alwaysShowPaginator="true"
-                    :paginatorTemplate="adminPaginatorTemplate"
-                    :currentPageReportTemplate="adminCurrentPageReportTemplate"
-                    class="admin-datatable h-full"
-                    data-key="id"
-                    paginator
-                    lazy
-                    scrollable
-                    scrollHeight="flex"
-                    striped-rows
-                    filterDisplay="menu"
-                    removableSort
-                    responsive-layout="scroll"
-                    @filter="onFilter"
-                    @sort="onSort"
-                    @page="onPage"
+                        :value="rows"
+                        v-model:filters="tableFilters"
+                        :rows="tableState.perPage"
+                        :first="pagination.first"
+                        :totalRecords="pagination.total"
+                        :sortField="tableState.sortField"
+                        :sortOrder="tableState.sortOrder"
+                        :loading="busy"
+                        class="admin-datatable h-full"
+                        data-key="id"
+                        lazy
+                        scrollable
+                        scrollHeight="flex"
+                        striped-rows
+                        filterDisplay="menu"
+                        removableSort
+                        responsive-layout="scroll"
+                        @filter="onFilter"
+                        @sort="onSort"
                     >
                         <template #header>
                             <AdminTableToolbar
@@ -290,60 +285,60 @@ const permissionActionItems = (permission) => [
                         </template>
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
-                        <template #header>
-                            <div :title="selectableRows.length === 0 ? 'No deletable permissions on this page.' : ''">
-                                <Checkbox
-                                    :binary="true"
-                                    :modelValue="allSelected"
-                                    :indeterminate="partiallySelected"
-                                    :disabled="selectableRows.length === 0"
-                                    @update:modelValue="toggleAllSelection"
-                                />
-                            </div>
-                        </template>
+                            <template #header>
+                                <div :title="selectableRows.length === 0 ? 'No deletable permissions on this page.' : ''">
+                                    <Checkbox
+                                        :binary="true"
+                                        :modelValue="allSelected"
+                                        :indeterminate="partiallySelected"
+                                        :disabled="selectableRows.length === 0"
+                                        @update:modelValue="toggleAllSelection"
+                                    />
+                                </div>
+                            </template>
 
-                        <template #body="{ data }">
-                            <div :title="data.deleteBlockReason ?? ''">
-                                <Checkbox
-                                    :binary="true"
-                                    :modelValue="selectedIds.includes(data.id)"
-                                    :disabled="!data.canDelete"
-                                    @update:modelValue="toggleRowSelection(data)"
-                                />
-                            </div>
-                        </template>
-                    </Column>
+                            <template #body="{ data }">
+                                <div :title="data.deleteBlockReason ?? ''">
+                                    <Checkbox
+                                        :binary="true"
+                                        :modelValue="selectedIds.includes(data.id)"
+                                        :disabled="!data.canDelete"
+                                        @update:modelValue="toggleRowSelection(data)"
+                                    />
+                                </div>
+                            </template>
+                        </Column>
 
-                    <Column
-                        field="name"
-                        header="Name"
-                        sortable
-                        :showFilterMatchModes="false"
-                        :showFilterOperator="false"
-                        :showAddButton="false"
-                    >
-                        <template #filter="{ filterModel, filterCallback }">
-                            <InputText
-                                v-model="filterModel.value"
-                                placeholder="Filter name"
-                                class="w-full"
-                                @input="filterCallback()"
-                            />
-                        </template>
-                    </Column>
-
-                    <Column field="guardName" header="Guard">
-                        <template #body="{ data }">
-                            <div class="flex flex-wrap items-center gap-2">
-                                <Tag :value="data.guardName" severity="secondary" />
-                                <Tag
-                                    v-if="data.deleteBlockCode === 'assigned_records'"
-                                    value="In Use"
-                                    severity="warn"
+                        <Column
+                            field="name"
+                            header="Name"
+                            sortable
+                            :showFilterMatchModes="false"
+                            :showFilterOperator="false"
+                            :showAddButton="false"
+                        >
+                            <template #filter="{ filterModel, filterCallback }">
+                                <InputText
+                                    v-model="filterModel.value"
+                                    placeholder="Filter name"
+                                    class="w-full"
+                                    @input="filterCallback()"
                                 />
-                            </div>
-                        </template>
-                    </Column>
+                            </template>
+                        </Column>
+
+                        <Column field="guardName" header="Guard">
+                            <template #body="{ data }">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <Tag :value="data.guardName" severity="secondary" />
+                                    <Tag
+                                        v-if="data.deleteBlockCode === 'assigned_records'"
+                                        value="In Use"
+                                        severity="warn"
+                                    />
+                                </div>
+                            </template>
+                        </Column>
 
                         <Column field="rolesCount" header="Assigned Roles" />
                         <Column field="usersCount" header="Direct Users" />
@@ -355,6 +350,18 @@ const permissionActionItems = (permission) => [
                             </template>
                         </Column>
                     </DataTable>
+
+                    <Paginator
+                        :first="pagination.first"
+                        :rows="tableState.perPage"
+                        :totalRecords="pagination.total"
+                        :rowsPerPageOptions="adminRowsPerPageOptions"
+                        :alwaysShow="true"
+                        :template="adminPaginatorTemplate"
+                        :currentPageReportTemplate="adminCurrentPageReportTemplate"
+                        class="border-t border-slate-200"
+                        @page="onPage"
+                    />
                 </div>
 
                 <template #footer>

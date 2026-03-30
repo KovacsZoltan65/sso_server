@@ -194,6 +194,52 @@ const DataTableStub = defineComponent({
     },
 });
 
+const PaginatorStub = defineComponent({
+    props: {
+        rows: {
+            type: Number,
+            default: 0,
+        },
+        first: {
+            type: Number,
+            default: 0,
+        },
+        totalRecords: {
+            type: Number,
+            default: 0,
+        },
+        rowsPerPageOptions: {
+            type: Array,
+            default: () => [],
+        },
+        alwaysShow: {
+            type: Boolean,
+            default: false,
+        },
+        template: {
+            type: String,
+            default: '',
+        },
+        currentPageReportTemplate: {
+            type: String,
+            default: '',
+        },
+    },
+    emits: ['page'],
+    setup(props, { slots }) {
+        return () => h('div', {
+            class: 'paginator-stub',
+            'data-rows': String(props.rows),
+            'data-first': String(props.first),
+            'data-total-records': String(props.totalRecords),
+            'data-rows-per-page-options': props.rowsPerPageOptions.join(','),
+            'data-always-show': String(props.alwaysShow),
+            'data-template': props.template,
+            'data-current-page-report-template': props.currentPageReportTemplate,
+        }, slots.default?.());
+    },
+});
+
 const MultiSelectStub = defineComponent({
     inheritAttrs: false,
     props: {
@@ -330,6 +376,7 @@ vi.mock('primevue/inputtext', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/multiselect', () => ({ default: MultiSelectStub }));
 vi.mock('primevue/menu', () => ({ default: passthroughStub }));
 vi.mock('primevue/password', () => ({ default: makeFieldComponent('input') }));
+vi.mock('primevue/paginator', () => ({ default: PaginatorStub }));
 vi.mock('primevue/select', () => ({ default: makeFieldComponent('select') }));
 vi.mock('primevue/tag', () => ({ default: TagStub }));
 vi.mock('primevue/textarea', () => ({ default: makeFieldComponent('textarea') }));
