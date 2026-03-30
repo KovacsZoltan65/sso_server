@@ -1,0 +1,75 @@
+@layer components {
+    :root {
+        --admin-input-height: 40px;
+    }
+
+    .admin-input,
+    .admin-table-page :is(.p-inputtext, .p-select, .p-dropdown, .p-multiselect, .p-datepicker-input, .p-autocomplete-input),
+    .admin-form-page :is(.p-inputtext, .p-select, .p-dropdown, .p-multiselect, .p-datepicker-input, .p-autocomplete-input) {
+        min-height: var(--admin-input-height);
+        height: var(--admin-input-height);
+    }
+
+    .admin-input,
+    .admin-table-page :is(.p-select, .p-dropdown, .p-multiselect, .p-datepicker, .p-autocomplete),
+    .admin-form-page :is(.p-select, .p-dropdown, .p-multiselect, .p-datepicker, .p-autocomplete) {
+        display: flex;
+        align-items: center;
+    }
+
+    .admin-table-page .p-iconfield,
+    .admin-form-page .p-iconfield {
+        display: flex;
+        align-items: center;
+    }
+
+    .admin-table-page .p-iconfield .p-inputicon,
+    .admin-form-page .p-iconfield .p-inputicon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+    }
+
+    .admin-table-page .p-select-label,
+    .admin-table-page .p-dropdown-label,
+    .admin-table-page .p-multiselect-label,
+    .admin-form-page .p-select-label,
+    .admin-form-page .p-dropdown-label,
+    .admin-form-page .p-multiselect-label {
+        display: flex;
+        align-items: center;
+        min-height: 100%;
+    }
+
+    .admin-table-page .p-select-dropdown,
+    .admin-table-page .p-dropdown-trigger,
+    .admin-table-page .p-multiselect-dropdown,
+    .admin-form-page .p-select-dropdown,
+    .admin-form-page .p-dropdown-trigger,
+    .admin-form-page .p-multiselect-dropdown {
+        display: flex;
+        align-items: center;
+        align-self: stretch;
+    }
+
+    .admin-toolbar {
+        @apply flex items-center gap-3 flex-wrap justify-between;
+    }
+
+    .admin-toolbar__search {
+        @apply w-full sm:max-w-sm;
+    }
+
+    .admin-toolbar__actions {
+        @apply ml-auto flex items-center gap-3 flex-wrap justify-end;
+    }
+
+    .admin-row-action-trigger.p-button {
+        width: var(--admin-input-height);
+        height: var(--admin-input-height);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+    }
+}
