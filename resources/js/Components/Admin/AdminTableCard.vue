@@ -12,7 +12,7 @@ import Card from 'primevue/card';
     >
         <template #content>
             <div class="admin-table-card__content flex min-h-0 flex-1 flex-col">
-                <div class="admin-table-card__body min-h-0 flex-1 overflow-hidden">
+                <div class="admin-table-card__body flex min-h-0 flex-1 flex-col overflow-hidden">
                     <slot />
                 </div>
 

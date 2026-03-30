@@ -1,32 +1,31 @@
 <script setup>
-import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
-import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
-import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
-import PageHeader from '@/Components/PageHeader.vue';
-import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
+import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
+import PageHeader from "@/Components/PageHeader.vue";
+import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import {
     adminCurrentPageReportTemplate,
     adminPaginatorTemplate,
     adminRowsPerPageOptions,
-} from '@/Constants/adminTablePagination';
-import { useAdminListActions } from '@/Composables/useAdminListActions';
-import { usePageOverlayCleanup } from '@/Composables/usePageOverlayCleanup';
-import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
-import CreateModal from '@/Pages/Permissions/CreateModal.vue';
-import EditModal from '@/Pages/Permissions/EditModal.vue';
-import { Head } from '@inertiajs/vue3';
-import { FilterMatchMode } from '@primevue/core/api';
-import Checkbox from 'primevue/checkbox';
-import Column from 'primevue/column';
-import ConfirmDialog from 'primevue/confirmdialog';
-import DataTable from 'primevue/datatable';
-import IconField from 'primevue/iconfield';
-import InputIcon from 'primevue/inputicon';
-import InputText from 'primevue/inputtext';
-import Paginator from 'primevue/paginator';
-import Tag from 'primevue/tag';
-import Toast from 'primevue/toast';
-import { computed, reactive, ref } from 'vue';
+} from "@/Constants/adminTablePagination";
+import { useAdminListActions } from "@/Composables/useAdminListActions";
+import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
+import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
+import CreateModal from "@/Pages/Permissions/CreateModal.vue";
+import EditModal from "@/Pages/Permissions/EditModal.vue";
+import { Head } from "@inertiajs/vue3";
+import { FilterMatchMode } from "@primevue/core/api";
+import Checkbox from "primevue/checkbox";
+import Column from "primevue/column";
+import ConfirmDialog from "primevue/confirmdialog";
+import DataTable from "primevue/datatable";
+import IconField from "primevue/iconfield";
+import InputIcon from "primevue/inputicon";
+import InputText from "primevue/inputtext";
+import Tag from "primevue/tag";
+import Toast from "primevue/toast";
+import { computed, reactive, ref } from "vue";
 
 const props = defineProps({
     rows: {
@@ -55,7 +54,7 @@ const props = defineProps({
     sorting: {
         type: Object,
         default: () => ({
-            field: 'name',
+            field: "name",
             order: 1,
         }),
     },
@@ -79,7 +78,7 @@ const tableFilters = ref({
 const tableState = reactive({
     page: props.pagination.currentPage,
     perPage: props.pagination.perPage ?? 10,
-    sortField: props.sorting.field ?? 'name',
+    sortField: props.sorting.field ?? "name",
     sortOrder: props.sorting.order ?? 1,
 });
 
@@ -112,11 +111,11 @@ const {
     confirmDelete,
     confirmBulkDelete,
 } = useAdminListActions({
-    indexRouteName: 'admin.permissions.index',
-    destroyRouteName: 'admin.permissions.destroy',
-    bulkDestroyRouteName: 'admin.permissions.bulk-destroy',
-    entityLabel: 'Permission',
-    entityLabelPlural: 'permissions',
+    indexRouteName: "admin.permissions.index",
+    destroyRouteName: "admin.permissions.destroy",
+    bulkDestroyRouteName: "admin.permissions.bulk-destroy",
+    entityLabel: "Permission",
+    entityLabelPlural: "permissions",
     buildParams,
     clearSelection,
     selectedIds,
@@ -127,40 +126,52 @@ const {
 const onGlobalFilterInput = (value) => {
     tableFilters.value.global.value = value ?? null;
     tableState.page = 1;
-    reload({
-        page: 1,
-        global: value || undefined,
-    }, { resetSelection: true });
+    reload(
+        {
+            page: 1,
+            global: value || undefined,
+        },
+        { resetSelection: true }
+    );
 };
 
 const onFilter = (event) => {
     tableState.page = 1;
 
-    reload({
-        page: 1,
-        global: event.filters.global?.value || undefined,
-        name: event.filters.name?.value || undefined,
-    }, { resetSelection: true });
+    reload(
+        {
+            page: 1,
+            global: event.filters.global?.value || undefined,
+            name: event.filters.name?.value || undefined,
+        },
+        { resetSelection: true }
+    );
 };
 
 const onSort = (event) => {
     tableState.sortField = event.sortField;
     tableState.sortOrder = event.sortOrder;
 
-    reload({
-        sortField: event.sortField,
-        sortOrder: event.sortOrder,
-    }, { resetSelection: true });
+    reload(
+        {
+            sortField: event.sortField,
+            sortOrder: event.sortOrder,
+        },
+        { resetSelection: true }
+    );
 };
 
 const onPage = (event) => {
     tableState.page = event.page + 1;
     tableState.perPage = event.rows;
 
-    reload({
-        page: event.page + 1,
-        perPage: event.rows,
-    }, { resetSelection: true });
+    reload(
+        {
+            page: event.page + 1,
+            perPage: event.rows,
+        },
+        { resetSelection: true }
+    );
 };
 
 const openCreateModal = () => {
@@ -202,13 +213,13 @@ const handleSaved = ({ message }) => {
 
 const permissionActionItems = (permission) => [
     {
-        label: 'Edit',
-        icon: 'pi pi-pencil',
+        label: "Edit",
+        icon: "pi pi-pencil",
         command: () => openEditModal(permission),
     },
     {
-        label: 'Delete',
-        icon: 'pi pi-trash',
+        label: "Delete",
+        icon: "pi pi-trash",
         disabled: !permission.canDelete,
         command: () => confirmDelete(permission),
     },
@@ -236,11 +247,16 @@ const permissionActionItems = (permission) => [
                         :rows="tableState.perPage"
                         :first="pagination.first"
                         :totalRecords="pagination.total"
+                        :rowsPerPageOptions="adminRowsPerPageOptions"
                         :sortField="tableState.sortField"
                         :sortOrder="tableState.sortOrder"
                         :loading="busy"
-                        class="admin-datatable h-full"
+                        :alwaysShowPaginator="true"
+                        :paginatorTemplate="adminPaginatorTemplate"
+                        :currentPageReportTemplate="adminCurrentPageReportTemplate"
+                        class="admin-datatable"
                         data-key="id"
+                        paginator
                         lazy
                         scrollable
                         scrollHeight="flex"
@@ -250,19 +266,20 @@ const permissionActionItems = (permission) => [
                         responsive-layout="scroll"
                         @filter="onFilter"
                         @sort="onSort"
+                        @page="onPage"
                     >
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManagePermissions"
                                 createLabel="Create Permission"
-                            :canBulkDelete="canManagePermissions"
-                            bulkDeleteLabel="Delete Selected"
-                            :selectedCount="selectedRows.length"
-                            :selectableCount="selectableRows.length"
-                            :busy="busy"
-                            @create="openCreateModal"
-                            @bulk-delete="confirmBulkDelete"
-                            @refresh="refresh"
+                                :canBulkDelete="canManagePermissions"
+                                bulkDeleteLabel="Delete Selected"
+                                :selectedCount="selectedRows.length"
+                                :selectableCount="selectableRows.length"
+                                :busy="busy"
+                                @create="openCreateModal"
+                                @bulk-delete="confirmBulkDelete"
+                                @refresh="refresh"
                             >
                                 <template #search>
                                     <IconField class="w-full">
@@ -286,7 +303,13 @@ const permissionActionItems = (permission) => [
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
                             <template #header>
-                                <div :title="selectableRows.length === 0 ? 'No deletable permissions on this page.' : ''">
+                                <div
+                                    :title="
+                                        selectableRows.length === 0
+                                            ? 'No deletable permissions on this page.'
+                                            : ''
+                                    "
+                                >
                                     <Checkbox
                                         :binary="true"
                                         :modelValue="allSelected"
@@ -344,41 +367,36 @@ const permissionActionItems = (permission) => [
                         <Column field="usersCount" header="Direct Users" />
                         <Column field="createdAt" header="Created At" sortable />
 
-                        <Column v-if="canManagePermissions" header="Actions" :exportable="false" style="width: 5rem">
+                        <Column
+                            v-if="canManagePermissions"
+                            header="Actions"
+                            :exportable="false"
+                            style="width: 5rem"
+                        >
                             <template #body="{ data }">
                                 <RowActionMenu :items="permissionActionItems(data)" />
                             </template>
                         </Column>
                     </DataTable>
-
-                    <Paginator
-                        :first="pagination.first"
-                        :rows="tableState.perPage"
-                        :totalRecords="pagination.total"
-                        :rowsPerPageOptions="adminRowsPerPageOptions"
-                        :alwaysShow="true"
-                        :template="adminPaginatorTemplate"
-                        :currentPageReportTemplate="adminCurrentPageReportTemplate"
-                        class="border-t border-slate-200"
-                        @page="onPage"
-                    />
                 </div>
 
                 <template #footer>
-                    <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+                    <div
+                        class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
+                    >
                         <div>
-                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} permissions
+                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of
+                            {{ pagination.total }} permissions
                         </div>
-                        <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
+                        <div>
+                            Page {{ pagination.currentPage }} / {{ pagination.lastPage }}
+                        </div>
                     </div>
                 </template>
             </AdminTableCard>
         </div>
 
-        <CreateModal
-            v-model:visible="isCreateModalOpen"
-            @saved="handleSaved"
-        />
+        <CreateModal v-model:visible="isCreateModalOpen" @saved="handleSaved" />
 
         <EditModal
             v-model:visible="isEditModalOpen"
