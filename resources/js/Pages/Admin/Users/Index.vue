@@ -258,8 +258,6 @@ const userActionItems = (user) => [
                         data-key="id"
                         paginator
                         lazy
-                        scrollable
-                        scrollHeight="flex"
                         striped-rows
                         filterDisplay="menu"
                         removableSort
@@ -272,14 +270,14 @@ const userActionItems = (user) => [
                             <AdminTableToolbar
                                 :canCreate="canManageUsers"
                                 createLabel="Create User"
-                            :canBulkDelete="canManageUsers"
-                            bulkDeleteLabel="Delete Selected"
-                            :selectedCount="selectedRows.length"
-                            :selectableCount="selectableRows.length"
-                            :busy="busy"
-                            @create="openCreateModal"
-                            @bulk-delete="confirmBulkDelete"
-                            @refresh="refresh"
+                                :canBulkDelete="canManageUsers"
+                                bulkDeleteLabel="Delete Selected"
+                                :selectedCount="selectedRows.length"
+                                :selectableCount="selectableRows.length"
+                                :busy="busy"
+                                @create="openCreateModal"
+                                @bulk-delete="confirmBulkDelete"
+                                @refresh="refresh"
                             >
                                 <template #search>
                                     <IconField class="w-full">
@@ -303,7 +301,13 @@ const userActionItems = (user) => [
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
                             <template #header>
-                                <div :title="selectableRows.length === 0 ? 'No deletable users on this page.' : ''">
+                                <div
+                                    :title="
+                                        selectableRows.length === 0
+                                            ? 'No deletable users on this page.'
+                                            : ''
+                                    "
+                                >
                                     <Checkbox
                                         :binary="true"
                                         :modelValue="allSelected"

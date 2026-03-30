@@ -264,8 +264,6 @@ const clientActionItems = (client) => [
                         data-key="id"
                         paginator
                         lazy
-                        scrollable
-                        scrollHeight="flex"
                         striped-rows
                         filterDisplay="menu"
                         removableSort

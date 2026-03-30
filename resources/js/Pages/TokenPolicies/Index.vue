@@ -162,8 +162,6 @@ const formatMinutes = (minutes) => {
                         data-key="id"
                         paginator
                         lazy
-                        scrollable
-                        scrollHeight="flex"
                         striped-rows
                         filterDisplay="menu"
                         removableSort
