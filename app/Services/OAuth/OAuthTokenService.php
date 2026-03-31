@@ -8,6 +8,7 @@ use App\Models\TokenPolicy;
 use App\Models\SsoClient;
 use App\Models\User;
 use App\Repositories\Contracts\TokenRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\DB;
@@ -55,6 +56,7 @@ class OAuthTokenService
         private readonly RedirectUriMatcher $redirectUriMatcher,
         private readonly PkceVerifier $pkceVerifier,
         private readonly TokenRepositoryInterface $tokenRepository,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -119,12 +121,19 @@ class OAuthTokenService
                 userAgent: $userAgent,
             );
 
-            activity('oauth')
-                ->performedOn($client)
-                ->causedBy($authorizationCode->user)
-                ->event('oauth.token.issued')
-                ->withProperties(['grant_type' => 'authorization_code'])
-                ->log('OAuth token pair issued from authorization code.');
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_OAUTH,
+                event: 'oauth.token.issued',
+                description: 'OAuth token issued.',
+                subject: $client,
+                causer: $authorizationCode->user,
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'grant_type' => 'authorization_code',
+                    'scope_codes' => $authorizationCode->scopes ?? [],
+                ],
+            );
 
             return $issued;
         });
@@ -177,12 +186,19 @@ class OAuthTokenService
                 userAgent: $userAgent,
             );
 
-            activity('oauth')
-                ->performedOn($client)
-                ->causedBy($token->user)
-                ->event('oauth.token.refreshed')
-                ->withProperties(['parent_token_id' => $token->id])
-                ->log('OAuth access token refreshed.');
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_OAUTH,
+                event: 'oauth.token.refreshed',
+                description: 'OAuth token refreshed.',
+                subject: $client,
+                causer: $token->user,
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'grant_type' => 'refresh_token',
+                    'scope_codes' => $token->scopes ?? [],
+                ],
+            );
 
             return $issued;
         });
@@ -197,13 +213,15 @@ class OAuthTokenService
         $client = SsoClient::query()->with(['activeSecrets', 'tokenPolicy'])->where('client_id', $clientId)->where('is_active', true)->first();
 
         if ($client === null) {
-            activity('oauth')
-                ->event('oauth.client.authentication_failed')
-                ->withProperties([
-                    'client_id' => $clientId,
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_OAUTH,
+                event: 'oauth.client_auth.failed',
+                description: 'OAuth client authentication failed.',
+                properties: [
+                    'client_public_id' => $clientId,
                     'reason' => 'invalid_client',
-                ])
-                ->log('OAuth client authentication failed.');
+                ],
+            );
 
             throw ValidationException::withMessages(['client_id' => 'The provided client is invalid or inactive.']);
         }
@@ -228,14 +246,17 @@ class OAuthTokenService
             }
         }
 
-        activity('oauth')
-            ->performedOn($client)
-            ->event('oauth.client.authentication_failed')
-            ->withProperties([
-                'client_id' => $client->client_id,
+        $this->auditLogService->logFailure(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.client_auth.failed',
+            description: 'OAuth client authentication failed.',
+            subject: $client,
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
                 'reason' => 'invalid_client_secret',
-            ])
-            ->log('OAuth client authentication failed.');
+            ],
+        );
 
         throw ValidationException::withMessages(['client_secret' => 'The provided client secret is invalid.']);
     }
@@ -333,14 +354,18 @@ class OAuthTokenService
 
                 $this->tokenRepository->revokeAccessToken($token);
 
-                activity('oauth')
-                    ->performedOn($client)
-                    ->event('oauth.token.revoked')
-                    ->withProperties([
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.token.revoked',
+                    description: 'OAuth token revoked.',
+                    subject: $client,
+                    causer: $token->user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
                         'token_kind' => 'access_token',
-                        'token_id' => $token->id,
-                    ])
-                    ->log('OAuth access token revoked.');
+                    ],
+                );
 
                 return;
             }
@@ -354,14 +379,18 @@ class OAuthTokenService
 
                 $this->tokenRepository->revokeRefreshToken($token);
 
-                activity('oauth')
-                    ->performedOn($client)
-                    ->event('oauth.token.revoked')
-                    ->withProperties([
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.token.revoked',
+                    description: 'OAuth token revoked.',
+                    subject: $client,
+                    causer: $token->user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
                         'token_kind' => 'refresh_token',
-                        'token_id' => $token->id,
-                    ])
-                    ->log('OAuth refresh token revoked.');
+                    ],
+                );
 
                 return;
             }
@@ -371,14 +400,18 @@ class OAuthTokenService
             if ($accessToken !== null && (int) $accessToken->sso_client_id === (int) $client->id) {
                 $this->tokenRepository->revokeAccessToken($accessToken);
 
-                activity('oauth')
-                    ->performedOn($client)
-                    ->event('oauth.token.revoked')
-                    ->withProperties([
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.token.revoked',
+                    description: 'OAuth token revoked.',
+                    subject: $client,
+                    causer: $accessToken->user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
                         'token_kind' => 'access_token',
-                        'token_id' => $accessToken->id,
-                    ])
-                    ->log('OAuth access token revoked.');
+                    ],
+                );
 
                 return;
             }
@@ -388,14 +421,18 @@ class OAuthTokenService
             if ($refreshToken !== null && (int) $refreshToken->sso_client_id === (int) $client->id) {
                 $this->tokenRepository->revokeRefreshToken($refreshToken);
 
-                activity('oauth')
-                    ->performedOn($client)
-                    ->event('oauth.token.revoked')
-                    ->withProperties([
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.token.revoked',
+                    description: 'OAuth token revoked.',
+                    subject: $client,
+                    causer: $refreshToken->user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
                         'token_kind' => 'refresh_token',
-                        'token_id' => $refreshToken->id,
-                    ])
-                    ->log('OAuth refresh token revoked.');
+                    ],
+                );
             }
         });
     }
@@ -415,15 +452,18 @@ class OAuthTokenService
         $tokenTypeHint = $this->normalizeTokenTypeHint($payload['token_type_hint'] ?? null);
         $response = $this->resolveIntrospectionResponse($client, $tokenHash, $tokenTypeHint);
 
-        activity('oauth')
-            ->performedOn($client)
-            ->event('oauth.token.introspected')
-            ->withProperties([
-                'active' => $response['active'],
-                'token_type_hint' => $tokenTypeHint,
-                'resolved_token_type' => $response['token_type'] ?? null,
-            ])
-            ->log('OAuth token introspection completed.');
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.token.introspected',
+            description: 'OAuth token introspection completed.',
+            subject: $client,
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+                'token_kind' => $response['token_type'] ?? $tokenTypeHint,
+                'status' => $response['active'] ? 'active' : 'inactive',
+            ],
+        );
 
         return $response;
     }
@@ -449,14 +489,18 @@ class OAuthTokenService
             'user_agent' => $token->user_agent ?? $userAgent,
         ])->save();
 
-        activity('oauth')
-            ->performedOn($token->client)
-            ->causedBy($token->user)
-            ->event('oauth.userinfo.requested')
-            ->withProperties([
-                'scope' => implode(' ', $token->scopes ?? []),
-            ])
-            ->log('OAuth user info retrieved.');
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.userinfo.requested',
+            description: 'OAuth user info retrieved.',
+            subject: $token->client,
+            causer: $token->user,
+            properties: [
+                'client_id' => $token->client->id,
+                'client_public_id' => $token->client->client_id,
+                'scope_codes' => $token->scopes ?? [],
+            ],
+        );
 
         return $claims;
     }
@@ -635,10 +679,16 @@ class OAuthTokenService
      */
     private function logGrantFailure(SsoClient $client, string $reason): void
     {
-        activity('oauth')
-            ->performedOn($client)
-            ->event('oauth.token.grant_failed')
-            ->withProperties(['reason' => $reason])
-            ->log('OAuth token grant failed.');
+        $this->auditLogService->logFailure(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.token.grant_failed',
+            description: 'OAuth token grant failed.',
+            subject: $client,
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+                'reason' => $reason,
+            ],
+        );
     }
 }

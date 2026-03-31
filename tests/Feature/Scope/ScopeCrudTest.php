@@ -110,6 +110,12 @@ it('authorized user can store scope', function () {
         'code' => 'profile.read',
         'is_active' => true,
     ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.scope',
+        'event' => 'admin.scope.created',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('store validation fails for invalid scope payload', function () {
@@ -167,6 +173,12 @@ it('authorized user can update scope', function () {
     expect($scope->name)->toBe('Clients Operate');
     expect($scope->code)->toBe('clients.operate');
     expect($scope->is_active)->toBeFalse();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.scope',
+        'event' => 'admin.scope.updated',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('prevents changing scope code while assigned to a client', function () {
@@ -202,6 +214,12 @@ it('authorized user can delete unused scope', function () {
 
     $this->assertDatabaseMissing('scopes', [
         'id' => $scope->id,
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.scope',
+        'event' => 'admin.scope.deleted',
+        'causer_id' => $user->id,
     ]);
 });
 

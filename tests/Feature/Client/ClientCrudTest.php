@@ -6,6 +6,7 @@ use App\Models\SsoClient;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -138,8 +139,17 @@ it('authorized user can store client and receives secret once', function () {
     ]);
 
     $this->assertDatabaseHas('activity_log', [
-        'event' => 'client.secret.created',
+        'log_name' => 'admin.client',
+        'event' => 'admin.client_secret.created',
     ]);
+
+    $secretActivity = Activity::query()
+        ->where('event', 'admin.client_secret.created')
+        ->latest()
+        ->firstOrFail();
+
+    expect($secretActivity->properties->toArray())->toHaveKey('secret_last_four')
+        ->and($secretActivity->properties->toArray())->not->toHaveKeys(['secret', 'client_secret']);
 });
 
 it('store validation fails for invalid client payload', function () {
@@ -225,6 +235,11 @@ it('authorized user can update client', function () {
     expect($client->normalizedScopeCodes())->toBe(['email', 'openid']);
     expect($client->is_active)->toBeFalse();
     expect($client->client_secret_hash)->toBe($originalSecretHash);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.client',
+        'event' => 'admin.client.updated',
+    ]);
 });
 
 it('update validation fails for invalid client payload', function () {
@@ -280,8 +295,17 @@ it('authorized user can rotate client secret and old one becomes revoked', funct
     expect(Hash::check($sessionSecret, $client->fresh()->client_secret_hash))->toBeTrue();
 
     $this->assertDatabaseHas('activity_log', [
-        'event' => 'client.secret.rotated',
+        'log_name' => 'admin.client',
+        'event' => 'admin.client_secret.rotated',
     ]);
+
+    $rotationActivity = Activity::query()
+        ->where('event', 'admin.client_secret.rotated')
+        ->latest()
+        ->firstOrFail();
+
+    expect($rotationActivity->properties->toArray())->toHaveKey('secret_last_four')
+        ->and($rotationActivity->properties->toArray())->not->toHaveKeys(['secret', 'client_secret']);
 });
 
 it('authorized user can revoke a non-last secret', function () {
@@ -310,7 +334,8 @@ it('authorized user can revoke a non-last secret', function () {
     expect($secretToRevoke->fresh()->is_active)->toBeFalse();
 
     $this->assertDatabaseHas('activity_log', [
-        'event' => 'client.secret.revoked',
+        'log_name' => 'admin.client',
+        'event' => 'admin.client_secret.revoked',
     ]);
 });
 
@@ -345,6 +370,11 @@ it('authorized user can delete client', function () {
 
     $this->assertDatabaseMissing('sso_clients', [
         'id' => $client->id,
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.client',
+        'event' => 'admin.client.deleted',
     ]);
 });
 

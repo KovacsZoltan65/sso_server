@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\UserSummaryData;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use App\Support\Permissions\UserPermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -22,6 +23,7 @@ class UserService
 
     public function __construct(
         private readonly UserRepositoryInterface $users,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -98,10 +100,28 @@ class UserService
      */
     public function createUser(array $payload): User
     {
-        return $this->users->createWithRoles(
+        $user = $this->users->createWithRoles(
             attributes: Arr::only($payload, ['name', 'email', 'password']),
             roles: array_values($payload['roles'] ?? []),
         );
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'user',
+            action: 'created',
+            description: 'Admin user created.',
+            subject: $user,
+            causer: auth()->user(),
+            properties: [
+                'target_user_id' => $user->id,
+                'updated_fields' => ['name', 'email', 'roles'],
+                'changed_attributes' => [
+                    'roles' => $user->roleNames(),
+                ],
+                'status' => $user->email_verified_at === null ? 'unverified' : 'verified',
+            ],
+        );
+
+        return $user;
     }
 
     /**
@@ -109,16 +129,49 @@ class UserService
      */
     public function updateUser(User $user, array $payload): User
     {
-        return $this->users->updateWithRoles(
+        $previousRoles = $user->roleNames();
+        $updatedUser = $this->users->updateWithRoles(
             user: $user,
             attributes: Arr::only($payload, ['name', 'email']),
             roles: array_values($payload['roles'] ?? []),
         );
+
+        $currentRoles = $updatedUser->roleNames();
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'user',
+            action: 'updated',
+            description: 'Admin user updated.',
+            subject: $updatedUser,
+            causer: auth()->user(),
+            properties: [
+                'target_user_id' => $updatedUser->id,
+                'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'email', 'roles']))),
+                'changed_attributes' => [
+                    'attached_roles' => array_values(array_diff($currentRoles, $previousRoles)),
+                    'detached_roles' => array_values(array_diff($previousRoles, $currentRoles)),
+                ],
+                'status' => $updatedUser->email_verified_at === null ? 'unverified' : 'verified',
+            ],
+        );
+
+        return $updatedUser;
     }
 
     public function deleteUser(User $user, User $actingUser): void
     {
         $this->guardDeleteable($user, $actingUser);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'user',
+            action: 'deleted',
+            description: 'Admin user deleted.',
+            subject: $user,
+            causer: $actingUser,
+            properties: [
+                'target_user_id' => $user->id,
+            ],
+        );
 
         $this->users->deleteUser($user);
     }
@@ -137,6 +190,19 @@ class UserService
 
         foreach ($users as $user) {
             $this->guardDeleteable($user, $actingUser);
+        }
+
+        foreach ($users as $user) {
+            $this->auditLogService->logAdminCrud(
+                resource: 'user',
+                action: 'deleted',
+                description: 'Admin user deleted.',
+                subject: $user,
+                causer: $actingUser,
+                properties: [
+                    'target_user_id' => $user->id,
+                ],
+            );
         }
 
         $deletedIds = $users->pluck('id')->values()->all();

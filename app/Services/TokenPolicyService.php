@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\TokenPolicySummaryData;
 use App\Models\TokenPolicy;
 use App\Repositories\Contracts\TokenPolicyRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use App\Support\Permissions\TokenPolicyPermissions;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,6 +15,7 @@ class TokenPolicyService
 {
     public function __construct(
         private readonly TokenPolicyRepositoryInterface $tokenPolicies,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -116,7 +118,22 @@ class TokenPolicyService
                 $this->tokenPolicies->clearDefaultFlagExcept();
             }
 
-            return $this->tokenPolicies->createTokenPolicy($attributes);
+            $tokenPolicy = $this->tokenPolicies->createTokenPolicy($attributes);
+
+            $this->auditLogService->logAdminCrud(
+                resource: 'token_policy',
+                action: 'created',
+                description: 'Token policy created.',
+                subject: $tokenPolicy,
+                causer: auth()->user(),
+                properties: [
+                    'policy_id' => $tokenPolicy->id,
+                    'updated_fields' => array_keys($attributes),
+                    'status' => $tokenPolicy->is_active ? 'active' : 'inactive',
+                ],
+            );
+
+            return $tokenPolicy;
         });
     }
 
@@ -132,7 +149,22 @@ class TokenPolicyService
                 $this->tokenPolicies->clearDefaultFlagExcept($tokenPolicy->id);
             }
 
-            return $this->tokenPolicies->updateTokenPolicy($tokenPolicy, $attributes);
+            $updatedPolicy = $this->tokenPolicies->updateTokenPolicy($tokenPolicy, $attributes);
+
+            $this->auditLogService->logAdminCrud(
+                resource: 'token_policy',
+                action: 'updated',
+                description: 'Token policy updated.',
+                subject: $updatedPolicy,
+                causer: auth()->user(),
+                properties: [
+                    'policy_id' => $updatedPolicy->id,
+                    'updated_fields' => array_keys($attributes),
+                    'status' => $updatedPolicy->is_active ? 'active' : 'inactive',
+                ],
+            );
+
+            return $updatedPolicy;
         });
     }
 
@@ -140,6 +172,17 @@ class TokenPolicyService
     {
         $clientsCount = $this->tokenPolicies->clientUsageCounts([$tokenPolicy->id])[$tokenPolicy->id] ?? 0;
         $this->assertCanDelete($tokenPolicy, $clientsCount);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'token_policy',
+            action: 'deleted',
+            description: 'Token policy deleted.',
+            subject: $tokenPolicy,
+            causer: auth()->user(),
+            properties: [
+                'policy_id' => $tokenPolicy->id,
+            ],
+        );
 
         $this->tokenPolicies->deleteTokenPolicy($tokenPolicy);
     }
@@ -155,6 +198,19 @@ class TokenPolicyService
 
         foreach ($tokenPolicies as $tokenPolicy) {
             $this->assertCanDelete($tokenPolicy, $clientUsageCounts[$tokenPolicy->id] ?? 0);
+        }
+
+        foreach ($tokenPolicies as $tokenPolicy) {
+            $this->auditLogService->logAdminCrud(
+                resource: 'token_policy',
+                action: 'deleted',
+                description: 'Token policy deleted.',
+                subject: $tokenPolicy,
+                causer: auth()->user(),
+                properties: [
+                    'policy_id' => $tokenPolicy->id,
+                ],
+            );
         }
 
         $this->tokenPolicies->deleteByIds($ids);

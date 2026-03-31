@@ -12,6 +12,7 @@ use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
@@ -66,6 +67,19 @@ it('revokes an active access token for the authenticated client', function (): v
 
     expect($token->fresh()?->access_token_revoked_at)->not->toBeNull();
     expect($token->fresh()?->refresh_token_revoked_at)->toBeNull();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.token.revoked',
+        'description' => 'OAuth token revoked.',
+    ]);
+
+    $revokeActivity = Activity::query()
+        ->where('event', 'oauth.token.revoked')
+        ->latest()
+        ->firstOrFail();
+
+    expect($revokeActivity->properties->toArray())->not->toHaveKeys(['token', 'access_token', 'refresh_token']);
 });
 
 it('revokes an active refresh token for the authenticated client', function (): void {
@@ -246,7 +260,7 @@ it('rejects revoke request with invalid client credentials', function (): void {
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.client.authentication_failed',
+        'event' => 'oauth.client_auth.failed',
         'description' => 'OAuth client authentication failed.',
     ]);
 });

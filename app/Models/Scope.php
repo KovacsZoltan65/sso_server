@@ -7,8 +7,6 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -44,7 +42,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class Scope extends Model
 {
     /** @use HasFactory<ScopeFactory> */
-    use HasFactory, LogsActivity;
+    use HasFactory;
 
     /**
      * @return array<string, string>
@@ -61,14 +59,5 @@ class Scope extends Model
     {
         return $this->belongsToMany(SsoClient::class, 'client_scopes')
             ->withTimestamps();
-    }
-
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->useLogName('scopes')
-            ->logOnly(['name', 'code', 'description', 'is_active'])
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
     }
 }

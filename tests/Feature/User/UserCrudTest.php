@@ -78,6 +78,12 @@ it('authorized user can store user with roles', function () {
 
     expect($createdUser->hasRole('admin'))->toBeTrue();
     expect(Hash::check('password123', $createdUser->password))->toBeTrue();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.user',
+        'event' => 'admin.user.created',
+        'causer_id' => $manager->id,
+    ]);
 });
 
 it('store validation fails for invalid user payload', function () {
@@ -131,6 +137,12 @@ it('authorized user can update user and sync roles', function () {
     expect($targetUser->email)->toBe('updated@example.com');
     expect($targetUser->hasRole('reviewer'))->toBeTrue();
     expect($targetUser->hasRole('admin'))->toBeFalse();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.user',
+        'event' => 'admin.user.updated',
+        'causer_id' => $manager->id,
+    ]);
 });
 
 it('update validation fails for invalid user payload', function () {
@@ -180,6 +192,12 @@ it('authorized user can delete a regular user', function () {
 
     $this->assertDatabaseMissing('users', [
         'id' => $targetUser->id,
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.user',
+        'event' => 'admin.user.deleted',
+        'causer_id' => $manager->id,
     ]);
 });
 

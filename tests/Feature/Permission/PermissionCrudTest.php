@@ -105,6 +105,12 @@ it('authorized user can store permission', function () {
         'name' => 'reports.export',
         'guard_name' => 'web',
     ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.permission',
+        'event' => 'admin.permission.created',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('store validation fails for invalid permission payload', function () {
@@ -150,6 +156,12 @@ it('authorized user can update permission', function () {
         'name' => 'reports.download',
         'guard_name' => 'web',
     ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.permission',
+        'event' => 'admin.permission.updated',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('update validation fails for invalid permission payload', function () {
@@ -177,6 +189,12 @@ it('authorized user can delete unassigned permission', function () {
 
     $this->assertDatabaseMissing('permissions', [
         'id' => $permission->id,
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.permission',
+        'event' => 'admin.permission.deleted',
+        'causer_id' => $user->id,
     ]);
 });
 

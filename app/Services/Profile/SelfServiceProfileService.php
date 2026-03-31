@@ -5,6 +5,7 @@ namespace App\Services\Profile;
 use App\Data\SelfServiceProfileData;
 use App\Models\User;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
@@ -18,6 +19,7 @@ class SelfServiceProfileService
 
     public function __construct(
         private readonly UserRepositoryInterface $users,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -29,12 +31,14 @@ class SelfServiceProfileService
         $freshUser = $this->users->refreshUser($user);
 
         if ($logView) {
-            activity('account')
-                ->causedBy($freshUser)
-                ->performedOn($freshUser)
-                ->event('profile.viewed')
-                ->withProperties($this->requestContext($request))
-                ->log('Self-service profile viewed.');
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ACCOUNT,
+                event: 'account.profile.viewed',
+                description: 'Self-service profile viewed.',
+                subject: $freshUser,
+                causer: $freshUser,
+                properties: $this->auditLogService->requestContext($request),
+            );
         }
 
         return SelfServiceProfileData::fromUser($freshUser)->toArray();
@@ -51,15 +55,17 @@ class SelfServiceProfileService
             Arr::only($attributes, $this->editableFields),
         );
 
-        activity('account')
-            ->causedBy($updatedUser)
-            ->performedOn($updatedUser)
-            ->event('profile.updated')
-            ->withProperties([
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_ACCOUNT,
+            event: 'account.profile.updated',
+            description: 'Self-service profile updated.',
+            subject: $updatedUser,
+            causer: $updatedUser,
+            properties: [
                 'updated_fields' => array_values(array_keys(Arr::only($attributes, $this->editableFields))),
-                ...$this->requestContext($request),
-            ])
-            ->log('Self-service profile updated.');
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
 
         return SelfServiceProfileData::fromUser($updatedUser)->toArray();
     }
@@ -68,12 +74,28 @@ class SelfServiceProfileService
     {
         $updatedUser = $this->users->updatePassword($user, Hash::make($plainPassword));
 
-        activity('account')
-            ->causedBy($updatedUser)
-            ->performedOn($updatedUser)
-            ->event('profile.password_changed')
-            ->withProperties($this->requestContext($request))
-            ->log('Self-service password changed.');
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_ACCOUNT,
+            event: 'account.password.changed',
+            description: 'Self-service password changed.',
+            subject: $updatedUser,
+            causer: $updatedUser,
+            properties: $this->auditLogService->requestContext($request),
+        );
+    }
+
+    public function deleteProfile(User $user, Request $request): void
+    {
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_ACCOUNT,
+            event: 'account.profile.deleted',
+            description: 'Self-service profile deleted.',
+            subject: $user,
+            causer: $user,
+            properties: $this->auditLogService->requestContext($request),
+        );
+
+        $this->users->deleteUser($user);
     }
 
     /**
@@ -81,16 +103,18 @@ class SelfServiceProfileService
      */
     public function logForbiddenMutationAttempt(User $user, array $attemptedFields, Request $request, string $endpoint): void
     {
-        activity('security')
-            ->causedBy($user)
-            ->performedOn($user)
-            ->event('profile.forbidden_mutation_attempt')
-            ->withProperties([
-                'attempted_fields' => array_values($attemptedFields),
-                'endpoint' => $endpoint,
-                ...$this->requestContext($request),
-            ])
-            ->log('Forbidden self-service mutation attempt detected.');
+        $this->auditLogService->logFailure(
+            logName: AuditLogService::LOG_SECURITY,
+            event: 'security.profile_mutation.denied',
+            description: 'Forbidden self-service mutation attempt detected.',
+            subject: $user,
+            causer: $user,
+            properties: [
+                'updated_fields' => array_values($attemptedFields),
+                'reason' => $endpoint,
+                ...$this->auditLogService->requestContext($request),
+            ],
+        );
     }
 
     /**
@@ -109,15 +133,4 @@ class SelfServiceProfileService
         return ['email', 'emailVerifiedAt'];
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function requestContext(Request $request): array
-    {
-        return [
-            'ip_address' => $request->ip(),
-            'user_agent' => $request->userAgent(),
-            'route' => $request->route()?->getName(),
-        ];
-    }
 }

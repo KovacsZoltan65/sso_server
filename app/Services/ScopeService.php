@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\ScopeSummaryData;
 use App\Models\Scope;
 use App\Repositories\Contracts\ScopeRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use App\Support\Permissions\ScopePermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -14,6 +15,7 @@ class ScopeService
 {
     public function __construct(
         private readonly ScopeRepositoryInterface $scopes,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -100,7 +102,23 @@ class ScopeService
      */
     public function createScope(array $payload): Scope
     {
-        return $this->scopes->createScope($this->normalizedAttributes($payload));
+        $scope = $this->scopes->createScope($this->normalizedAttributes($payload));
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'scope',
+            action: 'created',
+            description: 'Scope created.',
+            subject: $scope,
+            causer: auth()->user(),
+            properties: [
+                'target_scope_id' => $scope->id,
+                'scope_codes' => [$scope->code],
+                'updated_fields' => ['name', 'code', 'description', 'is_active'],
+                'status' => $scope->is_active ? 'active' : 'inactive',
+            ],
+        );
+
+        return $scope;
     }
 
     /**
@@ -114,12 +132,40 @@ class ScopeService
             throw new RuntimeException('This scope is assigned to clients and its code cannot be changed.');
         }
 
-        return $this->scopes->updateScope($scope, $attributes);
+        $updatedScope = $this->scopes->updateScope($scope, $attributes);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'scope',
+            action: 'updated',
+            description: 'Scope updated.',
+            subject: $updatedScope,
+            causer: auth()->user(),
+            properties: [
+                'target_scope_id' => $updatedScope->id,
+                'scope_codes' => [$updatedScope->code],
+                'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'code', 'description', 'is_active']))),
+                'status' => $updatedScope->is_active ? 'active' : 'inactive',
+            ],
+        );
+
+        return $updatedScope;
     }
 
     public function deleteScope(Scope $scope): void
     {
         $this->guardDeleteable($scope);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'scope',
+            action: 'deleted',
+            description: 'Scope deleted.',
+            subject: $scope,
+            causer: auth()->user(),
+            properties: [
+                'target_scope_id' => $scope->id,
+                'scope_codes' => [$scope->code],
+            ],
+        );
 
         $this->scopes->deleteScope($scope);
     }
@@ -140,6 +186,20 @@ class ScopeService
 
         foreach ($scopes as $scope) {
             $this->guardDeleteable($scope, $usageCounts[$scope->code] ?? 0);
+        }
+
+        foreach ($scopes as $scope) {
+            $this->auditLogService->logAdminCrud(
+                resource: 'scope',
+                action: 'deleted',
+                description: 'Scope deleted.',
+                subject: $scope,
+                causer: auth()->user(),
+                properties: [
+                    'target_scope_id' => $scope->id,
+                    'scope_codes' => [$scope->code],
+                ],
+            );
         }
 
         $deletedIds = $scopes->pluck('id')->values()->all();

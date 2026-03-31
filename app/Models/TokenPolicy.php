@@ -5,8 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -50,7 +48,6 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class TokenPolicy extends Model
 {
     use HasFactory;
-    use LogsActivity;
 
     /**
      * @var array<int, string>
@@ -91,21 +88,4 @@ class TokenPolicy extends Model
         return $this->hasMany(Token::class);
     }
 
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->logOnly([
-                'name',
-                'code',
-                'description',
-                'access_token_ttl_minutes',
-                'refresh_token_ttl_minutes',
-                'refresh_token_rotation_enabled',
-                'pkce_required',
-                'reuse_refresh_token_forbidden',
-                'is_default',
-                'is_active',
-            ])
-            ->logOnlyDirty();
-    }
 }

@@ -23,7 +23,7 @@ test('password can be updated', function () {
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'account',
-        'event' => 'profile.password_changed',
+        'event' => 'account.password.changed',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Data\RoleSummaryData;
 use App\Repositories\Contracts\RoleRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use App\Support\Permissions\RolePermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -20,6 +21,7 @@ class RoleService
 
     public function __construct(
         private readonly RoleRepositoryInterface $roles,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -117,13 +119,50 @@ class RoleService
      */
     public function createRole(array $payload): Role
     {
-        return DB::transaction(fn () => $this->roles->createRole(
-            attributes: [
-                ...Arr::only($payload, ['name']),
-                'guard_name' => 'web',
-            ],
-            permissions: array_values($payload['permissions'] ?? []),
-        ));
+        return DB::transaction(function () use ($payload): Role {
+            $role = $this->roles->createRole(
+                attributes: [
+                    ...Arr::only($payload, ['name']),
+                    'guard_name' => 'web',
+                ],
+                permissions: array_values($payload['permissions'] ?? []),
+            );
+
+            $permissions = $role->permissions()->pluck('name')->values()->all();
+
+            $this->auditLogService->logAdminCrud(
+                resource: 'role',
+                action: 'created',
+                description: 'Role created.',
+                subject: $role,
+                causer: auth()->user(),
+                properties: [
+                    'target_role_id' => $role->id,
+                    'updated_fields' => ['name', 'permissions'],
+                    'changed_attributes' => [
+                        'permissions' => $permissions,
+                    ],
+                ],
+            );
+
+            if ($permissions !== []) {
+                $this->auditLogService->logAdminCrud(
+                    resource: 'role',
+                    action: 'permission_attached',
+                    description: 'Permissions attached to role.',
+                    subject: $role,
+                    causer: auth()->user(),
+                    properties: [
+                        'target_role_id' => $role->id,
+                        'changed_attributes' => [
+                            'attached_permissions' => $permissions,
+                        ],
+                    ],
+                );
+            }
+
+            return $role;
+        });
     }
 
     /**
@@ -131,19 +170,88 @@ class RoleService
      */
     public function updateRole(Role $role, array $payload): Role
     {
-        return DB::transaction(fn () => $this->roles->updateRole(
-            role: $role,
-            attributes: [
-                ...Arr::only($payload, ['name']),
-                'guard_name' => 'web',
-            ],
-            permissions: array_values($payload['permissions'] ?? []),
-        ));
+        return DB::transaction(function () use ($role, $payload): Role {
+            $previousPermissions = $role->permissions()->pluck('name')->values()->all();
+
+            $updatedRole = $this->roles->updateRole(
+                role: $role,
+                attributes: [
+                    ...Arr::only($payload, ['name']),
+                    'guard_name' => 'web',
+                ],
+                permissions: array_values($payload['permissions'] ?? []),
+            );
+
+            $currentPermissions = $updatedRole->permissions()->pluck('name')->values()->all();
+            $attached = array_values(array_diff($currentPermissions, $previousPermissions));
+            $detached = array_values(array_diff($previousPermissions, $currentPermissions));
+
+            $this->auditLogService->logAdminCrud(
+                resource: 'role',
+                action: 'updated',
+                description: 'Role updated.',
+                subject: $updatedRole,
+                causer: auth()->user(),
+                properties: [
+                    'target_role_id' => $updatedRole->id,
+                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'permissions']))),
+                    'changed_attributes' => [
+                        'attached_permissions' => $attached,
+                        'detached_permissions' => $detached,
+                    ],
+                ],
+            );
+
+            if ($attached !== []) {
+                $this->auditLogService->logAdminCrud(
+                    resource: 'role',
+                    action: 'permission_attached',
+                    description: 'Permissions attached to role.',
+                    subject: $updatedRole,
+                    causer: auth()->user(),
+                    properties: [
+                        'target_role_id' => $updatedRole->id,
+                        'changed_attributes' => [
+                            'attached_permissions' => $attached,
+                        ],
+                    ],
+                );
+            }
+
+            if ($detached !== []) {
+                $this->auditLogService->logAdminCrud(
+                    resource: 'role',
+                    action: 'permission_detached',
+                    description: 'Permissions detached from role.',
+                    subject: $updatedRole,
+                    causer: auth()->user(),
+                    properties: [
+                        'target_role_id' => $updatedRole->id,
+                        'changed_attributes' => [
+                            'detached_permissions' => $detached,
+                        ],
+                    ],
+                );
+            }
+
+            return $updatedRole;
+        });
     }
 
     public function deleteRole(Role $role): void
     {
         $this->guardDeleteable($role);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'role',
+            action: 'deleted',
+            description: 'Role deleted.',
+            subject: $role,
+            causer: auth()->user(),
+            properties: [
+                'target_role_id' => $role->id,
+            ],
+        );
 
         $this->roles->deleteRole($role);
     }
@@ -162,6 +270,19 @@ class RoleService
 
         foreach ($roles as $role) {
             $this->guardDeleteable($role);
+        }
+
+        foreach ($roles as $role) {
+            $this->auditLogService->logAdminCrud(
+                resource: 'role',
+                action: 'deleted',
+                description: 'Role deleted.',
+                subject: $role,
+                causer: auth()->user(),
+                properties: [
+                    'target_role_id' => $role->id,
+                ],
+            );
         }
 
         $deletedIds = $roles->pluck('id')->values()->all();

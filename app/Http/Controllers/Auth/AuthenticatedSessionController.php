@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Services\Auth\AuthenticationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,20 +27,9 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request, AuthenticationService $authenticationService): RedirectResponse
     {
-        $request->authenticate();
-
-        $request->session()->regenerate();
-
-        activity('auth')
-            ->causedBy($request->user())
-            ->event('auth.login')
-            ->withProperties([
-                'ip_address' => $request->ip(),
-                'user_agent' => $request->userAgent(),
-            ])
-            ->log('User logged in.');
+        $authenticationService->login($request);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
@@ -48,26 +37,9 @@ class AuthenticatedSessionController extends Controller
     /**
      * Destroy an authenticated session.
      */
-    public function destroy(Request $request): RedirectResponse
+    public function destroy(Request $request, AuthenticationService $authenticationService): RedirectResponse
     {
-        $user = $request->user();
-
-        if ($user !== null) {
-            activity('auth')
-                ->causedBy($user)
-                ->event('auth.logout')
-                ->withProperties([
-                    'ip_address' => $request->ip(),
-                    'user_agent' => $request->userAgent(),
-                ])
-                ->log('User logged out.');
-        }
-
-        Auth::guard('web')->logout();
-
-        $request->session()->invalidate();
-
-        $request->session()->regenerateToken();
+        $authenticationService->logout($request);
 
         return redirect('/');
     }

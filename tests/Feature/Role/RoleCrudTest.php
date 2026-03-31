@@ -85,6 +85,18 @@ it('authorized user can store role with permissions', function () {
 
     expect($role->hasPermissionTo('reports.view'))->toBeTrue();
     expect($role->hasPermissionTo('reports.export'))->toBeTrue();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.role',
+        'event' => 'admin.role.created',
+        'causer_id' => $user->id,
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.role',
+        'event' => 'admin.role.permission_attached',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('store validation fails for invalid role payload', function () {
@@ -137,6 +149,18 @@ it('authorized user can update role and sync permissions', function () {
     expect($role->name)->toBe('reviewer');
     expect($role->hasPermissionTo('reports.export'))->toBeTrue();
     expect($role->hasPermissionTo('reports.view'))->toBeFalse();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.role',
+        'event' => 'admin.role.updated',
+        'causer_id' => $user->id,
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.role',
+        'event' => 'admin.role.permission_detached',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('update validation fails for invalid role payload', function () {
@@ -164,6 +188,12 @@ it('authorized user can delete unassigned role', function () {
 
     $this->assertDatabaseMissing('roles', [
         'id' => $role->id,
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.role',
+        'event' => 'admin.role.deleted',
+        'causer_id' => $user->id,
     ]);
 });
 

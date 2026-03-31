@@ -57,7 +57,7 @@ test('login attempts are locked out after too many failed requests', function ()
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'auth',
-        'event' => 'auth.login.locked_out',
+        'event' => 'auth.lockout.triggered',
         'description' => 'User login rate limited.',
     ]);
 });
@@ -69,4 +69,12 @@ test('users can logout', function () {
 
     $this->assertGuest();
     $response->assertRedirect('/');
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'auth',
+        'event' => 'auth.logout.succeeded',
+        'description' => 'User logged out.',
+        'causer_id' => $user->id,
+        'causer_type' => User::class,
+    ]);
 });

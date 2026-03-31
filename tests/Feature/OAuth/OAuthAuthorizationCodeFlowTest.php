@@ -9,6 +9,7 @@ use App\Models\TokenPolicy;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function (): void {
     $this->withoutVite();
@@ -87,6 +88,12 @@ it('issues an authorization code and redirects back to the registered callback',
         'user_id' => $user->id,
         'code_hash' => hash('sha256', (string) $query['code']),
     ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.authorization_code.issued',
+        'description' => 'OAuth authorization code issued.',
+    ]);
 });
 
 it('rejects authorize requests when the redirect uri does not strictly match the registered client uri', function () {
@@ -163,7 +170,7 @@ it('rejects authorize requests when the client is invalid with a validation erro
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
         'event' => 'oauth.authorization.denied',
-        'description' => 'OAuth authorization request denied.',
+        'description' => 'OAuth authorization denied.',
     ]);
 });
 
@@ -231,6 +238,19 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
         'code_hash' => hash('sha256', $query['code']),
     ]);
     expect(Token::query()->count())->toBe(1);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.token.issued',
+        'description' => 'OAuth token issued.',
+    ]);
+
+    $issueActivity = Activity::query()
+        ->where('event', 'oauth.token.issued')
+        ->latest()
+        ->firstOrFail();
+
+    expect($issueActivity->properties->toArray())->not->toHaveKeys(['access_token', 'refresh_token', 'authorization_code']);
 });
 
 it('rejects token exchange when pkce verifier is invalid', function () {
@@ -305,6 +325,12 @@ it('rotates refresh token on refresh grant when policy requires rotation', funct
 
     $oldToken = Token::query()->where('refresh_token_hash', hash('sha256', $originalRefreshToken))->firstOrFail();
     expect($oldToken->refresh_token_revoked_at)->not->toBeNull();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.token.refreshed',
+        'description' => 'OAuth token refreshed.',
+    ]);
 });
 
 it('rejects replay when the same authorization code is exchanged twice', function () {

@@ -41,7 +41,7 @@ it('allows self-service profile update for permitted profile fields only', funct
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'security',
-        'event' => 'profile.forbidden_mutation_attempt',
+        'event' => 'security.profile_mutation.denied',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);

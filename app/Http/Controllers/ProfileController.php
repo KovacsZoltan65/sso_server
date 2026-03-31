@@ -51,15 +51,8 @@ class ProfileController extends Controller
 
         $user = $request->user();
 
-        activity('admin')
-            ->causedBy($user)
-            ->performedOn($user)
-            ->event('profile.deleted')
-            ->log('Profile deleted.');
-
         Auth::logout();
-
-        $user->delete();
+        $this->profileService->deleteProfile($user, $request);
 
         $request->session()->invalidate();
         $request->session()->regenerateToken();

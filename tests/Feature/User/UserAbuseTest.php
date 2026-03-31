@@ -41,7 +41,7 @@ it('forbids self role escalation through the admin update endpoint without users
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'security',
-        'event' => 'authorization.denied',
+        'event' => 'security.authorization.denied',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);

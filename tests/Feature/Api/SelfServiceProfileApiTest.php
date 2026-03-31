@@ -23,7 +23,7 @@ it('allows an authenticated user to fetch their own self-service profile via api
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'account',
-        'event' => 'profile.viewed',
+        'event' => 'account.profile.viewed',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);
@@ -64,7 +64,7 @@ it('updates only whitelisted self-service profile fields', function (): void {
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'account',
-        'event' => 'profile.updated',
+        'event' => 'account.profile.updated',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);
@@ -98,7 +98,7 @@ it('rejects forbidden self-service mutation fields instead of silently accepting
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'security',
-        'event' => 'profile.forbidden_mutation_attempt',
+        'event' => 'security.profile_mutation.denied',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);
@@ -124,7 +124,7 @@ it('updates the authenticated user password through the api when the current pas
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'account',
-        'event' => 'profile.password_changed',
+        'event' => 'account.password.changed',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);
@@ -165,7 +165,7 @@ it('rejects forbidden fields on the password endpoint to protect the self-servic
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'security',
-        'event' => 'profile.forbidden_mutation_attempt',
+        'event' => 'security.profile_mutation.denied',
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);

@@ -90,6 +90,12 @@ it('authorized user can store token policy', function () {
         'code' => 'public.strict',
         'pkce_required' => true,
     ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.token_policy',
+        'event' => 'admin.token_policy.created',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('store validation fails for invalid token policy payload', function () {
@@ -192,6 +198,12 @@ it('authorized user can update token policy', function () {
 
     expect($tokenPolicy->code)->toBe('default.web.v2');
     expect($tokenPolicy->access_token_ttl_minutes)->toBe(90);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'admin.token_policy',
+        'event' => 'admin.token_policy.updated',
+        'causer_id' => $user->id,
+    ]);
 });
 
 it('prevents deleting the default token policy', function () {

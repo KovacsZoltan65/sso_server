@@ -6,6 +6,7 @@ use App\Models\AuthorizationCode;
 use App\Models\SsoClient;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Services\Audit\AuditLogService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -31,6 +32,7 @@ class OAuthAuthorizationService
 {
     public function __construct(
         private readonly RedirectUriMatcher $redirectUriMatcher,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -53,9 +55,9 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: 'OAuth authorization request denied.',
+                message: 'OAuth authorization denied.',
                 properties: [
-                    'client_id' => (string) $payload['client_id'],
+                    'client_public_id' => (string) $payload['client_id'],
                     'reason' => 'invalid_client',
                 ],
             );
@@ -70,10 +72,13 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: 'OAuth authorization request denied.',
+                message: 'OAuth authorization denied.',
                 client: $client,
                 properties: [
                     'reason' => 'redirect_uri_mismatch',
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'redirect_uri' => $redirectUri,
                 ],
             );
 
@@ -92,10 +97,12 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: 'OAuth authorization request denied.',
+                message: 'OAuth authorization denied.',
                 client: $client,
                 properties: [
                     'reason' => 'pkce_required',
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
                 ],
             );
 
@@ -120,15 +127,19 @@ class OAuthAuthorizationService
                 'expires_at' => now()->addMinutes(10),
             ]);
 
-            activity('oauth')
-                ->performedOn($client)
-                ->causedBy($user)
-                ->event('oauth.authorization_code.created')
-                ->withProperties([
-                    'scopes' => $requestedScopes,
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_OAUTH,
+                event: 'oauth.authorization_code.issued',
+                description: 'OAuth authorization code issued.',
+                subject: $client,
+                causer: $user,
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'scope_codes' => $requestedScopes,
                     'redirect_uri' => $redirectUri,
-                ])
-                ->log('OAuth authorization code issued.');
+                ],
+            );
         });
 
         $query = array_filter([
@@ -168,11 +179,13 @@ class OAuthAuthorizationService
                 $this->logAuthorizationFailure(
                     user: auth()->user(),
                     event: 'oauth.authorization.denied',
-                    message: 'OAuth authorization request denied.',
+                    message: 'OAuth authorization denied.',
                     client: $client,
                     properties: [
                         'reason' => 'scope_not_allowed',
-                        'scope' => $scope,
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
+                        'scope_codes' => [$scope],
                     ],
                 );
 
@@ -213,16 +226,13 @@ class OAuthAuthorizationService
         ?SsoClient $client = null,
         array $properties = [],
     ): void {
-        $activity = activity('oauth')->event($event)->withProperties($properties);
-
-        if ($client instanceof SsoClient) {
-            $activity->performedOn($client);
-        }
-
-        if ($user instanceof User) {
-            $activity->causedBy($user);
-        }
-
-        $activity->log($message);
+        $this->auditLogService->logFailure(
+            logName: AuditLogService::LOG_OAUTH,
+            event: $event,
+            description: $message,
+            subject: $client,
+            causer: $user,
+            properties: $properties,
+        );
     }
 }

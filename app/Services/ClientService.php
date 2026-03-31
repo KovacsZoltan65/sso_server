@@ -6,6 +6,7 @@ use App\Data\ClientSummaryData;
 use App\Models\ClientSecret;
 use App\Models\SsoClient;
 use App\Repositories\Contracts\ClientRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use App\Support\ClientOptions;
 use App\Support\Permissions\ClientPermissions;
 use Illuminate\Support\Arr;
@@ -70,6 +71,7 @@ class ClientService
 {
     public function __construct(
         private readonly ClientRepositoryInterface $clients,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -195,22 +197,37 @@ class ClientService
                 'is_active' => true,
             ]);
 
-            $this->logEvent(
-                client: $client,
-                event: 'client.created',
-                message: 'SSO client created.',
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.client.created',
+                description: 'SSO client created.',
+                subject: $client,
+                causer: auth()->user(),
                 properties: [
-                    'redirect_uris' => $redirectUris,
-                    'scopes' => $scopeCodes,
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'redirect_uri_count' => count($redirectUris),
+                    'scope_codes' => $scopeCodes,
+                    'policy_id' => $client->token_policy_id,
+                    'status' => $client->is_active ? 'active' : 'inactive',
                 ],
             );
 
-            $this->logEvent(
-                client: $client,
-                event: 'client.secret.created',
-                message: 'Initial client secret created.',
-                properties: ['type' => 'initial'],
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.client_secret.created',
+                description: 'Initial client secret created.',
+                subject: $client,
+                causer: auth()->user(),
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'secret_last_four' => Str::substr($plainSecret, -4),
+                ],
             );
+
+            $this->logRedirectUriChanges($client, [], $redirectUris);
+            $this->logClientScopeChanges($client, [], $scopeCodes);
 
             return [
                 'client' => $client->fresh(['redirectUris', 'scopes', 'secrets']),
@@ -229,6 +246,8 @@ class ClientService
         return DB::transaction(function () use ($client, $payload): SsoClient {
             $redirectUris = $this->sanitizeUris($payload['redirect_uris'] ?? []);
             $scopeCodes = $this->sanitizeScopes($payload['scopes'] ?? []);
+            $previousRedirectUris = $client->normalizedRedirectUris();
+            $previousScopeCodes = $client->normalizedScopeCodes();
 
             $updatedClient = $this->clients->updateClient($client, [
                 ...Arr::only($payload, ['name', 'is_active', 'token_policy_id']),
@@ -239,15 +258,25 @@ class ClientService
             $this->clients->syncRedirectUris($updatedClient, $redirectUris);
             $this->clients->syncScopes($updatedClient, $scopeCodes);
 
-            $this->logEvent(
-                client: $updatedClient,
-                event: 'client.updated',
-                message: 'SSO client updated.',
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.client.updated',
+                description: 'SSO client updated.',
+                subject: $updatedClient,
+                causer: auth()->user(),
                 properties: [
-                    'redirect_uris' => $redirectUris,
-                    'scopes' => $scopeCodes,
+                    'client_id' => $updatedClient->id,
+                    'client_public_id' => $updatedClient->client_id,
+                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'redirect_uris', 'scopes']))),
+                    'redirect_uri_count' => count($redirectUris),
+                    'scope_codes' => $scopeCodes,
+                    'policy_id' => $updatedClient->token_policy_id,
+                    'status' => $updatedClient->is_active ? 'active' : 'inactive',
                 ],
             );
+
+            $this->logRedirectUriChanges($updatedClient, $previousRedirectUris, $redirectUris);
+            $this->logClientScopeChanges($updatedClient, $previousScopeCodes, $scopeCodes);
 
             return $updatedClient->fresh(['redirectUris', 'scopes', 'secrets']);
         });
@@ -277,11 +306,17 @@ class ClientService
                 'client_secret_hash' => Hash::make($plainSecret),
             ]);
 
-            $this->logEvent(
-                client: $client,
-                event: 'client.secret.rotated',
-                message: 'Client secret rotated.',
-                properties: ['name' => $secretName],
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.client_secret.rotated',
+                description: 'Client secret rotated.',
+                subject: $client,
+                causer: auth()->user(),
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'secret_last_four' => Str::substr($plainSecret, -4),
+                ],
             );
 
             return [
@@ -313,13 +348,16 @@ class ClientService
 
             $this->clients->revokeSecret($client, $secret->id);
 
-            $this->logEvent(
-                client: $client,
-                event: 'client.secret.revoked',
-                message: 'Client secret revoked.',
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.client_secret.revoked',
+                description: 'Client secret revoked.',
+                subject: $client,
+                causer: auth()->user(),
                 properties: [
-                    'secret_id' => $secret->id,
-                    'last_four' => $secret->last_four,
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'secret_last_four' => $secret->last_four,
                 ],
             );
 
@@ -332,10 +370,16 @@ class ClientService
      */
     public function deleteClient(SsoClient $client): void
     {
-        $this->logEvent(
-            client: $client,
-            event: 'client.deleted',
-            message: 'SSO client deleted.',
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_ADMIN_CLIENT,
+            event: 'admin.client.deleted',
+            description: 'SSO client deleted.',
+            subject: $client,
+            causer: auth()->user(),
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+            ],
         );
 
         $this->clients->deleteClient($client);
@@ -421,17 +465,84 @@ class ClientService
     }
 
     /**
-     * Record an auditable client management event without leaking sensitive secret material.
-     *
-     * @param array<string, mixed> $properties
+     * @param array<int, string> $before
+     * @param array<int, string> $after
      */
-    private function logEvent(SsoClient $client, string $event, string $message, array $properties = []): void
+    private function logRedirectUriChanges(SsoClient $client, array $before, array $after): void
     {
-        activity('admin')
-            ->causedBy(auth()->user())
-            ->performedOn($client)
-            ->withProperties($properties)
-            ->event($event)
-            ->log($message);
+        $added = array_values(array_diff($after, $before));
+        $removed = array_values(array_diff($before, $after));
+
+        foreach ($added as $redirectUri) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.redirect_uri.added',
+                description: 'Client redirect URI added.',
+                subject: $client,
+                causer: auth()->user(),
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'redirect_uri' => $redirectUri,
+                    'redirect_uri_count' => count($after),
+                ],
+            );
+        }
+
+        foreach ($removed as $redirectUri) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.redirect_uri.removed',
+                description: 'Client redirect URI removed.',
+                subject: $client,
+                causer: auth()->user(),
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'redirect_uri' => $redirectUri,
+                    'redirect_uri_count' => count($after),
+                ],
+            );
+        }
+    }
+
+    /**
+     * @param array<int, string> $before
+     * @param array<int, string> $after
+     */
+    private function logClientScopeChanges(SsoClient $client, array $before, array $after): void
+    {
+        $assigned = array_values(array_diff($after, $before));
+        $unassigned = array_values(array_diff($before, $after));
+
+        if ($assigned !== []) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.client_scope.assigned',
+                description: 'Client scopes assigned.',
+                subject: $client,
+                causer: auth()->user(),
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'scope_codes' => $assigned,
+                ],
+            );
+        }
+
+        if ($unassigned !== []) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_ADMIN_CLIENT,
+                event: 'admin.client_scope.unassigned',
+                description: 'Client scopes unassigned.',
+                subject: $client,
+                causer: auth()->user(),
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'scope_codes' => $unassigned,
+                ],
+            );
+        }
     }
 }

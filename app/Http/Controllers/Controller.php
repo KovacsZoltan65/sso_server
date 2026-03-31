@@ -6,6 +6,7 @@ use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Services\Audit\AuditLogService;
 
 abstract class Controller
 {
@@ -28,20 +29,16 @@ abstract class Controller
             $request = request();
 
             if ($request instanceof Request && str_starts_with($request->path(), 'admin/')) {
-                $activity = activity('security')
-                    ->event('authorization.denied')
-                    ->withProperties([
+                app(AuditLogService::class)->logSecurityEvent(
+                    event: 'security.authorization.denied',
+                    description: 'Authorization denied.',
+                    causer: $request->user(),
+                    properties: [
                         'route' => $request->route()?->getName(),
-                        'method' => $request->method(),
-                        'path' => $request->path(),
                         'ip_address' => $request->ip(),
-                    ]);
-
-                if ($request->user() !== null) {
-                    $activity->causedBy($request->user());
-                }
-
-                $activity->log('Authorization denied.');
+                        'user_agent' => $request->userAgent(),
+                    ],
+                );
             }
 
             throw $exception;

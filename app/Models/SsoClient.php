@@ -10,8 +10,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Spatie\Activitylog\LogOptions;
-use Spatie\Activitylog\Traits\LogsActivity;
 
 /**
  * @property int $id
@@ -68,7 +66,7 @@ use Spatie\Activitylog\Traits\LogsActivity;
 class SsoClient extends Model
 {
     /** @use HasFactory<SsoClientFactory> */
-    use HasFactory, LogsActivity;
+    use HasFactory;
 
     protected $table = 'sso_clients';
 
@@ -189,15 +187,4 @@ class SsoClient extends Model
             ->all();
     }
 
-    /**
-     * Configure the audited attributes for SSO client lifecycle changes.
-     */
-    public function getActivitylogOptions(): LogOptions
-    {
-        return LogOptions::defaults()
-            ->useLogName('sso_clients')
-            ->logOnly(['name', 'client_id', 'is_active', 'redirect_uris', 'scopes', 'token_policy_id'])
-            ->logOnlyDirty()
-            ->dontSubmitEmptyLogs();
-    }
 }

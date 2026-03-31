@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Data\PermissionSummaryData;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
+use App\Services\Audit\AuditLogService;
 use App\Support\Permissions\PermissionPermissions;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
@@ -14,6 +15,7 @@ class PermissionService
 {
     public function __construct(
         private readonly PermissionRepositoryInterface $permissions,
+        private readonly AuditLogService $auditLogService,
     ) {
     }
 
@@ -94,10 +96,24 @@ class PermissionService
      */
     public function createPermission(array $payload): Permission
     {
-        return $this->permissions->createPermission([
+        $permission = $this->permissions->createPermission([
             ...Arr::only($payload, ['name']),
             'guard_name' => 'web',
         ]);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'permission',
+            action: 'created',
+            description: 'Permission created.',
+            subject: $permission,
+            causer: auth()->user(),
+            properties: [
+                'target_permission_id' => $permission->id,
+                'updated_fields' => ['name'],
+            ],
+        );
+
+        return $permission;
     }
 
     /**
@@ -105,15 +121,40 @@ class PermissionService
      */
     public function updatePermission(Permission $permission, array $payload): Permission
     {
-        return $this->permissions->updatePermission($permission, [
+        $updatedPermission = $this->permissions->updatePermission($permission, [
             ...Arr::only($payload, ['name']),
             'guard_name' => 'web',
         ]);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'permission',
+            action: 'updated',
+            description: 'Permission updated.',
+            subject: $updatedPermission,
+            causer: auth()->user(),
+            properties: [
+                'target_permission_id' => $updatedPermission->id,
+                'updated_fields' => array_values(array_keys(Arr::only($payload, ['name']))),
+            ],
+        );
+
+        return $updatedPermission;
     }
 
     public function deletePermission(Permission $permission): void
     {
         $this->guardDeleteable($permission);
+
+        $this->auditLogService->logAdminCrud(
+            resource: 'permission',
+            action: 'deleted',
+            description: 'Permission deleted.',
+            subject: $permission,
+            causer: auth()->user(),
+            properties: [
+                'target_permission_id' => $permission->id,
+            ],
+        );
 
         $this->permissions->deletePermission($permission);
     }
@@ -132,6 +173,19 @@ class PermissionService
 
         foreach ($permissions as $permission) {
             $this->guardDeleteable($permission);
+        }
+
+        foreach ($permissions as $permission) {
+            $this->auditLogService->logAdminCrud(
+                resource: 'permission',
+                action: 'deleted',
+                description: 'Permission deleted.',
+                subject: $permission,
+                causer: auth()->user(),
+                properties: [
+                    'target_permission_id' => $permission->id,
+                ],
+            );
         }
 
         $deletedIds = $permissions->pluck('id')->values()->all();
