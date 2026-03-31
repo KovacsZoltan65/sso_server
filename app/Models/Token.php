@@ -84,26 +84,41 @@ class Token extends Model
         'last_used_at' => 'datetime',
     ];
 
+    /**
+     * @return BelongsTo<SsoClient, $this>
+     */
     public function client(): BelongsTo
     {
         return $this->belongsTo(SsoClient::class, 'sso_client_id');
     }
 
+    /**
+     * @return BelongsTo<User, $this>
+     */
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * @return BelongsTo<TokenPolicy, $this>
+     */
     public function tokenPolicy(): BelongsTo
     {
         return $this->belongsTo(TokenPolicy::class);
     }
 
+    /**
+     * @return BelongsTo<AuthorizationCode, $this>
+     */
     public function authorizationCode(): BelongsTo
     {
         return $this->belongsTo(AuthorizationCode::class);
     }
 
+    /**
+     * @return BelongsTo<self, $this>
+     */
     public function parentToken(): BelongsTo
     {
         return $this->belongsTo(self::class, 'parent_token_id');

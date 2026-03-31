@@ -630,6 +630,9 @@ class OAuthTokenService
         return $claims;
     }
 
+    /**
+     * Record a token grant failure event for auditing and abuse investigation.
+     */
     private function logGrantFailure(SsoClient $client, string $reason): void
     {
         activity('oauth')

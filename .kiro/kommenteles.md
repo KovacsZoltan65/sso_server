@@ -11,6 +11,7 @@ Auditáld és javítsd a backend kód kommentelését úgy, hogy:
 - IDE támogatás (autocomplete, type inference) javuljon
 - a kód olvashatósága nőjön
 - ne legyen komment spam
+- Magyar nyelvű kommenteket használj
 
 FONTOS:
 
@@ -50,7 +51,7 @@ Adj PHPDoc-ot minden:
 
 ```php
 /**
- * Create a new token policy.
+ * Új token-szabályzat létrehozása.
  *
  * @param array<string, mixed> $data
  * @return \App\Models\TokenPolicy

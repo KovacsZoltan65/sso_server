@@ -19,7 +19,9 @@ use Inertia\Response;
 class ClientController extends Controller
 {
     /**
-     * Render the client index page with the current filter, sorting, and pagination payload.
+     * Rendereld a kliens indexoldalát az aktuális szűrő-, rendezési és tördelési hasznos adattartalommal.
+     *
+     * @return Response
      */
     public function index(ClientIndexRequest $request, ClientService $clientService): Response
     {
@@ -41,7 +43,9 @@ class ClientController extends Controller
     }
 
     /**
-     * Render the create form payload for a new OAuth client.
+     * Rendereld a létrehozási űrlap hasznos adatait egy új OAuth klienshez.
+     *
+     * @return Response
      */
     public function create(ClientService $clientService): Response
     {
@@ -51,7 +55,9 @@ class ClientController extends Controller
     }
 
     /**
-     * Store a newly created OAuth client and flash its one-time visible secret.
+     * Tárolj egy újonnan létrehozott OAuth klienst, és flasheld az egyszer látható titkát.
+     *
+     * @return RedirectResponse
      */
     public function store(ClientStoreRequest $request, ClientService $clientService): RedirectResponse
     {
@@ -69,7 +75,9 @@ class ClientController extends Controller
     }
 
     /**
-     * Render the client edit page and its secret-management metadata.
+     * Rendereld az ügyfél szerkesztési oldalát és a titkoskezelési metaadatait.
+     *
+     * @return Response
      */
     public function edit(SsoClient $ssoClient, ClientService $clientService): Response
     {
@@ -79,7 +87,9 @@ class ClientController extends Controller
     }
 
     /**
-     * Update an existing OAuth client from a validated admin payload.
+     * Meglévő OAuth-kliens frissítése egy érvényesített adminisztrátori adatcsomagból.
+     *
+     * @return RedirectResponse
      */
     public function update(
         ClientUpdateRequest $request,
@@ -96,7 +106,9 @@ class ClientController extends Controller
     }
 
     /**
-     * Rotate the active client secret and flash the new plain secret once.
+     * Változtasd meg az aktív kliens titkos kódot, és villogtasd egyszer az új sima titkos kódot.
+     *
+     * @return RedirectResponse
      */
     public function rotateSecret(
         ClientRotateSecretRequest $request,
@@ -117,7 +129,9 @@ class ClientController extends Controller
     }
 
     /**
-     * Revoke a specific client secret and return JSON or redirect based on the request type.
+     * Visszavon egy adott ügyféltitkot, és JSON-t vagy átirányítást ad vissza a kérés típusa alapján.
+     *
+     * @return RedirectResponse|JsonResponse
      */
     public function revokeSecret(
         ClientRevokeSecretRequest $request,
@@ -142,7 +156,9 @@ class ClientController extends Controller
     }
 
     /**
-     * Delete an OAuth client and return the response format expected by the caller.
+     * Töröljön egy OAuth klienst, és adja vissza a hívó által várt válaszformátumot.
+     *
+     * @return RedirectResponse|JsonResponse
      */
     public function destroy(SsoClient $ssoClient, ClientService $clientService): RedirectResponse|JsonResponse
     {

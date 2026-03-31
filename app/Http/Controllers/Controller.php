@@ -16,6 +16,7 @@ abstract class Controller
     /**
      * @param  mixed  $ability
      * @param  mixed|array<int, mixed>  $arguments
+     * @return \Illuminate\Auth\Access\Response
      *
      * @throws AuthorizationException
      */
@@ -48,6 +49,8 @@ abstract class Controller
     }
 
     /**
+     * Hozz létre egy sikeres API-választ a projekt szabványos JSON-borítékának használatával.
+     *
      * @param mixed $data
      * @param array<string, mixed> $meta
      * @param array<string, mixed> $errors
@@ -68,6 +71,8 @@ abstract class Controller
     }
 
     /**
+     * Hozz létre egy hiba API választ a projekt szabványos JSON borítékának használatával.
+     *
      * @param array<string, mixed> $data
      * @param array<string, mixed> $meta
      * @param array<string, mixed> $errors

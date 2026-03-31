@@ -42,7 +42,10 @@ class ClientSummaryData extends Data
     }
 
     /**
-     * Create the client summary payload consumed by admin tables and selectors.
+     * Hozza létre az adminisztrátori táblák és szelektorok által felhasznált 
+     * ügyfél-összefoglaló hasznos adatot.
+     *
+     * @return self
      */
     public static function fromModel(SsoClient $client, bool $canDelete = true): self
     {

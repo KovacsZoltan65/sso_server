@@ -21,6 +21,16 @@ use Illuminate\Validation\ValidationException;
  *     name?: string|null,
  *     status?: string|null
  * }
+ * @phpstan-type ClientWritePayload array{
+ *     name: string,
+ *     is_active: bool,
+ *     token_policy_id?: int|null,
+ *     redirect_uris?: array<int, mixed>,
+ *     scopes?: array<int, mixed>
+ * }
+ * @phpstan-type ClientSecretPayload array{
+ *     name?: string|null
+ * }
  * @phpstan-type AdminClientRow array{
  *     id: int,
  *     name: string,
@@ -158,7 +168,7 @@ class ClientService
     /**
      * Persist a new SSO client and return the one-time plain secret for secure display.
      *
-     * @param array<string, mixed> $payload
+     * @param ClientWritePayload $payload
      * @return array{client: SsoClient, plainSecret: string}
      */
     public function createClient(array $payload): array
@@ -212,7 +222,7 @@ class ClientService
     /**
      * Update an existing SSO client together with its redirect URIs and scope assignments.
      *
-     * @param array<string, mixed> $payload
+     * @param ClientWritePayload $payload
      */
     public function updateClient(SsoClient $client, array $payload): SsoClient
     {
@@ -246,7 +256,7 @@ class ClientService
     /**
      * Rotate the currently active client secret and return the newly issued plain secret once.
      *
-     * @param array<string, mixed> $payload
+     * @param ClientSecretPayload $payload
      * @return array{client: SsoClient, plainSecret: string}
      */
     public function rotateSecret(SsoClient $client, array $payload = []): array
@@ -369,10 +379,6 @@ class ClientService
     }
 
     /**
-     * @param array<int, mixed> $uris
-     * @return array<int, string>
-     */
-    /**
      * Normalize redirect URIs to a unique, trimmed string list.
      *
      * @param array<int, mixed> $uris
@@ -388,10 +394,6 @@ class ClientService
             ->all();
     }
 
-    /**
-     * @param array<int, mixed> $scopes
-     * @return array<int, string>
-     */
     /**
      * Normalize scope codes and discard values that are not allowed by the current option set.
      *

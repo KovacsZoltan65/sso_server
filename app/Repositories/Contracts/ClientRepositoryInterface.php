@@ -5,10 +5,31 @@ namespace App\Repositories\Contracts;
 use App\Models\SsoClient;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
+/**
+ * @phpstan-type AdminClientFilters array{
+ *     global?: string|null,
+ *     status?: string|null
+ * }
+ * @phpstan-type ClientAttributes array{
+ *     name: string,
+ *     client_id?: string,
+ *     client_secret_hash?: string,
+ *     is_active: bool,
+ *     token_policy_id?: int|null,
+ *     redirect_uris?: array<int, string>,
+ *     scopes?: array<int, string>
+ * }
+ * @phpstan-type ClientSecretAttributes array{
+ *     name: string,
+ *     secret_hash: string,
+ *     last_four: string,
+ *     is_active: bool
+ * }
+ */
 interface ClientRepositoryInterface
 {
     /**
-     * @param array<string, mixed> $filters
+     * @param AdminClientFilters $filters
      */
     public function paginateForAdminIndex(
         array $filters,
@@ -19,12 +40,12 @@ interface ClientRepositoryInterface
     ): LengthAwarePaginator;
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param ClientAttributes $attributes
      */
     public function createClient(array $attributes): SsoClient;
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param ClientAttributes $attributes
      */
     public function updateClient(SsoClient $client, array $attributes): SsoClient;
 
@@ -39,7 +60,7 @@ interface ClientRepositoryInterface
     public function syncScopes(SsoClient $client, array $scopeCodes): void;
 
     /**
-     * @param array<string, mixed> $attributes
+     * @param ClientSecretAttributes $attributes
      */
     public function createSecret(SsoClient $client, array $attributes): void;
 

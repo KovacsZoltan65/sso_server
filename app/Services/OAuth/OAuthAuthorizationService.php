@@ -8,9 +8,25 @@ use App\Models\TokenPolicy;
 use App\Models\User;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 
+/**
+ * @phpstan-type AuthorizationPayload array{
+ *     client_id: string,
+ *     redirect_uri: string,
+ *     scope?: string|null,
+ *     state?: string|null,
+ *     code_challenge?: string|null,
+ *     code_challenge_method?: string|null
+ * }
+ * @phpstan-type AuthorizationApproval array{
+ *     redirect_url: string,
+ *     code: string,
+ *     client: SsoClient,
+ *     scopes: array<int, string>
+ * }
+ */
 class OAuthAuthorizationService
 {
     public function __construct(
@@ -19,8 +35,10 @@ class OAuthAuthorizationService
     }
 
     /**
-     * @param array<string, mixed> $payload
-     * @return array{redirect_url:string, code:string, client:SsoClient, scopes:array<int,string>}
+     * Approve an authorization request and issue a redirectable authorization code.
+     *
+     * @param AuthorizationPayload $payload
+     * @return AuthorizationApproval
      */
     public function approve(User $user, array $payload): array
     {
@@ -127,6 +145,8 @@ class OAuthAuthorizationService
     }
 
     /**
+     * Resolve the requested scopes and reject any scope that is not assigned to the client.
+     *
      * @return array<int, string>
      */
     private function resolveScopes(SsoClient $client, string $scopeString): array
@@ -165,6 +185,9 @@ class OAuthAuthorizationService
         return $requested;
     }
 
+    /**
+     * Resolve the active token policy attached to the client or the current default policy.
+     */
     private function resolvePolicy(SsoClient $client): ?TokenPolicy
     {
         if ($client->relationLoaded('tokenPolicy') && $client->tokenPolicy !== null) {
@@ -179,6 +202,8 @@ class OAuthAuthorizationService
     }
 
     /**
+     * Record an auditable OAuth authorization failure without exposing sensitive values.
+     *
      * @param array<string, mixed> $properties
      */
     private function logAuthorizationFailure(

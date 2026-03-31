@@ -8,6 +8,9 @@ use App\Support\Permissions\AuditLogPermissions;
 
 class AuditLogPolicy
 {
+    /**
+     * Determine whether the user may view the append-only audit log page.
+     */
     public function viewAny(User $user): bool
     {
         return $user->can(AuditLogPermissions::VIEW_ANY);

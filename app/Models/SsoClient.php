@@ -73,9 +73,8 @@ class SsoClient extends Model
     protected $table = 'sso_clients';
 
     /**
-     * @return array<string, string>
-     */
-    /**
+     * Configure native casts for persisted scalar client attributes.
+     *
      * @return array<string, string>
      */
     protected function casts(): array
@@ -149,9 +148,6 @@ class SsoClient extends Model
     }
 
     /**
-     * @return array<int, string>
-     */
-    /**
      * Return a stable list of redirect URIs from eager-loaded relations or the fallback attribute payload.
      *
      * @return array<int, string>
@@ -174,9 +170,6 @@ class SsoClient extends Model
             ->all();
     }
 
-    /**
-     * @return array<int, string>
-     */
     /**
      * Resolve the client's granted scope codes from the loaded relation or a fresh query.
      *

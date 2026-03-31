@@ -5,11 +5,34 @@ declare(strict_types=1);
 namespace App\Repositories;
 
 use App\Models\ClientSecret;
+use App\Models\Scope;
 use App\Models\SsoClient;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Database\Eloquent\Builder;
 use Prettus\Repository\Eloquent\Repository;
 
+/**
+ * @phpstan-type AdminClientFilters array{
+ *     global?: string|null,
+ *     status?: string|null
+ * }
+ * @phpstan-type ClientAttributes array{
+ *     name: string,
+ *     client_id?: string,
+ *     client_secret_hash?: string,
+ *     is_active: bool,
+ *     token_policy_id?: int|null,
+ *     redirect_uris?: array<int, string>,
+ *     scopes?: array<int, string>
+ * }
+ * @phpstan-type ClientSecretAttributes array{
+ *     name: string,
+ *     secret_hash: string,
+ *     last_four: string,
+ *     is_active: bool
+ * }
+ */
 class ClientRepository extends Repository implements ClientRepositoryInterface
 {
     /**
@@ -27,11 +50,17 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
         parent::__construct($model);
     }
 
+    /**
+     * @return class-string<SsoClient>
+     */
     public function model(): string
     {
         return SsoClient::class;
     }
 
+    /**
+     * @param AdminClientFilters $filters
+     */
     public function paginateForAdminIndex(
         array $filters,
         ?string $sortField,
@@ -46,10 +75,10 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
 
         if ($global !== '') {
             $query->where(function ($innerQuery) use ($global): void {
+                /** @var Builder<SsoClient> $innerQuery */
                 $innerQuery
                     ->where('name', 'like', "%{$global}%")
-                    ->orWhere('client_id', 'like', "%{$global}%")
-                    ->orWhere('description', 'like', "%{$global}%");
+                    ->orWhere('client_id', 'like', "%{$global}%");
             });
         }
 
@@ -65,6 +94,9 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
             ->paginate(perPage: $perPage, page: $page);
     }
 
+    /**
+     * @param ClientAttributes $attributes
+     */
     public function createClient(array $attributes): SsoClient
     {
         /** @var SsoClient $client */
@@ -73,6 +105,9 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
         return $client;
     }
 
+    /**
+     * @param ClientAttributes $attributes
+     */
     public function updateClient(SsoClient $client, array $attributes): SsoClient
     {
         $client->fill($attributes);
@@ -114,7 +149,7 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
 
     public function syncScopes(SsoClient $client, array $scopeCodes): void
     {
-        $scopeIds = \App\Models\Scope::query()
+        $scopeIds = Scope::query()
             ->whereIn('code', $scopeCodes)
             ->pluck('id')
             ->all();
@@ -122,6 +157,9 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
         $client->scopes()->sync($scopeIds);
     }
 
+    /**
+     * @param ClientSecretAttributes $attributes
+     */
     public function createSecret(SsoClient $client, array $attributes): void
     {
         $client->secrets()->create($attributes);
