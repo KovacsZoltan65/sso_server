@@ -6,14 +6,16 @@ import PageHeader from "@/Components/PageHeader.vue";
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TokenStatusTag from "@/Pages/Tokens/components/TokenStatusTag.vue";
-import { revokeToken } from "@/Services/tokenService";
+import { revokeToken, revokeTokenFamily } from "@/Services/tokenService";
 import { Head, router } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
 import { useConfirm } from "primevue/useconfirm";
 import { useToast } from "primevue/usetoast";
+import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
 import DataTable from "primevue/datatable";
+import Dialog from "primevue/dialog";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
 import InputText from "primevue/inputtext";
@@ -50,12 +52,19 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    canManageTokenFamilies: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const toast = useToast();
 const confirm = useConfirm();
 const busy = ref(false);
 const rows = computed(() => props.rows);
+const familyDialogVisible = ref(false);
+const selectedFamilyRow = ref(null);
+const familyRevokeReason = ref("");
 
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
@@ -83,6 +92,8 @@ const stateOptions = [
     { label: "Expired", value: "expired" },
     { label: "Revoked", value: "revoked" },
     { label: "Rotated", value: "rotated" },
+    { label: "Suspicious", value: "suspicious" },
+    { label: "Family Revoked", value: "family_revoked" },
 ];
 const clientSelectOptions = computed(() => [
     { label: "All clients", value: null },
@@ -180,16 +191,21 @@ const familyLabel = (row) => {
 };
 
 const resolveRowActions = (row) => {
-    if (!props.canManageTokens || !row.canRevoke) {
+    if (!props.canManageTokens && !props.canManageTokenFamilies) {
         return [];
     }
 
     return [
-        {
+        ...(props.canManageTokens && row.canRevoke ? [{
             label: "Revoke",
             icon: "pi pi-ban",
             command: () => confirmRevoke(row),
-        },
+        }] : []),
+        ...(props.canManageTokenFamilies && row.canRevokeFamily ? [{
+            label: "Revoke Family",
+            icon: "pi pi-shield",
+            command: () => openFamilyDialog(row),
+        }] : []),
     ];
 };
 
@@ -229,7 +245,65 @@ const confirmRevoke = (row) => {
     });
 };
 
-usePageOverlayCleanup(() => {});
+const openFamilyDialog = (row) => {
+    selectedFamilyRow.value = row;
+    familyRevokeReason.value = "";
+    familyDialogVisible.value = true;
+};
+
+const closeFamilyDialog = () => {
+    familyDialogVisible.value = false;
+    selectedFamilyRow.value = null;
+    familyRevokeReason.value = "";
+};
+
+const submitFamilyDialog = () => {
+    if (!selectedFamilyRow.value?.familyId) {
+        return;
+    }
+
+    const row = selectedFamilyRow.value;
+    const reason = familyRevokeReason.value?.trim() || "admin_family_revoked";
+
+    confirm.require({
+        message: `Revoke token family ${familyLabel(row)}?`,
+        header: "Confirm family revoke",
+        acceptLabel: "Revoke Family",
+        rejectLabel: "Cancel",
+        accept: async () => {
+            busy.value = true;
+
+            try {
+                await revokeTokenFamily(row.familyId, {
+                    reason,
+                });
+
+                toast.add({
+                    severity: "success",
+                    summary: "Family Revoked",
+                    detail: "Token family revoked successfully.",
+                    life: 3000,
+                });
+
+                closeFamilyDialog();
+                reload();
+            } catch (error) {
+                const message = error?.response?.data?.message
+                    || error?.response?.data?.errors?.family_id?.[0]
+                    || error?.response?.data?.errors?.reason?.[0]
+                    || "Token family action failed.";
+
+                showError(message);
+            } finally {
+                busy.value = false;
+            }
+        },
+    });
+};
+
+usePageOverlayCleanup(() => {
+    closeFamilyDialog();
+});
 </script>
 
 <template>
@@ -237,6 +311,27 @@ usePageOverlayCleanup(() => {});
         <Head title="Tokens" />
         <Toast />
         <ConfirmDialog />
+        <Dialog :visible="familyDialogVisible" modal header="Revoke Token Family" @update:visible="familyDialogVisible = $event">
+            <div class="flex flex-col gap-4">
+                <p class="text-sm text-slate-600">
+                    Revoke the entire token family for
+                    <span class="font-medium">{{ selectedFamilyRow?.clientName ?? "selected client" }}</span>.
+                </p>
+                <div class="flex flex-col gap-2">
+                    <label for="family-reason" class="text-sm font-medium text-slate-700">Reason</label>
+                    <InputText
+                        id="family-reason"
+                        v-model="familyRevokeReason"
+                        placeholder="Optional revoke reason"
+                        data-family-reason
+                    />
+                </div>
+                <div class="flex justify-end gap-3">
+                    <Button label="Cancel" severity="secondary" outlined data-family-cancel @click="closeFamilyDialog" />
+                    <Button label="Continue" :disabled="busy" data-family-submit @click="submitFamilyDialog" />
+                </div>
+            </div>
+        </Dialog>
 
         <div class="flex h-full min-h-0 flex-1 flex-col gap-6">
             <PageHeader
@@ -347,8 +442,11 @@ usePageOverlayCleanup(() => {});
 
                             <Column field="status" header="Status">
                                 <template #body="{ data }">
-                                    <div data-token-status>
+                                    <div data-token-status class="flex items-center gap-2">
                                         <TokenStatusTag :status="data.status" />
+                                        <span v-if="data.suspiciousIncident" class="text-xs font-medium text-amber-700" data-token-suspicious>
+                                            Incident
+                                        </span>
                                     </div>
                                 </template>
                             </Column>
@@ -359,6 +457,7 @@ usePageOverlayCleanup(() => {});
                                         <span>{{ familyLabel(data) }}</span>
                                         <span v-if="data.parentTokenId" class="text-slate-500">Parent #{{ data.parentTokenId }}</span>
                                         <span v-if="data.replacedByTokenId" class="text-slate-500">Replaced by #{{ data.replacedByTokenId }}</span>
+                                        <span v-if="data.familyRevoked" class="text-slate-500">Family revoked</span>
                                     </div>
                                 </template>
                             </Column>

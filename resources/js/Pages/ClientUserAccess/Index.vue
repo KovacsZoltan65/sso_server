@@ -239,6 +239,14 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
 
             <AdminTableCard>
                 <div class="admin-table-shell">
+                    <div class="mx-6 mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-client-access-rule>
+                        <div class="font-medium">Access rule</div>
+                        <div class="mt-1">
+                            If a client has no active client access records, it behaves as an open client and any active authenticated user may authorize.
+                            Once at least one active access record exists, the client becomes restricted and only explicitly assigned active users may authorize.
+                        </div>
+                    </div>
+
                     <DataTable
                         :value="rows"
                         v-model:filters="tableFilters"

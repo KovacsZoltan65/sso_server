@@ -55,6 +55,7 @@ describe('Client user access CRUD frontend', () => {
 
         expect(wrapper.text()).toContain('Portal');
         expect(wrapper.text()).toContain('jane@example.com');
+        expect(wrapper.text()).toContain('If a client has no active client access records, it behaves as an open client');
 
         await wrapper.find('[data-toolbar-action="create"]').trigger('click');
         expect(wrapper.find('[data-dialog="Create Client Access"]').exists()).toBe(true);

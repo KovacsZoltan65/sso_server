@@ -6,6 +6,7 @@ namespace App\Repositories;
 
 use App\Models\Token;
 use App\Repositories\Contracts\TokenRepositoryInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Prettus\Repository\Eloquent\Repository;
@@ -147,10 +148,19 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token->refresh();
     }
 
-    public function markRefreshReuseDetected(Token $token): Token
+    public function markRefreshReuseDetected(Token $token, ?string $reason = null, ?string $incidentDetectedAt = null): Token
     {
+        $detectedAt = $incidentDetectedAt ? Carbon::parse($incidentDetectedAt) : now();
+        $meta = is_array($token->meta) ? $token->meta : [];
+
         $token->forceFill([
-            'refresh_token_reuse_detected_at' => now(),
+            'refresh_token_reuse_detected_at' => $detectedAt,
+            'security_incident_at' => $detectedAt,
+            'security_incident_reason' => $reason,
+            'meta' => array_merge($meta, array_filter([
+                'incident_detected_at' => $detectedAt->toIso8601String(),
+                'incident_reason' => $reason,
+            ])),
         ])->save();
 
         return $token->refresh();
@@ -172,10 +182,84 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
                 'refresh_token_revoked_at' => $token->refresh_token_hash !== null
                     ? ($token->refresh_token_revoked_at ?? now())
                     : $token->refresh_token_revoked_at,
+                'family_revoked_at' => $token->family_revoked_at ?? now(),
+                'family_revoked_reason' => $token->family_revoked_reason ?? $reason,
                 'access_token_revoked_reason' => $token->access_token_revoked_reason ?? $reason,
                 'refresh_token_revoked_reason' => $token->refresh_token_revoked_reason ?? $reason,
             ])->save();
         });
+    }
+
+    public function findFamilyTokens(string $familyId): Collection
+    {
+        /** @var Collection<int, Token> $tokens */
+        $tokens = $this->getModel()
+            ->newQuery()
+            ->with(['client', 'user', 'tokenPolicy', 'parentToken', 'replacedByToken'])
+            ->where('family_id', $familyId)
+            ->orderBy('id')
+            ->get();
+
+        return $tokens;
+    }
+
+    public function findActiveFamilyTokens(string $familyId): Collection
+    {
+        /** @var Collection<int, Token> $tokens */
+        $tokens = $this->findFamilyTokens($familyId)
+            ->filter(fn (Token $token): bool => $token->isAccessTokenActive() || $token->isRefreshTokenActive())
+            ->values();
+
+        return $tokens;
+    }
+
+    public function revokeFamilyTokens(
+        string $familyId,
+        string $reason,
+        ?string $familyRevokedAt = null,
+        ?string $trigger = null,
+        ?string $incidentDetectedAt = null,
+        ?string $incidentReason = null,
+    ): int {
+        $revokedAt = $familyRevokedAt ? Carbon::parse($familyRevokedAt) : now();
+        $incidentAt = $incidentDetectedAt ? Carbon::parse($incidentDetectedAt) : null;
+        $count = 0;
+
+        $this->findFamilyTokens($familyId)->each(function (Token $token) use ($reason, $revokedAt, $trigger, $incidentAt, $incidentReason, &$count): void {
+            $meta = is_array($token->meta) ? $token->meta : [];
+            $isActiveBefore = $token->isAccessTokenActive() || $token->isRefreshTokenActive();
+
+            $token->forceFill([
+                'access_token_revoked_at' => $token->access_token_revoked_at ?? $revokedAt,
+                'refresh_token_revoked_at' => $token->refresh_token_hash !== null
+                    ? ($token->refresh_token_revoked_at ?? $revokedAt)
+                    : $token->refresh_token_revoked_at,
+                'family_revoked_at' => $token->family_revoked_at ?? $revokedAt,
+                'family_revoked_reason' => $token->family_revoked_reason ?? $reason,
+                'security_incident_at' => $token->security_incident_at ?? $incidentAt,
+                'security_incident_reason' => $token->security_incident_reason ?? $incidentReason,
+                'access_token_revoked_reason' => $token->access_token_revoked_reason ?? $reason,
+                'refresh_token_revoked_reason' => $token->refresh_token_revoked_reason ?? $reason,
+                'meta' => array_merge($meta, array_filter([
+                    'family_revoked_at' => $revokedAt->toIso8601String(),
+                    'family_revoke_trigger' => $trigger,
+                    'incident_detected_at' => $incidentAt?->toIso8601String(),
+                    'incident_reason' => $incidentReason,
+                ])),
+            ])->save();
+
+            if ($isActiveBefore) {
+                $count++;
+            }
+        });
+
+        return $count;
+    }
+
+    public function familyHasActiveTokens(string $familyId): bool
+    {
+        return $this->findFamilyTokens($familyId)
+            ->contains(fn (Token $token): bool => $token->isAccessTokenActive() || $token->isRefreshTokenActive());
     }
 
     public function paginateForAdmin(
@@ -218,9 +302,11 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
 
                 if ($tokenType === 'access_token') {
                     match ($state) {
-                        'active' => $query->whereNull('tokens.access_token_revoked_at')->where('tokens.access_token_expires_at', '>', $now),
+                        'active' => $query->whereNull('tokens.access_token_revoked_at')->whereNull('tokens.family_revoked_at')->whereNull('tokens.security_incident_at')->where('tokens.access_token_expires_at', '>', $now),
                         'expired' => $query->where('tokens.access_token_expires_at', '<=', $now),
-                        'revoked' => $query->whereNotNull('tokens.access_token_revoked_at'),
+                        'revoked' => $query->whereNotNull('tokens.access_token_revoked_at')->whereNull('tokens.family_revoked_at'),
+                        'suspicious' => $query->whereNotNull('tokens.security_incident_at'),
+                        'family_revoked' => $query->whereNotNull('tokens.family_revoked_at'),
                         default => null,
                     };
 
@@ -228,10 +314,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
                 }
 
                 match ($state) {
-                    'active' => $query->whereNull('tokens.refresh_token_revoked_at')->whereNull('tokens.replaced_by_token_id')->where('tokens.refresh_token_expires_at', '>', $now),
+                    'active' => $query->whereNull('tokens.refresh_token_revoked_at')->whereNull('tokens.family_revoked_at')->whereNull('tokens.security_incident_at')->whereNull('tokens.replaced_by_token_id')->where('tokens.refresh_token_expires_at', '>', $now),
                     'expired' => $query->where('tokens.refresh_token_expires_at', '<=', $now),
-                    'revoked' => $query->whereNotNull('tokens.refresh_token_revoked_at')->whereNull('tokens.replaced_by_token_id'),
+                    'revoked' => $query->whereNotNull('tokens.refresh_token_revoked_at')->whereNull('tokens.replaced_by_token_id')->whereNull('tokens.family_revoked_at'),
                     'rotated' => $query->whereNotNull('tokens.replaced_by_token_id'),
+                    'suspicious' => $query->whereNotNull('tokens.security_incident_at'),
+                    'family_revoked' => $query->whereNotNull('tokens.family_revoked_at'),
                     default => null,
                 };
             })

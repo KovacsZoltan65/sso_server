@@ -178,17 +178,22 @@ it('detects refresh token reuse, revokes the family, and audits the incident', f
     $newToken = Token::query()->where('refresh_token_hash', hash('sha256', $secondPair['refresh_token']))->firstOrFail();
 
     expect($oldToken->refresh_token_reuse_detected_at)->not->toBeNull()
-        ->and($newToken->refresh_token_revoked_reason)->toBe('family_reuse_detected')
-        ->and($newToken->access_token_revoked_reason)->toBe('family_reuse_detected');
+        ->and($oldToken->security_incident_at)->not->toBeNull()
+        ->and($oldToken->security_incident_reason)->toBe('refresh_reuse_detected')
+        ->and($oldToken->family_revoked_at)->not->toBeNull()
+        ->and($newToken->refresh_token_revoked_reason)->toBe('family_revoked_due_to_reuse')
+        ->and($newToken->access_token_revoked_reason)->toBe('family_revoked_due_to_reuse')
+        ->and($newToken->family_revoked_at)->not->toBeNull()
+        ->and($newToken->family_revoked_reason)->toBe('family_revoked_due_to_reuse');
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.refresh_token.reuse_detected',
+        'event' => 'oauth.refresh_token.suspicious_reuse_detected',
     ]);
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.token.family_revoked',
+        'event' => 'oauth.token.family_revoke_completed',
     ]);
 });
 
@@ -296,4 +301,37 @@ it('audits token refresh denial without logging plain token values', function ()
 
     expect($failureActivity->properties->toArray())->not->toHaveKeys(['refresh_token', 'access_token'])
         ->and($failureActivity->properties['reason'])->toBe('refresh_token_inactive');
+});
+
+it('family revoked tokens remain inactive across introspection and userinfo access checks', function (): void {
+    [$client, , $plainSecret] = strictOauthClient();
+    $user = User::factory()->create();
+
+    $firstPair = issueAuthorizationCodeTokenPair($client, $plainSecret, $user);
+    $secondPair = $this->postJson(route('oauth.token'), [
+        'grant_type' => 'refresh_token',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'refresh_token' => $firstPair['refresh_token'],
+    ])->assertOk()->json('data');
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'refresh_token',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'refresh_token' => $firstPair['refresh_token'],
+    ])->assertStatus(422);
+
+    $this->postJson(route('oauth.introspect'), [
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'token' => $secondPair['access_token'],
+        'token_type_hint' => 'access_token',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.active', false);
+
+    $this->getJson(route('oauth.userinfo'), [
+        'Authorization' => 'Bearer '.$secondPair['access_token'],
+    ])->assertUnauthorized();
 });

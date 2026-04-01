@@ -80,6 +80,10 @@ class AuditLogService
         'parent_token_id',
         'replaced_by_token_id',
         'revoked_reason',
+        'revoked_count',
+        'already_revoked',
+        'trigger',
+        'incident_detected_at',
     ];
 
     /**

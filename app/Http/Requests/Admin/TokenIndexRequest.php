@@ -21,7 +21,7 @@ class TokenIndexRequest extends FormRequest
             'client_id' => ['nullable', 'integer', 'exists:sso_clients,id'],
             'user_id' => ['nullable', 'integer', 'exists:users,id'],
             'token_type' => ['nullable', 'in:access_token,refresh_token'],
-            'state' => ['nullable', 'in:active,expired,revoked,rotated'],
+            'state' => ['nullable', 'in:active,expired,revoked,rotated,suspicious,family_revoked'],
             'page' => ['nullable', 'integer', 'min:1'],
             'perPage' => ['nullable', 'integer', 'min:5', 'max:50'],
             'sortField' => ['nullable', 'in:createdAt,expiresAt,client,user'],

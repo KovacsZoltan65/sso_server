@@ -14,6 +14,7 @@ class TokenManagementService
     public function __construct(
         private readonly TokenRepositoryInterface $tokens,
         private readonly AuditLogService $auditLogService,
+        private readonly TokenFamilyService $tokenFamilyService,
     ) {
     }
 
@@ -31,10 +32,11 @@ class TokenManagementService
         $tokenType = (string) ($filters['token_type'] ?? 'refresh_token');
         $paginator = $this->tokens->paginateForAdmin($filters, $sortField, $sortOrder, $perPage, $page);
         $canRevoke = auth()->user()?->can(TokenPermissions::REVOKE) || false;
+        $canRevokeFamily = auth()->user()?->can(TokenPermissions::REVOKE_FAMILY) || false;
 
         return [
             'rows' => Collection::make($paginator->items())
-                ->map(fn (Token $token) => TokenAdminSummaryData::fromModel($token, $tokenType, $canRevoke))
+                ->map(fn (Token $token) => TokenAdminSummaryData::fromModel($token, $tokenType, $canRevoke, $canRevokeFamily))
                 ->values()
                 ->all(),
             'filters' => [
@@ -60,6 +62,7 @@ class TokenManagementService
             'clientOptions' => $this->clientOptions(),
             'userOptions' => $this->userOptions(),
             'canManageTokens' => $canRevoke,
+            'canManageTokenFamilies' => $canRevokeFamily,
         ];
     }
 
@@ -95,6 +98,22 @@ class TokenManagementService
                 'parent_token_id' => $token->parent_token_id,
                 'replaced_by_token_id' => $token->replaced_by_token_id,
                 'revoked_reason' => $reason ?: 'admin_revoked',
+            ],
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function revokeFamily(string $familyId, ?string $reason = null): array
+    {
+        return $this->tokenFamilyService->revokeFamily(
+            familyId: $familyId,
+            reason: $reason ?: 'admin_family_revoked',
+            actor: auth()->user(),
+            context: [
+                'trigger' => 'admin_action',
+                'incident_related' => false,
             ],
         );
     }

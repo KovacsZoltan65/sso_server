@@ -18,14 +18,17 @@ describe('Tokens index', () => {
                 clientId: 11,
                 clientName: 'Portal Client',
                 clientPublicId: 'portal-client',
-                status: 'active',
+                status: 'suspicious',
                 familyId: 'family-1234567890',
                 parentTokenId: null,
                 replacedByTokenId: null,
+                suspiciousIncident: true,
+                familyRevoked: false,
                 issuedAt: '2026-04-01 10:00:00',
                 expiresAt: '2026-04-02T10:00:00+00:00',
                 revokedAt: null,
                 canRevoke: true,
+                canRevokeFamily: true,
             },
             {
                 id: 11,
@@ -36,14 +39,17 @@ describe('Tokens index', () => {
                 clientId: 12,
                 clientName: 'Legacy Portal',
                 clientPublicId: 'legacy-client',
-                status: 'rotated',
+                status: 'family_revoked',
                 familyId: 'family-rotated',
                 parentTokenId: 8,
                 replacedByTokenId: 12,
+                suspiciousIncident: false,
+                familyRevoked: true,
                 issuedAt: '2026-04-01 09:00:00',
                 expiresAt: '2026-04-02T09:00:00+00:00',
                 revokedAt: '2026-04-01T11:00:00+00:00',
                 canRevoke: false,
+                canRevokeFamily: true,
             },
         ],
         filters: {
@@ -75,6 +81,7 @@ describe('Tokens index', () => {
             { id: 2, name: 'Revoked User', email: 'revoked@example.com' },
         ],
         canManageTokens: true,
+        canManageTokenFamilies: true,
     };
 
     it('renders token statuses and family chain metadata', async () => {
@@ -84,10 +91,12 @@ describe('Tokens index', () => {
 
         await nextTick();
 
-        expect(wrapper.text()).toContain('Active');
-        expect(wrapper.text()).toContain('Rotated');
+        expect(wrapper.text()).toContain('Suspicious');
+        expect(wrapper.text()).toContain('Family Revoked');
+        expect(wrapper.text()).toContain('Incident');
         expect(wrapper.text()).toContain('family-12345...');
         expect(wrapper.text()).toContain('Replaced by #12');
+        expect(wrapper.text()).toContain('Family revoked');
     });
 
     it('pushes filter state into the server request', async () => {
@@ -145,6 +154,37 @@ describe('Tokens index', () => {
         }));
     });
 
+    it('opens the family dialog, sends the reason, and refreshes after family revoke', async () => {
+        const wrapper = mountPage(Index, {
+            props: baseProps,
+        });
+
+        await nextTick();
+        await wrapper.find('[data-row-action="Revoke Family"]').trigger('click');
+        await nextTick();
+
+        const input = wrapper.find('[data-family-reason]');
+        await input.setValue('manual_security_action');
+        await wrapper.find('[data-family-submit]').trigger('click');
+
+        expect(confirmRequire).toHaveBeenCalledTimes(1);
+
+        await confirmRequire.mock.calls[0][0].accept();
+        await nextTick();
+
+        expect(axiosPost).toHaveBeenCalledWith(
+            route('admin.tokens.revoke-family', 'family-1234567890'),
+            {
+                reason: 'manual_security_action',
+            },
+        );
+
+        expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
+            severity: 'success',
+            detail: 'Token family revoked successfully.',
+        }));
+    });
+
     it('shows an error toast when revoke fails with a safe backend message', async () => {
         axiosPost.mockRejectedValueOnce({
             response: {
@@ -166,6 +206,35 @@ describe('Tokens index', () => {
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'error',
             detail: 'Forbidden.',
+        }));
+    });
+
+    it('shows family revoke validation errors safely', async () => {
+        axiosPost.mockRejectedValueOnce({
+            response: {
+                data: {
+                    errors: {
+                        reason: ['The reason field must not be greater than 255 characters.'],
+                    },
+                },
+            },
+        });
+
+        const wrapper = mountPage(Index, {
+            props: baseProps,
+        });
+
+        await nextTick();
+        await wrapper.find('[data-row-action="Revoke Family"]').trigger('click');
+        await nextTick();
+        await wrapper.find('[data-family-reason]').setValue('x');
+        await wrapper.find('[data-family-submit]').trigger('click');
+        await confirmRequire.mock.calls[0][0].accept();
+        await nextTick();
+
+        expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
+            severity: 'error',
+            detail: 'The reason field must not be greater than 255 characters.',
         }));
     });
 

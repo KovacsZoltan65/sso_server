@@ -24,6 +24,10 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $refresh_token_revoked_at
  * @property \Illuminate\Support\Carbon|null $refresh_token_used_at
  * @property \Illuminate\Support\Carbon|null $refresh_token_reuse_detected_at
+ * @property \Illuminate\Support\Carbon|null $family_revoked_at
+ * @property string|null $family_revoked_reason
+ * @property \Illuminate\Support\Carbon|null $security_incident_at
+ * @property string|null $security_incident_reason
  * @property string|null $access_token_revoked_reason
  * @property string|null $refresh_token_revoked_reason
  * @property \Illuminate\Support\Carbon|null $last_used_at
@@ -82,6 +86,10 @@ class Token extends Model
         'refresh_token_revoked_at',
         'refresh_token_used_at',
         'refresh_token_reuse_detected_at',
+        'family_revoked_at',
+        'family_revoked_reason',
+        'security_incident_at',
+        'security_incident_reason',
         'access_token_revoked_reason',
         'refresh_token_revoked_reason',
         'last_used_at',
@@ -98,6 +106,8 @@ class Token extends Model
         'refresh_token_revoked_at' => 'datetime',
         'refresh_token_used_at' => 'datetime',
         'refresh_token_reuse_detected_at' => 'datetime',
+        'family_revoked_at' => 'datetime',
+        'security_incident_at' => 'datetime',
         'last_used_at' => 'datetime',
         'meta' => 'array',
     ];
@@ -153,6 +163,7 @@ class Token extends Model
     public function isAccessTokenActive(): bool
     {
         return $this->access_token_revoked_at === null
+            && $this->family_revoked_at === null
             && $this->access_token_expires_at !== null
             && ! $this->access_token_expires_at->isPast();
     }
@@ -161,8 +172,19 @@ class Token extends Model
     {
         return $this->refresh_token_hash !== null
             && $this->refresh_token_revoked_at === null
+            && $this->family_revoked_at === null
             && $this->refresh_token_expires_at !== null
             && ! $this->refresh_token_expires_at->isPast()
             && $this->replaced_by_token_id === null;
+    }
+
+    public function hasSecurityIncident(): bool
+    {
+        return $this->security_incident_at !== null;
+    }
+
+    public function isFamilyRevoked(): bool
+    {
+        return $this->family_revoked_at !== null;
     }
 }

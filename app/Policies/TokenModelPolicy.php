@@ -23,4 +23,9 @@ class TokenModelPolicy
     {
         return $user->can(TokenPermissions::REVOKE);
     }
+
+    public function revokeFamily(User $user): bool
+    {
+        return $user->can(TokenPermissions::REVOKE_FAMILY);
+    }
 }

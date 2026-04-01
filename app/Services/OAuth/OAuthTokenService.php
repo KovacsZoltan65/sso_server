@@ -9,6 +9,7 @@ use App\Models\SsoClient;
 use App\Models\User;
 use App\Repositories\Contracts\TokenRepositoryInterface;
 use App\Services\Audit\AuditLogService;
+use App\Services\TokenFamilyService;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\DB;
@@ -62,6 +63,7 @@ class OAuthTokenService
         private readonly PkceVerifier $pkceVerifier,
         private readonly TokenRepositoryInterface $tokenRepository,
         private readonly AuditLogService $auditLogService,
+        private readonly TokenFamilyService $tokenFamilyService,
     ) {
     }
 
@@ -183,7 +185,7 @@ class OAuthTokenService
         $policy = $this->resolvePolicy($client, $token->tokenPolicy);
 
         if (! $token->isRefreshTokenActive()) {
-            $this->handleRefreshTokenReuse($token, $client, $policy);
+            $this->handleRefreshTokenReuse($token, $client);
         }
 
         return DB::transaction(function () use ($token, $client, $policy, $ipAddress, $userAgent): array {
@@ -802,51 +804,14 @@ class OAuthTokenService
         );
     }
 
-    private function handleRefreshTokenReuse(Token $token, SsoClient $client, TokenPolicy $policy): never
+    private function handleRefreshTokenReuse(Token $token, SsoClient $client): never
     {
-        DB::transaction(function () use ($token, $client, $policy): void {
-            $reusedToken = $this->tokenRepository->markRefreshReuseDetected($token);
-
-            $this->auditLogService->logFailure(
-                logName: AuditLogService::LOG_OAUTH,
-                event: 'oauth.refresh_token.reuse_detected',
-                description: 'OAuth refresh token reuse detected.',
-                subject: $client,
-                causer: $token->user,
-                properties: [
-                    'client_id' => $client->id,
-                    'client_public_id' => $client->client_id,
-                    'token_id' => $reusedToken->id,
-                    'user_id' => $reusedToken->user_id,
-                    'family_id' => $reusedToken->family_id,
-                    'parent_token_id' => $reusedToken->parent_token_id,
-                    'replaced_by_token_id' => $reusedToken->replaced_by_token_id,
-                    'decision' => 'denied',
-                    'reason' => 'refresh_token_reuse_detected',
-                ],
-            );
-
-            if ($policy->reuse_refresh_token_forbidden && $reusedToken->family_id !== null) {
-                $this->tokenRepository->revokeTokenFamily($reusedToken->family_id, 'family_reuse_detected');
-
-                $this->auditLogService->logFailure(
-                    logName: AuditLogService::LOG_OAUTH,
-                    event: 'oauth.token.family_revoked',
-                    description: 'OAuth token family revoked.',
-                    subject: $client,
-                    causer: $token->user,
-                    properties: [
-                        'client_id' => $client->id,
-                        'client_public_id' => $client->client_id,
-                        'token_id' => $reusedToken->id,
-                        'user_id' => $reusedToken->user_id,
-                        'family_id' => $reusedToken->family_id,
-                        'decision' => 'family_revoked',
-                        'reason' => 'family_reuse_detected',
-                    ],
-                );
-            }
-        });
+        if ($token->family_id !== null) {
+            $this->tokenFamilyService->handleSuspiciousRefreshReuse($token, [
+                'incident_reason' => 'refresh_reuse_detected',
+                'trigger' => 'automatic_reuse_response',
+            ]);
+        }
 
         $this->logGrantFailure($client, 'refresh_token_reuse_detected');
 

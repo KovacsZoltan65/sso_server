@@ -93,6 +93,7 @@ class SsoPermissions
             'roles.revokePermission',
             'tokens.issueToken',
             'tokens.revokeToken',
+            'tokens.revokeFamily',
             'tokens.refreshToken',
             'clients.manageSecrets',
             'clients.rotateSecret',

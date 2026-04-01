@@ -32,9 +32,30 @@ interface TokenRepositoryInterface
 
     public function markRefreshTokenRotated(Token $token, Token $replacement): Token;
 
-    public function markRefreshReuseDetected(Token $token): Token;
+    public function markRefreshReuseDetected(Token $token, ?string $reason = null, ?string $incidentDetectedAt = null): Token;
 
     public function revokeTokenFamily(string $familyId, ?string $reason = null, ?int $exceptTokenId = null): void;
+
+    /**
+     * @return Collection<int, Token>
+     */
+    public function findFamilyTokens(string $familyId): Collection;
+
+    /**
+     * @return Collection<int, Token>
+     */
+    public function findActiveFamilyTokens(string $familyId): Collection;
+
+    public function revokeFamilyTokens(
+        string $familyId,
+        string $reason,
+        ?string $familyRevokedAt = null,
+        ?string $trigger = null,
+        ?string $incidentDetectedAt = null,
+        ?string $incidentReason = null,
+    ): int;
+
+    public function familyHasActiveTokens(string $familyId): bool;
 
     public function paginateForAdmin(
         array $filters,

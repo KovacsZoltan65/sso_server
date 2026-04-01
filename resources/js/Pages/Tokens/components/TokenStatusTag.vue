@@ -15,6 +15,8 @@ const label = computed(() => {
         expired: 'Expired',
         revoked: 'Revoked',
         rotated: 'Rotated',
+        suspicious: 'Suspicious',
+        family_revoked: 'Family Revoked',
     })[props.status] ?? props.status;
 });
 
@@ -24,6 +26,8 @@ const severity = computed(() => {
         expired: 'warn',
         revoked: 'danger',
         rotated: 'contrast',
+        suspicious: 'warn',
+        family_revoked: 'danger',
     })[props.status] ?? 'secondary';
 });
 </script>

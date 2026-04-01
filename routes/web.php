@@ -95,6 +95,7 @@ Route::middleware(['auth'])->group(function () {
         Route::controller(AdminTokenController::class)->name('tokens.')->group(function () {
             Route::get('/tokens', 'index')->name('index');
             Route::post('/tokens/{token}/revoke', 'revoke')->name('revoke');
+            Route::post('/tokens/families/{familyId}/revoke', 'revokeFamily')->name('revoke-family');
         });
 
         // PlaceholderPageController routes

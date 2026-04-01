@@ -20,14 +20,17 @@ class TokenAdminSummaryData extends Data
         public ?string $familyId,
         public ?int $parentTokenId,
         public ?int $replacedByTokenId,
+        public bool $suspiciousIncident,
+        public bool $familyRevoked,
         public string $issuedAt,
         public ?string $expiresAt,
         public ?string $revokedAt,
         public bool $canRevoke,
+        public bool $canRevokeFamily,
     ) {
     }
 
-    public static function fromModel(Token $token, string $tokenType, bool $canRevoke = false): self
+    public static function fromModel(Token $token, string $tokenType, bool $canRevoke = false, bool $canRevokeFamily = false): self
     {
         $isAccess = $tokenType === 'access_token';
         $expiresAt = $isAccess ? $token->access_token_expires_at : $token->refresh_token_expires_at;
@@ -35,7 +38,11 @@ class TokenAdminSummaryData extends Data
 
         $status = 'active';
 
-        if (! $isAccess && $token->replaced_by_token_id !== null) {
+        if ($token->family_revoked_at !== null) {
+            $status = 'family_revoked';
+        } elseif ($token->security_incident_at !== null) {
+            $status = 'suspicious';
+        } elseif (! $isAccess && $token->replaced_by_token_id !== null) {
             $status = 'rotated';
         } elseif ($revokedAt !== null) {
             $status = 'revoked';
@@ -56,10 +63,13 @@ class TokenAdminSummaryData extends Data
             familyId: $token->family_id,
             parentTokenId: $token->parent_token_id,
             replacedByTokenId: $token->replaced_by_token_id,
+            suspiciousIncident: $token->security_incident_at !== null,
+            familyRevoked: $token->family_revoked_at !== null,
             issuedAt: $token->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
             expiresAt: $expiresAt?->toIso8601String(),
             revokedAt: $revokedAt?->toIso8601String(),
             canRevoke: $canRevoke && $status === 'active',
+            canRevokeFamily: $canRevokeFamily && $token->family_id !== null,
         );
     }
 }

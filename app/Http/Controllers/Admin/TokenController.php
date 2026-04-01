@@ -3,11 +3,13 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\RevokeTokenFamilyRequest;
 use App\Http\Requests\Admin\RevokeTokenRequest;
 use App\Http\Requests\Admin\TokenIndexRequest;
 use App\Models\Token;
 use App\Services\TokenManagementService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,6 +50,31 @@ class TokenController extends Controller
         return $this->successResponse(
             message: 'Token revoked successfully.',
             data: ['id' => $token->id],
+        );
+    }
+
+    public function revokeFamily(RevokeTokenFamilyRequest $request, TokenManagementService $tokenService): JsonResponse
+    {
+        $this->authorize('revokeFamily', Token::class);
+
+        try {
+            $result = $tokenService->revokeFamily(
+                familyId: (string) $request->validated('family_id'),
+                reason: $request->validated('reason'),
+            );
+        } catch (ModelNotFoundException) {
+            return $this->errorResponse(
+                message: 'Token family not found.',
+                errors: ['family_id' => ['Token family not found.']],
+                status: 404,
+            );
+        }
+
+        return $this->successResponse(
+            message: $result['already_revoked']
+                ? 'Token family was already revoked.'
+                : 'Token family revoked successfully.',
+            data: $result,
         );
     }
 }

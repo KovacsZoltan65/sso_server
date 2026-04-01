@@ -56,7 +56,10 @@ function tokenFixture(array $overrides = []): Token
 }
 
 it('authorized user can view the token index with token metadata', function (): void {
-    $token = tokenFixture();
+    $token = tokenFixture([
+        'security_incident_at' => now(),
+        'security_incident_reason' => 'refresh_reuse_detected',
+    ]);
     $manager = tokenManager(['tokens.viewAny']);
 
     $this->actingAs($manager)
@@ -71,6 +74,7 @@ it('authorized user can view the token index with token metadata', function (): 
             ->where('rows.0.id', $token->id)
             ->where('rows.0.tokenType', 'refresh_token')
             ->where('rows.0.familyId', $token->family_id)
+            ->where('rows.0.suspiciousIncident', true)
             ->where('filters.global', $token->family_id)
             ->where('filters.token_type', 'refresh_token')
             ->has('clientOptions')
@@ -136,6 +140,26 @@ it('filters tokens by state client user and type', function (): void {
         'replaced_by_token_id' => $replacement->id,
     ]);
 
+    $suspiciousToken = tokenFixture([
+        'sso_client_id' => $clientA->id,
+        'user_id' => $activeUser->id,
+        'token_policy_id' => $policy->id,
+        'security_incident_at' => now(),
+        'security_incident_reason' => 'refresh_reuse_detected',
+    ]);
+
+    $familyRevokedToken = tokenFixture([
+        'sso_client_id' => $clientA->id,
+        'user_id' => $activeUser->id,
+        'token_policy_id' => $policy->id,
+        'family_revoked_at' => now(),
+        'family_revoked_reason' => 'admin_family_revoked',
+        'access_token_revoked_at' => now(),
+        'refresh_token_revoked_at' => now(),
+        'access_token_revoked_reason' => 'admin_family_revoked',
+        'refresh_token_revoked_reason' => 'admin_family_revoked',
+    ]);
+
     $this->actingAs($manager)
         ->get(route('admin.tokens.index', [
             'token_type' => 'refresh_token',
@@ -189,6 +213,30 @@ it('filters tokens by state client user and type', function (): void {
         ->assertInertia(fn (Assert $page) => $page
             ->where('filters.token_type', 'access_token')
             ->where('rows.0.clientId', $clientB->id));
+
+    $this->actingAs($manager)
+        ->get(route('admin.tokens.index', [
+            'token_type' => 'refresh_token',
+            'state' => 'suspicious',
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('rows', 1)
+            ->where('rows.0.id', $suspiciousToken->id)
+            ->where('rows.0.status', 'suspicious')
+            ->where('rows.0.suspiciousIncident', true));
+
+    $this->actingAs($manager)
+        ->get(route('admin.tokens.index', [
+            'token_type' => 'refresh_token',
+            'state' => 'family_revoked',
+        ]))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->has('rows', 1)
+            ->where('rows.0.id', $familyRevokedToken->id)
+            ->where('rows.0.status', 'family_revoked')
+            ->where('rows.0.familyRevoked', true));
 });
 
 it('authorized admin can revoke an access token', function (): void {
@@ -244,6 +292,60 @@ it('forbids revoking a token when unauthorized', function (): void {
     $this->actingAs($user)
         ->postJson(route('admin.tokens.revoke', $token), [
             'token_type' => 'access_token',
+        ])
+        ->assertForbidden();
+});
+
+it('authorized admin can revoke an entire token family idempotently', function (): void {
+    $manager = tokenManager(['tokens.revokeFamily']);
+    $familyId = fake()->uuid();
+    $firstToken = tokenFixture([
+        'family_id' => $familyId,
+    ]);
+    $secondToken = tokenFixture([
+        'sso_client_id' => $firstToken->sso_client_id,
+        'user_id' => $firstToken->user_id,
+        'token_policy_id' => $firstToken->token_policy_id,
+        'family_id' => $familyId,
+    ]);
+
+    $this->actingAs($manager)
+        ->postJson(route('admin.tokens.revoke-family', $familyId), [
+            'reason' => 'manual_security_action',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.family_id', $familyId)
+        ->assertJsonPath('data.already_revoked', false)
+        ->assertJsonPath('data.revoked_count', 2);
+
+    expect($firstToken->fresh()->family_revoked_reason)->toBe('manual_security_action')
+        ->and($secondToken->fresh()->family_revoked_reason)->toBe('manual_security_action')
+        ->and($firstToken->fresh()->access_token_revoked_at)->not->toBeNull()
+        ->and($secondToken->fresh()->refresh_token_revoked_at)->not->toBeNull();
+
+    $this->actingAs($manager)
+        ->postJson(route('admin.tokens.revoke-family', $familyId), [
+            'reason' => 'manual_security_action',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.already_revoked', true)
+        ->assertJsonPath('data.revoked_count', 0);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.token.family_revoked_by_admin',
+        'causer_id' => $manager->id,
+    ]);
+});
+
+it('forbids family revoke when unauthorized', function (): void {
+    $user = User::factory()->create();
+    $familyId = fake()->uuid();
+    tokenFixture(['family_id' => $familyId]);
+
+    $this->actingAs($user)
+        ->postJson(route('admin.tokens.revoke-family', $familyId), [
+            'reason' => 'manual_security_action',
         ])
         ->assertForbidden();
 });
