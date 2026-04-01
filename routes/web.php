@@ -2,10 +2,12 @@
 
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ClientController;
+use App\Http\Controllers\Admin\ClientUserAccessPageController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PlaceholderPageController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
+use App\Http\Controllers\Admin\TokenController as AdminTokenController;
 use App\Http\Controllers\Admin\TokenPolicyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\OAuth\AuthorizationController;
@@ -65,6 +67,10 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/sso-clients/{ssoClient}', 'destroy')->name('destroy');
         });
 
+        // Client - User Access routes
+        Route::get('/client-user-access', ClientUserAccessPageController::class)
+            ->name('client-user-access.index');
+
         // ScopeController routes
         Route::controller(ScopeController::class)->name('scopes.')->group(function () {
             Route::get('/scopes', 'index')->name('index');
@@ -84,6 +90,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/token-policies/{tokenPolicy}/edit', 'edit')->name('edit');
             Route::put('/token-policies/{tokenPolicy}', 'update')->name('update');
             Route::delete('/token-policies/{tokenPolicy}', 'destroy')->name('destroy');
+        });
+
+        Route::controller(AdminTokenController::class)->name('tokens.')->group(function () {
+            Route::get('/tokens', 'index')->name('index');
+            Route::post('/tokens/{token}/revoke', 'revoke')->name('revoke');
         });
 
         // PlaceholderPageController routes

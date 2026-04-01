@@ -54,6 +54,14 @@ class AdminNavigation
                 'description' => 'Client registrations, redirect targets, secrets, and token rules.',
             ],
             [
+                'key' => 'client-user-access',
+                'label' => 'Client Access',
+                'route' => 'admin.client-user-access.index',
+                'icon' => 'pi pi-link',
+                'permission' => 'client-access.viewAny',
+                'description' => 'Explicit user-to-client allow-list management for authorization flows.',
+            ],
+            [
                 'key' => 'scopes',
                 'label' => 'Scopes',
                 'route' => 'admin.scopes.index',
@@ -68,6 +76,14 @@ class AdminNavigation
                 'icon' => 'pi pi-key',
                 'permission' => 'token-policies.viewAny',
                 'description' => 'TTL, rotation, signing, and revocation policy management.',
+            ],
+            [
+                'key' => 'tokens',
+                'label' => 'Tokens',
+                'route' => 'admin.tokens.index',
+                'icon' => 'pi pi-ticket',
+                'permission' => 'tokens.viewAny',
+                'description' => 'Issued token visibility, revocation, and refresh chain oversight.',
             ],
             [
                 'key' => 'audit-logs',

@@ -1,18 +1,24 @@
 <?php
 
 namespace App\Providers;
+use App\Models\ClientUserAccess;
 use App\Models\SsoClient;
 use App\Models\Scope;
+use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
 use App\Policies\AuditLogPolicy;
 use App\Policies\ClientPolicy;
+use App\Policies\ClientUserAccessPolicy;
 use App\Policies\PermissionPolicy;
 use App\Policies\RolePolicy;
 use App\Policies\ScopePolicy;
+use App\Policies\TokenModelPolicy;
 use App\Policies\TokenPolicyPolicy;
 use App\Policies\UserPolicy;
+use App\Repositories\ClientUserAccessRepository;
 use App\Repositories\ClientRepository;
+use App\Repositories\Contracts\ClientUserAccessRepositoryInterface;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
@@ -47,6 +53,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(PermissionRepositoryInterface::class, PermissionRepository::class);
         $this->app->bind(RoleRepositoryInterface::class, RoleRepository::class);
         $this->app->bind(ClientRepositoryInterface::class, ClientRepository::class);
+        $this->app->bind(ClientUserAccessRepositoryInterface::class, ClientUserAccessRepository::class);
         $this->app->bind(ScopeRepositoryInterface::class, ScopeRepository::class);
         $this->app->bind(TokenPolicyRepositoryInterface::class, TokenPolicyRepository::class);
         $this->app->bind(TokenRepositoryInterface::class, TokenRepository::class);
@@ -61,7 +68,9 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(SsoClient::class, ClientPolicy::class);
+        Gate::policy(ClientUserAccess::class, ClientUserAccessPolicy::class);
         Gate::policy(Scope::class, ScopePolicy::class);
+        Gate::policy(Token::class, TokenModelPolicy::class);
         Gate::policy(TokenPolicy::class, TokenPolicyPolicy::class);
         Gate::policy(AuditLogPage::class, AuditLogPolicy::class);
 

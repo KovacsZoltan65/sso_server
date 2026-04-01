@@ -25,6 +25,7 @@ const emit = defineEmits(['saved', 'update:visible']);
 const form = useForm({
     name: '',
     email: '',
+    is_active: true,
     roles: [],
 });
 
@@ -32,6 +33,7 @@ const fillForm = () => {
     form.defaults({
         name: props.user?.name ?? '',
         email: props.user?.email ?? '',
+        is_active: props.user?.isActive ?? true,
         roles: [...(props.user?.roles ?? [])],
     });
     form.reset();

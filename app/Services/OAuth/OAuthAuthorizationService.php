@@ -6,6 +6,7 @@ use App\Models\AuthorizationCode;
 use App\Models\SsoClient;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Services\ClientUserAccessService;
 use App\Services\Audit\AuditLogService;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -32,6 +33,7 @@ class OAuthAuthorizationService
 {
     public function __construct(
         private readonly RedirectUriMatcher $redirectUriMatcher,
+        private readonly ClientUserAccessService $clientUserAccessService,
         private readonly AuditLogService $auditLogService,
     ) {
     }
@@ -109,6 +111,29 @@ class OAuthAuthorizationService
             throw ValidationException::withMessages([
                 'code_challenge' => 'PKCE is required for this client.',
             ]);
+        }
+
+        $accessDecision = $this->clientUserAccessService->evaluateUserAccess($user, $client);
+
+        if (! $accessDecision['allowed']) {
+            $this->logAuthorizationFailure(
+                user: $user,
+                event: 'oauth.authorization.denied',
+                message: 'OAuth authorization denied.',
+                client: $client,
+                properties: [
+                    'reason' => (string) $accessDecision['reason'],
+                    'decision' => (string) $accessDecision['decision'],
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'target_user_id' => $user->id,
+                    'allowed_from' => $accessDecision['allowed_from'],
+                    'allowed_until' => $accessDecision['allowed_until'],
+                    'status' => 'forbidden',
+                ],
+            );
+
+            abort(403, 'You are not allowed to access this client.');
         }
 
         $plainCode = Str::random(64);

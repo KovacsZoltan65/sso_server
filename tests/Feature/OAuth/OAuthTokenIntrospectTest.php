@@ -442,3 +442,62 @@ it('returns inactive for an expired refresh token', function (): void {
         ->assertOk()
         ->assertJsonPath('data.active', false);
 });
+
+it('returns inactive for a rotated refresh token', function (): void {
+    $user = User::factory()->create();
+    $policy = TokenPolicy::factory()->create(['is_active' => true]);
+
+    $client = SsoClient::factory()->create([
+        'client_id' => 'portal-client',
+        'is_active' => true,
+        'token_policy_id' => $policy->id,
+    ]);
+
+    $plainSecret = 'super-secret-value-123';
+    ClientSecret::query()->create([
+        'sso_client_id' => $client->id,
+        'name' => 'Initial secret',
+        'secret_hash' => bcrypt($plainSecret),
+        'last_four' => substr($plainSecret, -4),
+        'is_active' => true,
+    ]);
+
+    $replacement = Token::query()->create([
+        'sso_client_id' => $client->id,
+        'user_id' => $user->id,
+        'token_policy_id' => $policy->id,
+        'family_id' => fake()->uuid(),
+        'access_token_hash' => hash('sha256', str_repeat('c', 40)),
+        'refresh_token_hash' => hash('sha256', str_repeat('d', 40)),
+        'scopes' => ['openid'],
+        'access_token_expires_at' => now()->addHour(),
+        'refresh_token_expires_at' => now()->addDay(),
+    ]);
+
+    $plainRefreshToken = str_repeat('b', 40);
+
+    Token::query()->create([
+        'sso_client_id' => $client->id,
+        'user_id' => $user->id,
+        'token_policy_id' => $policy->id,
+        'family_id' => $replacement->family_id,
+        'access_token_hash' => hash('sha256', str_repeat('a', 40)),
+        'refresh_token_hash' => hash('sha256', $plainRefreshToken),
+        'scopes' => ['openid'],
+        'access_token_expires_at' => now()->addHour(),
+        'refresh_token_expires_at' => now()->addDay(),
+        'refresh_token_revoked_at' => now(),
+        'refresh_token_revoked_reason' => 'rotated',
+        'refresh_token_used_at' => now(),
+        'replaced_by_token_id' => $replacement->id,
+    ]);
+
+    $this->postJson(route('oauth.introspect'), [
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'token' => $plainRefreshToken,
+        'token_type_hint' => 'refresh_token',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.active', false);
+});

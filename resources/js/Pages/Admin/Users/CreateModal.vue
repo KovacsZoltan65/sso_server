@@ -20,6 +20,7 @@ const emit = defineEmits(['saved', 'update:visible']);
 const form = useForm({
     name: '',
     email: '',
+    is_active: true,
     roles: [],
     password: '',
     password_confirmation: '',

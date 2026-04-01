@@ -20,6 +20,7 @@ class OAuthRevokeRequest extends FormRequest
             'token_type_hint' => trim((string) $this->input('token_type_hint', '')),
             'client_id' => trim((string) $this->input('client_id', '')),
             'client_secret' => trim((string) $this->input('client_secret', '')),
+            'reason' => trim((string) $this->input('reason', '')),
         ]);
     }
 
@@ -33,6 +34,7 @@ class OAuthRevokeRequest extends FormRequest
             'token_type_hint' => ['nullable', 'string', 'in:access_token,refresh_token'],
             'client_id' => ['required', 'string', 'max:255'],
             'client_secret' => ['required', 'string', 'max:255'],
+            'reason' => ['nullable', 'string', 'max:255'],
         ];
     }
 }

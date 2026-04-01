@@ -24,6 +24,31 @@ test('users can authenticate using the login screen', function () {
     $response->assertRedirect(route('dashboard', absolute: false));
 });
 
+test('inactive users can not authenticate using the login screen', function () {
+    $user = User::factory()->create([
+        'is_active' => false,
+    ]);
+
+    $response = $this->from('/login')->post('/login', [
+        'email' => $user->email,
+        'password' => 'password',
+    ]);
+
+    $response
+        ->assertRedirect('/login')
+        ->assertSessionHasErrors([
+            'email' => 'Your account is inactive.',
+        ]);
+
+    $this->assertGuest();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'auth',
+        'event' => 'auth.login.failed',
+        'description' => 'User login failed.',
+    ]);
+});
+
 test('users can not authenticate with invalid password', function () {
     $user = User::factory()->create();
 

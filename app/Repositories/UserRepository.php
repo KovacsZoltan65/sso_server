@@ -17,6 +17,7 @@ class UserRepository extends Repository implements UserRepositoryInterface
     private array $sortableFields = [
         'name' => 'name',
         'email' => 'email',
+        'isActive' => 'is_active',
         'createdAt' => 'created_at',
         'emailVerifiedAt' => 'email_verified_at',
     ];
@@ -36,6 +37,7 @@ class UserRepository extends Repository implements UserRepositoryInterface
         $global = trim((string) ($filters['global'] ?? ''));
         $name = trim((string) ($filters['name'] ?? ''));
         $email = trim((string) ($filters['email'] ?? ''));
+        $status = $filters['status'] ?? null;
         $verified = $filters['verified'] ?? null;
 
         $column = $this->sortableFields[$sortField ?? ''] ?? 'name';
@@ -53,6 +55,8 @@ class UserRepository extends Repository implements UserRepositoryInterface
             })
             ->when($name !== '', fn ($query) => $query->where('name', 'like', "%{$name}%"))
             ->when($email !== '', fn ($query) => $query->where('email', 'like', "%{$email}%"))
+            ->when($status === 'active', fn ($query) => $query->where('is_active', true))
+            ->when($status === 'inactive', fn ($query) => $query->where('is_active', false))
             ->when($verified === 'verified', fn ($query) => $query->whereNotNull('email_verified_at'))
             ->when($verified === 'pending', fn ($query) => $query->whereNull('email_verified_at'))
             ->orderBy($column, $direction)

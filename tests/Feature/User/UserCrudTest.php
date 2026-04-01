@@ -9,6 +9,7 @@ use Spatie\Permission\PermissionRegistrar;
 
 beforeEach(function (): void {
     app(PermissionRegistrar::class)->forgetCachedPermissions();
+    $this->withoutVite();
 });
 
 function userManager(array $abilities = []): User
@@ -44,6 +45,7 @@ it('authorized user can view user index with modal-ready props', function () {
             ->has('rows', 1)
             ->where('rows.0.name', 'Taylor Otwell')
             ->where('rows.0.email', 'taylor@example.com')
+            ->where('rows.0.isActive', true)
             ->where('rows.0.roles.0', 'admin')
             ->where('filters.global', 'Taylor')
             ->has('roleOptions', 1)
@@ -59,7 +61,7 @@ it('unauthorized user is forbidden from user index', function () {
         ->assertForbidden();
 });
 
-it('authorized user can store user with roles', function () {
+it('authorized user can store active user with roles', function () {
     Role::create(['name' => 'admin', 'guard_name' => 'web']);
     $manager = userManager(['users.create']);
 
@@ -67,6 +69,7 @@ it('authorized user can store user with roles', function () {
         ->post(route('admin.users.store'), [
             'name' => 'New Admin',
             'email' => 'new-admin@example.com',
+            'is_active' => true,
             'roles' => ['admin'],
             'password' => 'password123',
             'password_confirmation' => 'password123',
@@ -77,6 +80,7 @@ it('authorized user can store user with roles', function () {
     $createdUser = User::where('email', 'new-admin@example.com')->firstOrFail();
 
     expect($createdUser->hasRole('admin'))->toBeTrue();
+    expect($createdUser->is_active)->toBeTrue();
     expect(Hash::check('password123', $createdUser->password))->toBeTrue();
 
     $this->assertDatabaseHas('activity_log', [
@@ -86,6 +90,26 @@ it('authorized user can store user with roles', function () {
     ]);
 });
 
+it('authorized user can store inactive user', function () {
+    $manager = userManager(['users.create']);
+
+    $this->actingAs($manager)
+        ->post(route('admin.users.store'), [
+            'name' => 'Inactive User',
+            'email' => 'inactive-user@example.com',
+            'is_active' => false,
+            'roles' => [],
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'User created successfully.');
+
+    $createdUser = User::where('email', 'inactive-user@example.com')->firstOrFail();
+
+    expect($createdUser->is_active)->toBeFalse();
+});
+
 it('store validation fails for invalid user payload', function () {
     $manager = userManager(['users.create']);
 
@@ -93,10 +117,11 @@ it('store validation fails for invalid user payload', function () {
         ->post(route('admin.users.store'), [
             'name' => '',
             'email' => 'invalid-email',
+            'is_active' => 'maybe',
             'password' => 'short',
             'password_confirmation' => 'different',
         ])
-        ->assertSessionHasErrors(['name', 'email', 'password']);
+        ->assertSessionHasErrors(['name', 'email', 'password', 'is_active']);
 });
 
 it('forbids user store when unauthorized', function () {
@@ -106,18 +131,20 @@ it('forbids user store when unauthorized', function () {
         ->post(route('admin.users.store'), [
             'name' => 'Blocked User',
             'email' => 'blocked@example.com',
+            'is_active' => true,
             'password' => 'password123',
             'password_confirmation' => 'password123',
         ])
         ->assertForbidden();
 });
 
-it('authorized user can update user and sync roles', function () {
+it('authorized user can update user and set inactive status', function () {
     Role::create(['name' => 'admin', 'guard_name' => 'web']);
     Role::create(['name' => 'reviewer', 'guard_name' => 'web']);
     $targetUser = User::factory()->create([
         'name' => 'Old Name',
         'email' => 'old@example.com',
+        'is_active' => true,
     ]);
     $targetUser->assignRole('admin');
     $manager = userManager(['users.update']);
@@ -126,6 +153,7 @@ it('authorized user can update user and sync roles', function () {
         ->put(route('admin.users.update', $targetUser), [
             'name' => 'Updated Name',
             'email' => 'updated@example.com',
+            'is_active' => false,
             'roles' => ['reviewer'],
         ])
         ->assertRedirect()
@@ -135,6 +163,7 @@ it('authorized user can update user and sync roles', function () {
 
     expect($targetUser->name)->toBe('Updated Name');
     expect($targetUser->email)->toBe('updated@example.com');
+    expect($targetUser->is_active)->toBeFalse();
     expect($targetUser->hasRole('reviewer'))->toBeTrue();
     expect($targetUser->hasRole('admin'))->toBeFalse();
 
@@ -143,6 +172,26 @@ it('authorized user can update user and sync roles', function () {
         'event' => 'admin.user.updated',
         'causer_id' => $manager->id,
     ]);
+});
+
+it('authorized user can reactivate an inactive user', function () {
+    $targetUser = User::factory()->create([
+        'email' => 'inactive-target@example.com',
+        'is_active' => false,
+    ]);
+    $manager = userManager(['users.update']);
+
+    $this->actingAs($manager)
+        ->put(route('admin.users.update', $targetUser), [
+            'name' => $targetUser->name,
+            'email' => $targetUser->email,
+            'is_active' => true,
+            'roles' => [],
+        ])
+        ->assertRedirect()
+        ->assertSessionHas('success', 'User updated successfully.');
+
+    expect($targetUser->fresh()->is_active)->toBeTrue();
 });
 
 it('update validation fails for invalid user payload', function () {
@@ -158,9 +207,10 @@ it('update validation fails for invalid user payload', function () {
         ->put(route('admin.users.update', $targetUser), [
             'name' => '',
             'email' => 'taken@example.com',
+            'is_active' => 'sometimes',
             'roles' => [],
         ])
-        ->assertSessionHasErrors(['name', 'email']);
+        ->assertSessionHasErrors(['name', 'email', 'is_active']);
 });
 
 it('forbids user update when unauthorized', function () {
@@ -171,9 +221,38 @@ it('forbids user update when unauthorized', function () {
         ->put(route('admin.users.update', $targetUser), [
             'name' => 'Blocked Update',
             'email' => 'blocked-update@example.com',
+            'is_active' => false,
             'roles' => [],
         ])
         ->assertForbidden();
+});
+
+it('filters users by active status on index', function () {
+    User::factory()->create([
+        'name' => 'Active User',
+        'email' => 'active@example.com',
+        'is_active' => true,
+    ]);
+    User::factory()->create([
+        'name' => 'Inactive User',
+        'email' => 'inactive@example.com',
+        'is_active' => false,
+    ]);
+    $manager = userManager(['users.viewAny']);
+
+    $this->actingAs($manager)
+        ->get(route('admin.users.index', ['status' => 'active']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('filters.status', 'active')
+            ->where('rows.0.isActive', true));
+
+    $this->actingAs($manager)
+        ->get(route('admin.users.index', ['status' => 'inactive']))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('filters.status', 'inactive')
+            ->where('rows.0.isActive', false));
 });
 
 it('authorized user can delete a regular user', function () {

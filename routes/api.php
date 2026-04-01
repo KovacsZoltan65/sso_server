@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\SelfServiceProfileController;
+use App\Http\Controllers\Api\ClientUserAccessController;
 use App\Http\Controllers\OAuth\OAuthIntrospectController;
 use App\Http\Controllers\OAuth\OAuthRevokeController;
 use App\Http\Controllers\OAuth\OAuthUserInfoController;
@@ -27,4 +28,19 @@ Route::middleware(['web', 'auth'])->prefix('/profile')->name('profile.')->group(
     Route::get('/', [SelfServiceProfileController::class, 'show'])->name('show');
     Route::patch('/', [SelfServiceProfileController::class, 'update'])->name('update');
     Route::patch('/password', [SelfServiceProfileController::class, 'updatePassword'])->name('password.update');
+});
+
+Route::middleware(['web', 'auth'])->group(function () {
+    Route::controller(ClientUserAccessController::class)->name('api.client-user-access.')->group(function () {
+        Route::get('/client-user-access', 'index')->name('index');
+        Route::post('/client-user-access', 'store')->name('store');
+        Route::delete('/client-user-access', 'bulkDestroy')->name('bulk-destroy');
+        Route::put('/client-user-access/{clientUserAccess}', 'update')->name('update');
+        Route::delete('/client-user-access/{clientUserAccess}', 'destroy')->name('destroy');
+    });
+
+    Route::get('/sso-clients/{ssoClient}/user-accesses', [ClientUserAccessController::class, 'clientAccesses'])
+        ->name('api.sso-clients.user-accesses');
+    Route::get('/users/{user}/client-accesses', [ClientUserAccessController::class, 'userAccesses'])
+        ->name('api.users.client-accesses');
 });

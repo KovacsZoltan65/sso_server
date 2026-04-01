@@ -13,6 +13,7 @@ describe('Admin Users index', () => {
                 id: 1,
                 name: 'Regular User',
                 email: 'regular@example.com',
+                isActive: true,
                 roles: ['viewer'],
                 emailVerifiedAt: null,
                 createdAt: '2026-03-25 10:00:00',
@@ -24,6 +25,7 @@ describe('Admin Users index', () => {
                 id: 2,
                 name: 'SSO Admin',
                 email: 'admin@sso.test',
+                isActive: false,
                 roles: ['admin'],
                 emailVerifiedAt: null,
                 createdAt: '2026-03-25 10:00:00',
@@ -34,7 +36,7 @@ describe('Admin Users index', () => {
         ],
         roleOptions: [{ label: 'Admin', value: 'admin' }],
         canManageUsers: true,
-        filters: { global: null, name: null, email: null, verified: null },
+        filters: { global: null, name: null, email: null, status: null, verified: null },
         pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 2, from: 1, to: 2, first: 0 },
         sorting: { field: 'name', order: 1 },
     };
@@ -107,6 +109,29 @@ describe('Admin Users index', () => {
             detail: 'users refreshed successfully.',
         }));
         expect(confirmClose).toHaveBeenCalled();
+    });
+
+    it('renders the status column and pushes the status filter into the reload request', async () => {
+        const wrapper = mountPage(Index, {
+            props: baseProps,
+        });
+
+        await nextTick();
+
+        expect(wrapper.text()).toContain('Active');
+        expect(wrapper.text()).toContain('Inactive');
+
+        const selects = wrapper.findAll('select');
+        await selects[0].setValue('inactive');
+        await nextTick();
+
+        expect(router.get).toHaveBeenCalledWith(
+            route('admin.users.index'),
+            expect.objectContaining({
+                status: 'inactive',
+            }),
+            expect.any(Object),
+        );
     });
 
     it('closes open modal state on page url change', async () => {

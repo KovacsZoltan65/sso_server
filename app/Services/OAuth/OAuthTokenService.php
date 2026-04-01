@@ -25,7 +25,8 @@ use Illuminate\Validation\ValidationException;
  *     code_verifier?: string|null,
  *     refresh_token?: string,
  *     token?: string,
- *     token_type_hint?: string|null
+ *     token_type_hint?: string|null,
+ *     reason?: string|null
  * }
  * @phpstan-type TokenPair array{
  *     token_type: string,
@@ -34,6 +35,10 @@ use Illuminate\Validation\ValidationException;
  *     expires_in: int,
  *     refresh_token_expires_in: int,
  *     scope: string
+ * }
+ * @phpstan-type IssuedTokenPair array{
+ *     token: Token,
+ *     payload: TokenPair
  * }
  * @phpstan-type IntrospectionResponse array{
  *     active: bool,
@@ -117,6 +122,7 @@ class OAuthTokenService
                 scopes: $authorizationCode->scopes ?? [],
                 authorizationCodeId: $authorizationCode->id,
                 parentTokenId: null,
+                familyId: (string) Str::uuid(),
                 ipAddress: $ipAddress,
                 userAgent: $userAgent,
             );
@@ -130,12 +136,23 @@ class OAuthTokenService
                 properties: [
                     'client_id' => $client->id,
                     'client_public_id' => $client->client_id,
+                    'token_id' => $issued['token']->id,
+                    'user_id' => $authorizationCode->user_id,
+                    'family_id' => $issued['token']->family_id,
                     'grant_type' => 'authorization_code',
                     'scope_codes' => $authorizationCode->scopes ?? [],
                 ],
             );
 
-            return $issued;
+            $this->logIssuedTokens(
+                token: $issued['token'],
+                client: $client,
+                grantType: 'authorization_code',
+                scopeCodes: $authorizationCode->scopes ?? [],
+                causer: $authorizationCode->user,
+            );
+
+            return $issued['payload'];
         });
     }
 
@@ -151,30 +168,25 @@ class OAuthTokenService
         $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''));
 
         $plainRefreshToken = (string) $payload['refresh_token'];
-        $token = Token::query()
-            ->with('tokenPolicy')
-            ->where('refresh_token_hash', hash('sha256', $plainRefreshToken))
-            ->first();
+        $token = $this->tokenRepository->findTokenWithRelationsByRefreshHash(hash('sha256', $plainRefreshToken));
 
         if ($token === null || $token->sso_client_id !== $client->id) {
             $this->logGrantFailure($client, 'invalid_refresh_token');
             throw ValidationException::withMessages(['refresh_token' => 'The provided refresh token is invalid.']);
         }
 
-        if ($token->refresh_token_revoked_at !== null || $token->refresh_token_expires_at === null || $token->refresh_token_expires_at->isPast()) {
+        if ($token->refresh_token_expires_at === null || $token->refresh_token_expires_at->isPast()) {
             $this->logGrantFailure($client, 'refresh_token_inactive');
             throw ValidationException::withMessages(['refresh_token' => 'The refresh token is expired or revoked.']);
         }
 
         $policy = $this->resolvePolicy($client, $token->tokenPolicy);
 
-        return DB::transaction(function () use ($token, $client, $policy, $ipAddress, $userAgent): array {
-            if ($policy->refresh_token_rotation_enabled || $policy->reuse_refresh_token_forbidden) {
-                $token->forceFill([
-                    'refresh_token_revoked_at' => now(),
-                ])->save();
-            }
+        if (! $token->isRefreshTokenActive()) {
+            $this->handleRefreshTokenReuse($token, $client, $policy);
+        }
 
+        return DB::transaction(function () use ($token, $client, $policy, $ipAddress, $userAgent): array {
             $issued = $this->issueTokenPair(
                 client: $client,
                 userId: $token->user_id,
@@ -182,9 +194,32 @@ class OAuthTokenService
                 scopes: $token->scopes ?? [],
                 authorizationCodeId: null,
                 parentTokenId: $token->id,
+                familyId: $token->family_id ?: (string) Str::uuid(),
                 ipAddress: $ipAddress,
                 userAgent: $userAgent,
             );
+
+            if ($policy->refresh_token_rotation_enabled || $policy->reuse_refresh_token_forbidden) {
+                $this->tokenRepository->markRefreshTokenRotated($token, $issued['token']);
+
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.refresh_token.rotated',
+                    description: 'OAuth refresh token rotated.',
+                    subject: $client,
+                    causer: $token->user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
+                        'token_id' => $token->id,
+                        'user_id' => $token->user_id,
+                        'family_id' => $token->family_id,
+                        'parent_token_id' => $token->parent_token_id,
+                        'replaced_by_token_id' => $issued['token']->id,
+                        'decision' => 'rotated',
+                    ],
+                );
+            }
 
             $this->auditLogService->logSuccess(
                 logName: AuditLogService::LOG_OAUTH,
@@ -197,10 +232,21 @@ class OAuthTokenService
                     'client_public_id' => $client->client_id,
                     'grant_type' => 'refresh_token',
                     'scope_codes' => $token->scopes ?? [],
+                    'token_id' => $issued['token']->id,
+                    'family_id' => $issued['token']->family_id,
+                    'parent_token_id' => $issued['token']->parent_token_id,
                 ],
             );
 
-            return $issued;
+            $this->logIssuedTokens(
+                token: $issued['token'],
+                client: $client,
+                grantType: 'refresh_token',
+                scopeCodes: $token->scopes ?? [],
+                causer: $token->user,
+            );
+
+            return $issued['payload'];
         });
     }
 
@@ -287,7 +333,7 @@ class OAuthTokenService
      * Issue and persist a fresh token pair for the given client and user context.
      *
      * @param array<int, string> $scopes
-     * @return TokenPair
+     * @return IssuedTokenPair
      */
     private function issueTokenPair(
         SsoClient $client,
@@ -296,6 +342,7 @@ class OAuthTokenService
         array $scopes,
         ?int $authorizationCodeId,
         ?int $parentTokenId,
+        string $familyId,
         ?string $ipAddress,
         ?string $userAgent,
     ): array {
@@ -305,12 +352,13 @@ class OAuthTokenService
         $accessExpiresAt = now()->addMinutes($policy->access_token_ttl_minutes);
         $refreshExpiresAt = now()->addMinutes($policy->refresh_token_ttl_minutes);
 
-        Token::query()->create([
+        $token = $this->tokenRepository->createTokenPair([
             'sso_client_id' => $client->id,
             'user_id' => $userId,
             'token_policy_id' => $policy->id,
             'authorization_code_id' => $authorizationCodeId,
             'parent_token_id' => $parentTokenId,
+            'family_id' => $familyId,
             'access_token_hash' => hash('sha256', $plainAccessToken),
             'refresh_token_hash' => hash('sha256', $plainRefreshToken),
             'scopes' => array_values($scopes),
@@ -318,15 +366,21 @@ class OAuthTokenService
             'refresh_token_expires_at' => $refreshExpiresAt,
             'issued_from_ip' => $ipAddress,
             'user_agent' => $userAgent,
+            'meta' => [
+                'issued_via' => $authorizationCodeId === null ? 'refresh_token' : 'authorization_code',
+            ],
         ]);
 
         return [
-            'token_type' => 'Bearer',
-            'access_token' => $plainAccessToken,
-            'refresh_token' => $plainRefreshToken,
-            'expires_in' => (int) ceil(now()->diffInSeconds($accessExpiresAt)),
-            'refresh_token_expires_in' => (int) ceil(now()->diffInSeconds($refreshExpiresAt)),
-            'scope' => implode(' ', $scopes),
+            'token' => $token,
+            'payload' => [
+                'token_type' => 'Bearer',
+                'access_token' => $plainAccessToken,
+                'refresh_token' => $plainRefreshToken,
+                'expires_in' => (int) ceil(now()->diffInSeconds($accessExpiresAt)),
+                'refresh_token_expires_in' => (int) ceil(now()->diffInSeconds($refreshExpiresAt)),
+                'scope' => implode(' ', $scopes),
+            ],
         ];
     }
 
@@ -343,8 +397,11 @@ class OAuthTokenService
         $plainToken = (string) $payload['token'];
         $tokenHash = hash('sha256', $plainToken);
         $tokenTypeHint = $this->normalizeTokenTypeHint($payload['token_type_hint'] ?? null);
+        $reason = is_string($payload['reason'] ?? null) && trim((string) $payload['reason']) !== ''
+            ? trim((string) $payload['reason'])
+            : null;
 
-        DB::transaction(function () use ($client, $tokenHash, $tokenTypeHint): void {
+        DB::transaction(function () use ($client, $tokenHash, $tokenTypeHint, $reason): void {
             if ($tokenTypeHint === 'access_token') {
                 $token = $this->tokenRepository->findActiveAccessTokenByHash($tokenHash);
 
@@ -352,7 +409,7 @@ class OAuthTokenService
                     return;
                 }
 
-                $this->tokenRepository->revokeAccessToken($token);
+                $this->tokenRepository->revokeAccessToken($token, is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -363,7 +420,11 @@ class OAuthTokenService
                     properties: [
                         'client_id' => $client->id,
                         'client_public_id' => $client->client_id,
+                        'token_id' => $token->id,
+                        'user_id' => $token->user_id,
+                        'family_id' => $token->family_id,
                         'token_kind' => 'access_token',
+                        'revoked_reason' => $reason,
                     ],
                 );
 
@@ -377,7 +438,7 @@ class OAuthTokenService
                     return;
                 }
 
-                $this->tokenRepository->revokeRefreshToken($token);
+                $this->tokenRepository->revokeRefreshToken($token, is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -388,7 +449,11 @@ class OAuthTokenService
                     properties: [
                         'client_id' => $client->id,
                         'client_public_id' => $client->client_id,
+                        'token_id' => $token->id,
+                        'user_id' => $token->user_id,
+                        'family_id' => $token->family_id,
                         'token_kind' => 'refresh_token',
+                        'revoked_reason' => $reason,
                     ],
                 );
 
@@ -398,7 +463,7 @@ class OAuthTokenService
             $accessToken = $this->tokenRepository->findActiveAccessTokenByHash($tokenHash);
 
             if ($accessToken !== null && (int) $accessToken->sso_client_id === (int) $client->id) {
-                $this->tokenRepository->revokeAccessToken($accessToken);
+                $this->tokenRepository->revokeAccessToken($accessToken, is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -409,7 +474,11 @@ class OAuthTokenService
                     properties: [
                         'client_id' => $client->id,
                         'client_public_id' => $client->client_id,
+                        'token_id' => $accessToken->id,
+                        'user_id' => $accessToken->user_id,
+                        'family_id' => $accessToken->family_id,
                         'token_kind' => 'access_token',
+                        'revoked_reason' => $reason,
                     ],
                 );
 
@@ -419,7 +488,7 @@ class OAuthTokenService
             $refreshToken = $this->tokenRepository->findActiveRefreshTokenByHash($tokenHash);
 
             if ($refreshToken !== null && (int) $refreshToken->sso_client_id === (int) $client->id) {
-                $this->tokenRepository->revokeRefreshToken($refreshToken);
+                $this->tokenRepository->revokeRefreshToken($refreshToken, is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -430,7 +499,11 @@ class OAuthTokenService
                     properties: [
                         'client_id' => $client->id,
                         'client_public_id' => $client->client_id,
+                        'token_id' => $refreshToken->id,
+                        'user_id' => $refreshToken->user_id,
+                        'family_id' => $refreshToken->family_id,
                         'token_kind' => 'refresh_token',
+                        'revoked_reason' => $reason,
                     ],
                 );
             }
@@ -586,9 +659,7 @@ class OAuthTokenService
      */
     private function isAccessTokenActive(Token $token): bool
     {
-        return $token->access_token_revoked_at === null
-            && $token->access_token_expires_at !== null
-            && ! $token->access_token_expires_at->isPast();
+        return $token->isAccessTokenActive();
     }
 
     /**
@@ -596,9 +667,7 @@ class OAuthTokenService
      */
     private function isRefreshTokenActive(Token $token): bool
     {
-        return $token->refresh_token_revoked_at === null
-            && $token->refresh_token_expires_at !== null
-            && ! $token->refresh_token_expires_at->isPast();
+        return $token->isRefreshTokenActive();
     }
 
     /**
@@ -690,5 +759,99 @@ class OAuthTokenService
                 'reason' => $reason,
             ],
         );
+    }
+
+    /**
+     * @param array<int, string> $scopeCodes
+     */
+    private function logIssuedTokens(Token $token, SsoClient $client, string $grantType, array $scopeCodes, ?User $causer): void
+    {
+        $sharedProperties = [
+            'client_id' => $client->id,
+            'client_public_id' => $client->client_id,
+            'user_id' => $token->user_id,
+            'token_id' => $token->id,
+            'family_id' => $token->family_id,
+            'parent_token_id' => $token->parent_token_id,
+            'grant_type' => $grantType,
+            'scope_codes' => $scopeCodes,
+        ];
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.access_token.issued',
+            description: 'OAuth access token issued.',
+            subject: $client,
+            causer: $causer,
+            properties: [
+                ...$sharedProperties,
+                'token_kind' => 'access_token',
+            ],
+        );
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.refresh_token.issued',
+            description: 'OAuth refresh token issued.',
+            subject: $client,
+            causer: $causer,
+            properties: [
+                ...$sharedProperties,
+                'token_kind' => 'refresh_token',
+            ],
+        );
+    }
+
+    private function handleRefreshTokenReuse(Token $token, SsoClient $client, TokenPolicy $policy): never
+    {
+        DB::transaction(function () use ($token, $client, $policy): void {
+            $reusedToken = $this->tokenRepository->markRefreshReuseDetected($token);
+
+            $this->auditLogService->logFailure(
+                logName: AuditLogService::LOG_OAUTH,
+                event: 'oauth.refresh_token.reuse_detected',
+                description: 'OAuth refresh token reuse detected.',
+                subject: $client,
+                causer: $token->user,
+                properties: [
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'token_id' => $reusedToken->id,
+                    'user_id' => $reusedToken->user_id,
+                    'family_id' => $reusedToken->family_id,
+                    'parent_token_id' => $reusedToken->parent_token_id,
+                    'replaced_by_token_id' => $reusedToken->replaced_by_token_id,
+                    'decision' => 'denied',
+                    'reason' => 'refresh_token_reuse_detected',
+                ],
+            );
+
+            if ($policy->reuse_refresh_token_forbidden && $reusedToken->family_id !== null) {
+                $this->tokenRepository->revokeTokenFamily($reusedToken->family_id, 'family_reuse_detected');
+
+                $this->auditLogService->logFailure(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.token.family_revoked',
+                    description: 'OAuth token family revoked.',
+                    subject: $client,
+                    causer: $token->user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
+                        'token_id' => $reusedToken->id,
+                        'user_id' => $reusedToken->user_id,
+                        'family_id' => $reusedToken->family_id,
+                        'decision' => 'family_revoked',
+                        'reason' => 'family_reuse_detected',
+                    ],
+                );
+            }
+        });
+
+        $this->logGrantFailure($client, 'refresh_token_reuse_detected');
+
+        throw ValidationException::withMessages([
+            'refresh_token' => 'The refresh token is invalid.',
+        ]);
     }
 }

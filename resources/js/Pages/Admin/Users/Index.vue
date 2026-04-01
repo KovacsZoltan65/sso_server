@@ -60,6 +60,10 @@ const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
     name: { value: props.filters.name ?? null, matchMode: FilterMatchMode.CONTAINS },
     email: { value: props.filters.email ?? null, matchMode: FilterMatchMode.CONTAINS },
+    isActive: {
+        value: props.filters.status ?? null,
+        matchMode: FilterMatchMode.EQUALS,
+    },
     emailVerifiedAt: {
         value: props.filters.verified ?? null,
         matchMode: FilterMatchMode.EQUALS,
@@ -81,6 +85,12 @@ const verifiedOptions = [
     { label: "Pending", value: "pending" },
 ];
 
+const statusOptions = [
+    { label: "All", value: null },
+    { label: "Active", value: "active" },
+    { label: "Inactive", value: "inactive" },
+];
+
 const {
     selectedIds,
     selectedRows,
@@ -96,6 +106,7 @@ const buildParams = (overrides = {}) => ({
     global: tableFilters.value.global.value || undefined,
     name: tableFilters.value.name.value || undefined,
     email: tableFilters.value.email.value || undefined,
+    status: tableFilters.value.isActive.value || undefined,
     verified: tableFilters.value.emailVerifiedAt.value || undefined,
     page: tableState.page,
     perPage: tableState.perPage,
@@ -145,6 +156,7 @@ const onFilter = (event) => {
             global: event.filters.global?.value || undefined,
             name: event.filters.name?.value || undefined,
             email: event.filters.email?.value || undefined,
+            status: event.filters.isActive?.value || undefined,
             verified: event.filters.emailVerifiedAt?.value || undefined,
         },
         { resetSelection: true }
@@ -378,6 +390,34 @@ const userActionItems = (user) => [
                                     placeholder="Filter email"
                                     class="w-full"
                                     @input="filterCallback()"
+                                />
+                            </template>
+                        </Column>
+
+                        <Column
+                            field="isActive"
+                            header="Status"
+                            sortable
+                            :showFilterMatchModes="false"
+                            :showFilterOperator="false"
+                            :showAddButton="false"
+                        >
+                            <template #body="{ data }">
+                                <Tag
+                                    :value="data.isActive ? 'Active' : 'Inactive'"
+                                    :severity="data.isActive ? 'success' : 'warn'"
+                                />
+                            </template>
+
+                            <template #filter="{ filterModel, filterCallback }">
+                                <Select
+                                    v-model="filterModel.value"
+                                    :options="statusOptions"
+                                    optionLabel="label"
+                                    optionValue="value"
+                                    placeholder="All"
+                                    class="w-full"
+                                    @change="filterCallback()"
                                 />
                             </template>
                         </Column>

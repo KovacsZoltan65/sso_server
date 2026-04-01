@@ -20,6 +20,7 @@ class AuditLogService
     public const LOG_OAUTH = 'oauth';
     public const LOG_SECURITY = 'security';
     public const LOG_ADMIN_CLIENT = 'admin.client';
+    public const LOG_ADMIN_CLIENT_ACCESS = 'admin.client_access';
     public const LOG_ADMIN_SCOPE = 'admin.scope';
     public const LOG_ADMIN_TOKEN_POLICY = 'admin.token_policy';
     public const LOG_ADMIN_USER = 'admin.user';
@@ -35,6 +36,7 @@ class AuditLogService
         self::LOG_OAUTH,
         self::LOG_SECURITY,
         self::LOG_ADMIN_CLIENT,
+        self::LOG_ADMIN_CLIENT_ACCESS,
         self::LOG_ADMIN_SCOPE,
         self::LOG_ADMIN_TOKEN_POLICY,
         self::LOG_ADMIN_USER,
@@ -62,12 +64,22 @@ class AuditLogService
         'target_role_id',
         'target_permission_id',
         'target_scope_id',
+        'user_id',
         'redirect_uri',
         'redirect_uri_count',
         'policy_id',
         'status',
+        'decision',
         'result',
         'deleted_count',
+        'client_access_id',
+        'allowed_from',
+        'allowed_until',
+        'token_id',
+        'family_id',
+        'parent_token_id',
+        'replaced_by_token_id',
+        'revoked_reason',
     ];
 
     /**
@@ -205,6 +217,7 @@ class AuditLogService
     ): void {
         $logName = match ($resource) {
             'client', 'client_secret', 'redirect_uri', 'client_scope' => self::LOG_ADMIN_CLIENT,
+            'client_user_access' => self::LOG_ADMIN_CLIENT_ACCESS,
             'scope' => self::LOG_ADMIN_SCOPE,
             'token_policy' => self::LOG_ADMIN_TOKEN_POLICY,
             'user' => self::LOG_ADMIN_USER,
@@ -293,7 +306,7 @@ class AuditLogService
     private function normalizePropertyValue(string $key, mixed $value): mixed
     {
         return match ($key) {
-            'client_id', 'policy_id', 'target_user_id', 'target_role_id', 'target_permission_id', 'target_scope_id', 'redirect_uri_count', 'deleted_count' => $this->normalizeInteger($value),
+            'client_id', 'policy_id', 'target_user_id', 'target_role_id', 'target_permission_id', 'target_scope_id', 'user_id', 'redirect_uri_count', 'deleted_count', 'token_id', 'parent_token_id', 'replaced_by_token_id', 'client_access_id' => $this->normalizeInteger($value),
             'scope_codes', 'updated_fields' => $this->normalizeStringList($value),
             'changed_attributes' => $this->normalizeAssociativeArray($value),
             default => $this->normalizeScalar($value),

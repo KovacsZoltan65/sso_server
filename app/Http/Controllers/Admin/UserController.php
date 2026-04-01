@@ -28,6 +28,7 @@ class UserController extends Controller
                 'global' => $validated['global'] ?? null,
                 'name' => $validated['name'] ?? null,
                 'email' => $validated['email'] ?? null,
+                'status' => $validated['status'] ?? null,
                 'verified' => $validated['verified'] ?? null,
             ],
             perPage: (int) ($validated['perPage'] ?? 10),

@@ -73,6 +73,28 @@ class AuthenticationService
         $user = $request->user();
 
         if ($user instanceof User) {
+            if (! $user->is_active) {
+                Auth::guard('web')->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+
+                $this->auditLogService->logFailure(
+                    logName: AuditLogService::LOG_AUTH,
+                    event: 'auth.login.failed',
+                    description: 'User login failed.',
+                    subject: $user,
+                    causer: $user,
+                    properties: [
+                        'reason' => 'inactive_user',
+                        ...$this->auditLogService->requestContext($request),
+                    ],
+                );
+
+                throw ValidationException::withMessages([
+                    'email' => 'Your account is inactive.',
+                ]);
+            }
+
             $this->auditLogService->logSuccess(
                 logName: AuditLogService::LOG_AUTH,
                 event: 'auth.login.succeeded',

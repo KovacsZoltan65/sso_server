@@ -1,7 +1,7 @@
 import { config } from '@vue/test-utils';
 import { defineComponent, h, inject, provide, ref } from 'vue';
 import { afterEach, beforeEach, vi } from 'vitest';
-import { axiosDelete, resetAxiosMocks } from './mocks/axios';
+import { axiosDelete, axiosPost, axiosPut, resetAxiosMocks } from './mocks/axios';
 import { createMockForm, getPage, resetInertiaMocks, router } from './mocks/inertia';
 import { confirmClose, confirmRequire, resetPrimeVueMocks, toastAdd } from './mocks/primevue';
 
@@ -119,6 +119,10 @@ const ColumnStub = defineComponent({
 
 const DataTableStub = defineComponent({
     props: {
+        filters: {
+            type: Object,
+            default: () => ({}),
+        },
         value: {
             type: Array,
             default: () => [],
@@ -160,8 +164,10 @@ const DataTableStub = defineComponent({
             default: '',
         },
     },
-    setup(props, { slots }) {
+    emits: ['filter', 'update:filters'],
+    setup(props, { slots, emit }) {
         const columns = ref([]);
+        const localFilters = ref(props.filters);
 
         provide(dataTableColumnsKey, (column) => {
             columns.value.push(column);
@@ -179,6 +185,28 @@ const DataTableStub = defineComponent({
             'data-current-page-report-template': props.currentPageReportTemplate,
         }, [
             slots.header?.(),
+            h('div', { class: 'datatable-filters' }, columns.value.map((column, columnIndex) => {
+                if (!column.slots.filter) {
+                    return null;
+                }
+
+                const filterKey = column.field || String(columnIndex);
+                if (!localFilters.value[filterKey]) {
+                    localFilters.value[filterKey] = { value: null };
+                }
+
+                return h('div', {
+                    class: 'datatable-filter',
+                    'data-filter-column-index': columnIndex,
+                    'data-filter-header': column.header || column.field,
+                }, column.slots.filter({
+                    filterModel: localFilters.value[filterKey],
+                    filterCallback: () => {
+                        emit('update:filters', localFilters.value);
+                        emit('filter', { filters: localFilters.value });
+                    },
+                }));
+            })),
             slots.default?.(),
             props.value.length === 0
                 ? slots.empty?.()
@@ -281,6 +309,54 @@ const MultiSelectStub = defineComponent({
     },
 });
 
+const SelectStub = defineComponent({
+    inheritAttrs: false,
+    props: {
+        modelValue: {
+            type: [String, Number, null],
+            default: null,
+        },
+        options: {
+            type: Array,
+            default: () => [],
+        },
+        optionLabel: {
+            type: String,
+            default: 'label',
+        },
+        optionValue: {
+            type: String,
+            default: 'value',
+        },
+        disabled: {
+            type: Boolean,
+            default: false,
+        },
+        placeholder: {
+            type: String,
+            default: '',
+        },
+    },
+    emits: ['update:modelValue', 'change'],
+    setup(props, { attrs, emit }) {
+        return () => h('select', {
+            ...attrs,
+            disabled: props.disabled,
+            value: props.modelValue ?? '',
+            onChange: (event) => {
+                emit('update:modelValue', event.target.value);
+                emit('change', event);
+            },
+        }, [
+            props.placeholder ? h('option', { value: '' }, props.placeholder) : null,
+            ...props.options.map((option) => h('option', {
+                value: option[props.optionValue],
+                selected: String(option[props.optionValue]) === String(props.modelValue ?? ''),
+            }, option[props.optionLabel])),
+        ]);
+    },
+});
+
 const CheckboxStub = defineComponent({
     inheritAttrs: false,
     props: {
@@ -347,6 +423,8 @@ vi.mock('@inertiajs/vue3', async () => {
 vi.mock('axios', () => ({
     default: {
         delete: axiosDelete,
+        post: axiosPost,
+        put: axiosPut,
     },
 }));
 
@@ -377,7 +455,7 @@ vi.mock('primevue/multiselect', () => ({ default: MultiSelectStub }));
 vi.mock('primevue/menu', () => ({ default: passthroughStub }));
 vi.mock('primevue/password', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/paginator', () => ({ default: PaginatorStub }));
-vi.mock('primevue/select', () => ({ default: makeFieldComponent('select') }));
+vi.mock('primevue/select', () => ({ default: SelectStub }));
 vi.mock('primevue/tag', () => ({ default: TagStub }));
 vi.mock('primevue/textarea', () => ({ default: makeFieldComponent('textarea') }));
 vi.mock('primevue/toast', () => ({ default: passthroughStub }));

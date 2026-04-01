@@ -24,6 +24,7 @@ class SsoPermissions
     {
         return [
             'clients',
+            'client-access',
             'redirect-uris',
             'scopes',
             'secrets',
@@ -42,6 +43,7 @@ class SsoPermissions
             'roles',
             'permissions',
             'clients',
+            'client-access',
             'redirect-uris',
             'scopes',
             'secrets',
@@ -190,6 +192,7 @@ class SsoPermissions
                 'roles',
                 'permissions',
                 'clients',
+                'client-access',
                 'redirect-uris',
                 'scopes',
                 'secrets',

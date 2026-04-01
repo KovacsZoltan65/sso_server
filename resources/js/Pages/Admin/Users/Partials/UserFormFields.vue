@@ -1,4 +1,5 @@
 <script setup>
+import Checkbox from 'primevue/checkbox';
 import InputText from 'primevue/inputtext';
 import MultiSelect from 'primevue/multiselect';
 import Password from 'primevue/password';
@@ -72,6 +73,23 @@ defineProps({
             </small>
             <small v-if="form.errors['roles.0']" class="text-red-500">
                 {{ form.errors['roles.0'] }}
+            </small>
+        </div>
+
+        <div class="grid gap-2">
+            <div class="flex items-center gap-3">
+                <Checkbox
+                    inputId="user-is-active"
+                    :binary="true"
+                    v-model="form.is_active"
+                    :disabled="disabled"
+                />
+                <label for="user-is-active" class="text-sm font-medium text-slate-700">
+                    User is active
+                </label>
+            </div>
+            <small v-if="form.errors.is_active" class="text-red-500">
+                {{ form.errors.is_active }}
             </small>
         </div>
 

@@ -26,6 +26,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Scope> $scopes
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $secrets
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $activeSecrets
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientUserAccess> $userAccesses
  * @property-read \Illuminate\Database\Eloquent\Collection<int, AuthorizationCode> $authorizationCodes
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Token> $tokens
  * @property-read TokenPolicy|null $tokenPolicy
@@ -119,6 +120,14 @@ class SsoClient extends Model
         return $this->secrets()
             ->where('is_active', true)
             ->whereNull('revoked_at');
+    }
+
+    /**
+     * @return HasMany<ClientUserAccess, $this>
+     */
+    public function userAccesses(): HasMany
+    {
+        return $this->hasMany(ClientUserAccess::class, 'client_id')->latest('id');
     }
 
     /**

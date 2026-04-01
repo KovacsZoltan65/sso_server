@@ -62,6 +62,7 @@ class UserService
                 'global' => $filters['global'] ?? null,
                 'name' => $filters['name'] ?? null,
                 'email' => $filters['email'] ?? null,
+                'status' => $filters['status'] ?? null,
                 'verified' => $filters['verified'] ?? null,
                 'perPage' => $perPage,
             ],
@@ -101,7 +102,10 @@ class UserService
     public function createUser(array $payload): User
     {
         $user = $this->users->createWithRoles(
-            attributes: Arr::only($payload, ['name', 'email', 'password']),
+            attributes: [
+                ...Arr::only($payload, ['name', 'email', 'password']),
+                'is_active' => (bool) ($payload['is_active'] ?? true),
+            ],
             roles: array_values($payload['roles'] ?? []),
         );
 
@@ -116,8 +120,9 @@ class UserService
                 'updated_fields' => ['name', 'email', 'roles'],
                 'changed_attributes' => [
                     'roles' => $user->roleNames(),
+                    'is_active' => (bool) $user->is_active,
                 ],
-                'status' => $user->email_verified_at === null ? 'unverified' : 'verified',
+                'status' => $user->is_active ? 'active' : 'inactive',
             ],
         );
 
@@ -132,7 +137,10 @@ class UserService
         $previousRoles = $user->roleNames();
         $updatedUser = $this->users->updateWithRoles(
             user: $user,
-            attributes: Arr::only($payload, ['name', 'email']),
+            attributes: [
+                ...Arr::only($payload, ['name', 'email']),
+                'is_active' => (bool) ($payload['is_active'] ?? $user->is_active),
+            ],
             roles: array_values($payload['roles'] ?? []),
         );
 
@@ -146,12 +154,13 @@ class UserService
             causer: auth()->user(),
             properties: [
                 'target_user_id' => $updatedUser->id,
-                'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'email', 'roles']))),
+                'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'email', 'roles', 'is_active']))),
                 'changed_attributes' => [
                     'attached_roles' => array_values(array_diff($currentRoles, $previousRoles)),
                     'detached_roles' => array_values(array_diff($previousRoles, $currentRoles)),
+                    'is_active' => (bool) $updatedUser->is_active,
                 ],
-                'status' => $updatedUser->email_verified_at === null ? 'unverified' : 'verified',
+                'status' => $updatedUser->is_active ? 'active' : 'inactive',
             ],
         );
 

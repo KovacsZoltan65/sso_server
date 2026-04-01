@@ -29,6 +29,7 @@ describe('Admin Users modals', () => {
             message: 'User created successfully.',
             type: 'create',
         });
+        expect(form.is_active).toBe(true);
         expect(wrapper.emitted('update:visible')?.at(-1)).toEqual([false]);
     });
 
@@ -40,6 +41,7 @@ describe('Admin Users modals', () => {
                     id: 7,
                     name: 'Taylor',
                     email: 'taylor@example.com',
+                    isActive: false,
                     roles: ['admin'],
                 },
                 roleOptions: [{ label: 'Admin', value: 'admin' }],
@@ -55,6 +57,7 @@ describe('Admin Users modals', () => {
 
         expect(form.name).toBe('Taylor');
         expect(form.email).toBe('taylor@example.com');
+        expect(form.is_active).toBe(false);
         expect(form.roles).toEqual(['admin']);
 
         await wrapper.find('form').trigger('submit.prevent');
@@ -70,11 +73,13 @@ describe('Admin Users modals', () => {
         const form = {
             name: 'Taylor',
             email: 'taylor@example.com',
+            is_active: true,
             roles: [],
             password: '',
             password_confirmation: '',
             errors: {
                 email: 'Email is required.',
+                is_active: 'The is active field must be true or false.',
             },
         };
 
@@ -89,14 +94,21 @@ describe('Admin Users modals', () => {
         expect(wrapper.text()).toContain('Name');
         expect(wrapper.text()).toContain('Email');
         expect(wrapper.text()).toContain('Roles');
+        expect(wrapper.text()).toContain('User is active');
         expect(wrapper.text()).toContain('Password');
         expect(wrapper.text()).toContain('Confirm password');
         expect(wrapper.text()).toContain('Email is required.');
+        expect(wrapper.text()).toContain('The is active field must be true or false.');
 
         const select = wrapper.find('select');
         await select.setValue(['admin']);
         await nextTick();
 
         expect(form.roles).toEqual(['admin']);
+
+        const checkbox = wrapper.find('input[type="checkbox"]');
+        await checkbox.setValue(false);
+
+        expect(form.is_active).toBe(false);
     });
 });

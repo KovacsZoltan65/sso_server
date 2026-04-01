@@ -24,6 +24,7 @@ class UserUpdateRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', Rule::unique('users', 'email')->ignore($user->id)],
+            'is_active' => ['required', 'boolean'],
             'roles' => ['nullable', 'array'],
             'roles.*' => ['string', Rule::exists('roles', 'name')->where('guard_name', 'web')],
         ];
