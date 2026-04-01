@@ -1,6 +1,7 @@
 <?php
 
 namespace App\Providers;
+use App\Models\AuditLog;
 use App\Models\ClientUserAccess;
 use App\Models\SsoClient;
 use App\Models\Scope;
@@ -18,6 +19,7 @@ use App\Policies\TokenPolicyPolicy;
 use App\Policies\UserPolicy;
 use App\Repositories\ClientUserAccessRepository;
 use App\Repositories\ClientRepository;
+use App\Repositories\Contracts\AuditLogRepositoryInterface;
 use App\Repositories\Contracts\ClientUserAccessRepositoryInterface;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
@@ -25,6 +27,7 @@ use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\ScopeRepositoryInterface;
 use App\Repositories\Contracts\TokenPolicyRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\AuditLogRepository;
 use App\Repositories\PermissionRepository;
 use App\Repositories\RoleRepository;
 use App\Repositories\ScopeRepository;
@@ -54,6 +57,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(RoleRepositoryInterface::class, RoleRepository::class);
         $this->app->bind(ClientRepositoryInterface::class, ClientRepository::class);
         $this->app->bind(ClientUserAccessRepositoryInterface::class, ClientUserAccessRepository::class);
+        $this->app->bind(AuditLogRepositoryInterface::class, AuditLogRepository::class);
         $this->app->bind(ScopeRepositoryInterface::class, ScopeRepository::class);
         $this->app->bind(TokenPolicyRepositoryInterface::class, TokenPolicyRepository::class);
         $this->app->bind(TokenRepositoryInterface::class, TokenRepository::class);
@@ -72,6 +76,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Scope::class, ScopePolicy::class);
         Gate::policy(Token::class, TokenModelPolicy::class);
         Gate::policy(TokenPolicy::class, TokenPolicyPolicy::class);
+        Gate::policy(AuditLog::class, AuditLogPolicy::class);
         Gate::policy(AuditLogPage::class, AuditLogPolicy::class);
 
         $this->configureRateLimiting();

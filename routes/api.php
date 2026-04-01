@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\Admin\AuditLogController as AdminAuditLogController;
 use App\Http\Controllers\Api\SelfServiceProfileController;
 use App\Http\Controllers\Api\ClientUserAccessController;
 use App\Http\Controllers\OAuth\OAuthIntrospectController;
@@ -31,6 +32,11 @@ Route::middleware(['web', 'auth'])->prefix('/profile')->name('profile.')->group(
 });
 
 Route::middleware(['web', 'auth'])->group(function () {
+    Route::controller(AdminAuditLogController::class)->prefix('/admin/audit-logs')->name('api.admin.audit-logs.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/{auditLog}', 'show')->name('show');
+    });
+
     Route::controller(ClientUserAccessController::class)->name('api.client-user-access.')->group(function () {
         Route::get('/client-user-access', 'index')->name('index');
         Route::post('/client-user-access', 'store')->name('store');

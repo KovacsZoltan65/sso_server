@@ -1,7 +1,7 @@
 import { config } from '@vue/test-utils';
 import { defineComponent, h, inject, provide, ref } from 'vue';
 import { afterEach, beforeEach, vi } from 'vitest';
-import { axiosDelete, axiosPost, axiosPut, resetAxiosMocks } from './mocks/axios';
+import { axiosDelete, axiosGet, axiosPost, axiosPut, resetAxiosMocks } from './mocks/axios';
 import { createMockForm, getPage, resetInertiaMocks, router } from './mocks/inertia';
 import { confirmClose, confirmRequire, resetPrimeVueMocks, toastAdd } from './mocks/primevue';
 
@@ -422,6 +422,7 @@ vi.mock('@inertiajs/vue3', async () => {
 
 vi.mock('axios', () => ({
     default: {
+        get: axiosGet,
         delete: axiosDelete,
         post: axiosPost,
         put: axiosPut,

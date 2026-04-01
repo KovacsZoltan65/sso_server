@@ -27,10 +27,28 @@ export const axiosPut = vi.fn(async () => ({
     },
 }));
 
+export const axiosGet = vi.fn(async () => ({
+    data: {
+        message: 'Operation completed successfully.',
+        data: {},
+        meta: {},
+        errors: {},
+    },
+}));
+
 export const resetAxiosMocks = () => {
+    axiosGet.mockReset();
     axiosDelete.mockReset();
     axiosPost.mockReset();
     axiosPut.mockReset();
+    axiosGet.mockResolvedValue({
+        data: {
+            message: 'Operation completed successfully.',
+            data: {},
+            meta: {},
+            errors: {},
+        },
+    });
     axiosDelete.mockResolvedValue({
         data: {
             message: 'Operation completed successfully.',

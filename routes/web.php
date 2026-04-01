@@ -1,10 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ClientUserAccessPageController;
 use App\Http\Controllers\Admin\PermissionController;
-use App\Http\Controllers\Admin\PlaceholderPageController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TokenController as AdminTokenController;
@@ -98,9 +98,8 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/tokens/families/{familyId}/revoke', 'revokeFamily')->name('revoke-family');
         });
 
-        // PlaceholderPageController routes
-        Route::controller(PlaceholderPageController::class)->group(function () {
-            Route::get('/audit-logs', 'auditLogs')->name('audit-logs.index');
+        Route::controller(AuditLogController::class)->name('audit-logs.')->group(function () {
+            Route::get('/audit-logs', 'index')->name('index');
         });
     });
 

@@ -31,9 +31,9 @@ it('allows audit log page access for users with audit log permission', function 
         ->get(route('admin.audit-logs.index'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('Admin/PlaceholderPage')
-            ->where('page.key', 'audit-logs')
-            ->where('page.permission', 'audit-logs.viewAny'));
+            ->component('AuditLogs/Index')
+            ->has('rows')
+            ->has('filterOptions.categories'));
 });
 
 it('forbids audit log page access for authenticated users without permission', function () {
