@@ -1,5 +1,5 @@
 <script setup>
-import Button from 'primevue/button';
+import Button from "primevue/button";
 
 defineProps({
     canCreate: {
@@ -8,7 +8,7 @@ defineProps({
     },
     createLabel: {
         type: String,
-        default: 'Create',
+        default: "Create",
     },
     canBulkDelete: {
         type: Boolean,
@@ -16,7 +16,7 @@ defineProps({
     },
     bulkDeleteLabel: {
         type: String,
-        default: 'Delete Selected',
+        default: "Delete Selected",
     },
     selectedCount: {
         type: Number,
@@ -32,7 +32,7 @@ defineProps({
     },
 });
 
-defineEmits(['create', 'bulk-delete', 'refresh']);
+defineEmits(["create", "bulk-delete", "refresh"]);
 </script>
 
 <template>
@@ -45,10 +45,14 @@ defineEmits(['create', 'bulk-delete', 'refresh']);
             <span v-if="selectedCount" class="text-sm text-slate-500">
                 {{ selectedCount }} selected
             </span>
-            <span v-else-if="canBulkDelete && selectableCount === 0" class="text-sm text-slate-500">
+            <span
+                v-else-if="canBulkDelete && selectableCount === 0"
+                class="text-sm text-slate-500"
+            >
                 No deletable records on this page
             </span>
 
+            <!-- Refresh -->
             <Button
                 label="Refresh"
                 icon="pi pi-refresh"
@@ -59,6 +63,7 @@ defineEmits(['create', 'bulk-delete', 'refresh']);
                 @click="$emit('refresh')"
             />
 
+            <!-- Bulk Delete -->
             <Button
                 v-if="canBulkDelete"
                 :label="bulkDeleteLabel"
@@ -69,10 +74,12 @@ defineEmits(['create', 'bulk-delete', 'refresh']);
                 @click="$emit('bulk-delete')"
             />
 
+            <!-- Create -->
             <Button
                 v-if="canCreate"
                 :label="createLabel"
                 icon="pi pi-plus"
+                severity="info"
                 :disabled="busy"
                 @click="$emit('create')"
             />
