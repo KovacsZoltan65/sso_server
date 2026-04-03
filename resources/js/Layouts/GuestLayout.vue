@@ -19,33 +19,33 @@ defineProps({
                     <i class="pi pi-shield"></i>
                 </div>
                 <div>
-                    <div class="text-xs uppercase tracking-[0.35em] text-sky-200/80">Central Auth</div>
-                    <div class="text-2xl font-semibold">sso_server</div>
+                    <div class="text-xs uppercase tracking-[0.35em] text-sky-200/80">Secure Access</div>
+                    <div class="text-2xl font-semibold">Account sign in</div>
                 </div>
             </div>
 
             <div class="max-w-xl">
-                <div class="eyebrow !text-sky-200/90">Foundation</div>
+                <div class="eyebrow !text-sky-200/90">Authentication</div>
                 <h1 class="mt-4 text-5xl font-semibold leading-tight">
-                    Secure the identity edge before the SSO modules land.
+                    Sign in to continue securely.
                 </h1>
                 <p class="mt-6 text-lg leading-8 text-slate-300">
-                    Laravel 13, Inertia, Vue 3, PrimeVue, permissions, repositories, DTOs, and audit logging are ready for controlled expansion.
+                    Your account is protected through the central authentication service.
                 </p>
             </div>
 
             <div class="grid gap-4 md:grid-cols-3">
                 <div class="rounded-3xl border border-white/10 bg-white/5 p-5">
-                    <div class="text-xs uppercase tracking-[0.24em] text-sky-200/80">Roles</div>
-                    <div class="mt-3 text-sm text-slate-300">Seeded `superadmin` and `admin` access baselines.</div>
+                    <div class="text-xs uppercase tracking-[0.24em] text-sky-200/80">Access</div>
+                    <div class="mt-3 text-sm text-slate-300">Only authorized accounts can continue beyond this screen.</div>
                 </div>
                 <div class="rounded-3xl border border-white/10 bg-white/5 p-5">
-                    <div class="text-xs uppercase tracking-[0.24em] text-sky-200/80">Audit</div>
-                    <div class="mt-3 text-sm text-slate-300">Login, logout, and profile events are ready to log.</div>
+                    <div class="text-xs uppercase tracking-[0.24em] text-sky-200/80">Security</div>
+                    <div class="mt-3 text-sm text-slate-300">Authentication events are handled with the same security standards as the rest of the platform.</div>
                 </div>
                 <div class="rounded-3xl border border-white/10 bg-white/5 p-5">
-                    <div class="text-xs uppercase tracking-[0.24em] text-sky-200/80">Scale</div>
-                    <div class="mt-3 text-sm text-slate-300">Modular routes and placeholders prepared for SSO domain expansion.</div>
+                    <div class="text-xs uppercase tracking-[0.24em] text-sky-200/80">Trust</div>
+                    <div class="mt-3 text-sm text-slate-300">Use your existing account details to sign in safely and continue.</div>
                 </div>
             </div>
         </section>
@@ -53,7 +53,7 @@ defineProps({
         <section class="flex items-center justify-center px-5 py-10 sm:px-8 lg:px-12">
             <div class="w-full max-w-xl">
                 <div class="surface-card px-6 py-8 sm:px-10 sm:py-10">
-                    <div class="eyebrow">Authentication</div>
+                    <div class="eyebrow">Sign in</div>
                     <h2 class="section-title mt-2">{{ title }}</h2>
                     <p v-if="description" class="section-copy mt-2">{{ description }}</p>
 

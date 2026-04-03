@@ -19,8 +19,8 @@ defineProps({
 });
 
 const form = useForm({
-    email: "superadmin@sso.test",
-    password: "password",
+    email: "",
+    password: "",
     remember: false,
 });
 
@@ -35,8 +35,8 @@ const submit = () => {
     <Head title="Log in" />
 
     <GuestLayout
-        title="Sign in to the admin shell"
-        description="Use one of the seeded operator accounts or your own Breeze-authenticated account."
+        title="Sign in"
+        description="Sign in to continue."
     >
         <Message v-if="status" severity="success" class="mb-5">{{ status }}</Message>
 
@@ -98,11 +98,6 @@ const submit = () => {
                 class="w-full justify-center"
                 :loading="form.processing"
             />
-
-            <div class="rounded-2xl bg-slate-50 px-4 py-4 text-sm text-slate-600">
-                Seeded accounts: `superadmin@sso.test` / `password`, `admin@sso.test` /
-                `password`.
-            </div>
         </form>
     </GuestLayout>
 </template>
