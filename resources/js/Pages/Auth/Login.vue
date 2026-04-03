@@ -1,5 +1,5 @@
 <script setup>
-import GuestLayout from "@/Layouts/GuestLayout.vue";
+import PublicAuthLayout from "@/Layouts/PublicAuthLayout.vue";
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
@@ -34,10 +34,7 @@ const submit = () => {
 <template>
     <Head title="Log in" />
 
-    <GuestLayout
-        title="Sign in"
-        description="Sign in to continue."
-    >
+    <PublicAuthLayout title="Sign in" description="Sign in to your account to continue.">
         <Message v-if="status" severity="success" class="mb-5">{{ status }}</Message>
 
         <form class="space-y-5" @submit.prevent="submit">
@@ -93,11 +90,11 @@ const submit = () => {
 
             <Button
                 type="submit"
-                label="Log in"
+                label="Sign in"
                 icon="pi pi-sign-in"
                 class="w-full justify-center"
                 :loading="form.processing"
             />
         </form>
-    </GuestLayout>
+    </PublicAuthLayout>
 </template>

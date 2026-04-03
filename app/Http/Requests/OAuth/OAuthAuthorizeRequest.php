@@ -21,7 +21,7 @@ class OAuthAuthorizeRequest extends FormRequest
             'scope' => ['nullable', 'string', 'max:1000'],
             'state' => ['nullable', 'string', 'max:1000'],
             'code_challenge' => ['nullable', 'string', 'max:255'],
-            'code_challenge_method' => ['nullable', 'string', Rule::in(['plain', 'S256'])],
+            'code_challenge_method' => ['nullable', 'string', Rule::in(['S256'])],
         ];
     }
 
@@ -45,6 +45,10 @@ class OAuthAuthorizeRequest extends FormRequest
 
             if ($challenge !== '' && $challenge !== null && ($method === '' || $method === null)) {
                 $validator->errors()->add('code_challenge_method', 'The code challenge method field is required when code challenge is present.');
+            }
+
+            if (($method !== '' && $method !== null) && ($challenge === '' || $challenge === null)) {
+                $validator->errors()->add('code_challenge', 'The code challenge field is required when code challenge method is present.');
             }
         });
     }

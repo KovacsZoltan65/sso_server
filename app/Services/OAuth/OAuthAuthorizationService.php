@@ -24,7 +24,7 @@ use Illuminate\Validation\ValidationException;
  * }
  * @phpstan-type AuthorizationApproval array{
  *     redirect_url: string,
- *     code: string,
+ *     code: string|null,
  *     client: SsoClient,
  *     scopes: array<int, string>
  * }
@@ -113,6 +113,12 @@ class OAuthAuthorizationService
             ]);
         }
 
+        if ($codeChallenge !== '' && $codeChallengeMethod !== 'S256') {
+            throw ValidationException::withMessages([
+                'code_challenge_method' => 'The code challenge method must be S256.',
+            ]);
+        }
+
         $accessDecision = $this->clientUserAccessService->evaluateUserAccess($user, $client);
 
         if (! $accessDecision['allowed']) {
@@ -133,7 +139,17 @@ class OAuthAuthorizationService
                 ],
             );
 
-            abort(403, 'You are not allowed to access this client.');
+            return [
+                'redirect_url' => $this->buildAuthorizationErrorRedirect(
+                    redirectUri: $redirectUri,
+                    error: 'access_denied',
+                    description: 'Access to this client was denied.',
+                    state: Arr::get($payload, 'state'),
+                ),
+                'code' => null,
+                'client' => $client,
+                'scopes' => $requestedScopes,
+            ];
         }
 
         $plainCode = Str::random(64);
@@ -178,6 +194,21 @@ class OAuthAuthorizationService
             'client' => $client,
             'scopes' => $requestedScopes,
         ];
+    }
+
+    private function buildAuthorizationErrorRedirect(
+        string $redirectUri,
+        string $error,
+        ?string $description = null,
+        ?string $state = null,
+    ): string {
+        $query = array_filter([
+            'error' => $error,
+            'error_description' => $description,
+            'state' => $state,
+        ], static fn ($value) => $value !== null && $value !== '');
+
+        return $redirectUri.(str_contains($redirectUri, '?') ? '&' : '?').http_build_query($query);
     }
 
     /**

@@ -9,16 +9,18 @@ class PkceVerifier
     public function verify(?string $challenge, ?string $method, string $verifier): void
     {
         if ($challenge === null || $challenge === '') {
-            return;
+            throw ValidationException::withMessages([
+                'code_verifier' => 'A PKCE code challenge is required for authorization code exchange.',
+            ]);
         }
 
-        $computed = match ($method) {
-            null, '', 'plain' => $verifier,
-            'S256' => rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '='),
-            default => throw ValidationException::withMessages([
+        if ($method !== 'S256') {
+            throw ValidationException::withMessages([
                 'code_verifier' => 'Unsupported PKCE code challenge method.',
-            ]),
-        };
+            ]);
+        }
+
+        $computed = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
         if (! hash_equals($challenge, $computed)) {
             throw ValidationException::withMessages([

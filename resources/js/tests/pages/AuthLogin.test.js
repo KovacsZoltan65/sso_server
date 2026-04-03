@@ -16,7 +16,7 @@ describe('Auth/Login', () => {
             },
             global: {
                 stubs: {
-                    GuestLayout: {
+                    PublicAuthLayout: {
                         props: ['title', 'description'],
                         template: '<div><slot /></div>',
                     },
@@ -31,9 +31,12 @@ describe('Auth/Login', () => {
 
         expect(form.email).toBe('');
         expect(form.password).toBe('');
+        expect(wrapper.text()).toContain('Email');
+        expect(wrapper.text()).toContain('Password');
         expect(wrapper.text()).not.toContain('superadmin@sso.test');
         expect(wrapper.text()).not.toContain('Seeded accounts');
         expect(wrapper.text()).not.toContain('admin shell');
+        expect(wrapper.text()).not.toContain('Manage authentication system');
 
         await wrapper.get('#email').setValue('user@example.com');
         await wrapper.get('#password').setValue('secret');

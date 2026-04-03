@@ -115,9 +115,17 @@ it('denies authorization for restricted clients when the user is not explicitly 
         'is_active' => true,
     ]);
 
-    $this->actingAs($blockedUser)
-        ->get(route('oauth.authorize', authorizeParams($client)))
-        ->assertForbidden();
+    $response = $this->actingAs($blockedUser)
+        ->get(route('oauth.authorize', authorizeParams($client)));
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    expect($location)->not->toBeNull();
+    expect($location)->toContain('https://portal.example.com/callback');
+    expect($location)->toContain('error=access_denied');
+    expect($location)->toContain('error_description=Access+to+this+client+was+denied.');
+    expect($location)->toContain('state=client-access-state');
 
     expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('missing_active_access');
     expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
@@ -127,9 +135,15 @@ it('denies inactive users from authorizing clients', function () {
     $client = accessControlledOauthClient();
     $user = User::factory()->create(['is_active' => false]);
 
-    $this->actingAs($user)
-        ->get(route('oauth.authorize', authorizeParams($client)))
-        ->assertForbidden();
+    $response = $this->actingAs($user)
+        ->get(route('oauth.authorize', authorizeParams($client)));
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    expect($location)->not->toBeNull();
+    expect($location)->toContain('error=access_denied');
+    expect($location)->toContain('state=client-access-state');
 
     expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('inactive_user');
 });
@@ -157,9 +171,15 @@ it('denies authorization before allowed_from', function () {
         'allowed_from' => now()->addHour(),
     ]);
 
-    $this->actingAs($user)
-        ->get(route('oauth.authorize', authorizeParams($client)))
-        ->assertForbidden();
+    $response = $this->actingAs($user)
+        ->get(route('oauth.authorize', authorizeParams($client)));
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    expect($location)->not->toBeNull();
+    expect($location)->toContain('error=access_denied');
+    expect($location)->toContain('state=client-access-state');
 
     expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('before_allowed_from');
 });
@@ -175,9 +195,15 @@ it('denies authorization after allowed_until expires', function () {
         'allowed_until' => now()->subMinute(),
     ]);
 
-    $this->actingAs($user)
-        ->get(route('oauth.authorize', authorizeParams($client)))
-        ->assertForbidden();
+    $response = $this->actingAs($user)
+        ->get(route('oauth.authorize', authorizeParams($client)));
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    expect($location)->not->toBeNull();
+    expect($location)->toContain('error=access_denied');
+    expect($location)->toContain('state=client-access-state');
 
     expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('after_allowed_until');
 });
@@ -214,9 +240,11 @@ it('audits denied authorization attempts caused by client access restrictions', 
         'is_active' => true,
     ]);
 
-    $this->actingAs($user)
-        ->get(route('oauth.authorize', authorizeParams($client)))
-        ->assertForbidden();
+    $response = $this->actingAs($user)
+        ->get(route('oauth.authorize', authorizeParams($client)));
+
+    $response->assertRedirect();
+    expect($response->headers->get('Location'))->toContain('error=access_denied');
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',

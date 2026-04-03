@@ -174,6 +174,49 @@ it('rejects authorize requests when the client is invalid with a validation erro
     ]);
 });
 
+it('rejects authorize requests when the code challenge method is plain', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'plain-method-state',
+        'code_challenge' => 'plain-verifier-value',
+        'code_challenge_method' => 'plain',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'code_challenge_method' => 'The selected code challenge method is invalid.',
+        ]);
+
+    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+});
+
+it('rejects authorize requests when the code challenge method is missing', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'missing-method-state',
+        'code_challenge' => $challenge,
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'code_challenge_method' => 'The code challenge method field is required when code challenge is present.',
+        ]);
+
+    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+});
+
 it('exchanges authorization code for tokens with valid pkce verifier', function () {
     [$client, $policy, $plainSecret] = oauthClient();
     $user = User::factory()->create();
@@ -281,6 +324,37 @@ it('rejects token exchange when pkce verifier is invalid', function () {
         ->assertStatus(422)
         ->assertJsonPath('message', 'OAuth token request failed.')
         ->assertJsonStructure(['errors' => ['code_verifier']]);
+});
+
+it('rejects token exchange when the authorization code was issued without a PKCE challenge', function () {
+    [$client, , $plainSecret] = oauthClient([
+        'policy' => [
+            'pkce_required' => false,
+        ],
+    ]);
+    $user = User::factory()->create();
+
+    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'missing-pkce-state',
+    ]));
+
+    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $query['code'],
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => 'plain-test-verifier-123456789',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.code_verifier.0', 'A PKCE code challenge is required for authorization code exchange.');
 });
 
 it('rotates refresh token on refresh grant when policy requires rotation', function () {
