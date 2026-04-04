@@ -1,11 +1,13 @@
 <?php
 
+use App\Models\AuthorizationCode;
 use App\Models\ClientUserAccess;
 use App\Models\Scope;
 use App\Models\SsoClient;
 use App\Models\TokenPolicy;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function (): void {
@@ -75,12 +77,14 @@ it('allows authorization for open clients without access records', function () {
 
     $response = $this->actingAs($user)->get(route('oauth.authorize', authorizeParams($client)));
 
-    $response->assertRedirect();
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OAuth/Consent')
+            ->where('client.name', 'Portal Client')
+            ->has('consentToken'));
 
-    $this->assertDatabaseHas('authorization_codes', [
-        'sso_client_id' => $client->id,
-        'user_id' => $user->id,
-    ]);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('allows authorization for restricted clients only when the user has an active access record', function () {
@@ -96,12 +100,14 @@ it('allows authorization for restricted clients only when the user has an active
 
     $response = $this->actingAs($allowedUser)->get(route('oauth.authorize', authorizeParams($client)));
 
-    $response->assertRedirect();
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OAuth/Consent')
+            ->where('client.name', 'Portal Client')
+            ->has('consentToken'));
 
-    $this->assertDatabaseHas('authorization_codes', [
-        'sso_client_id' => $client->id,
-        'user_id' => $allowedUser->id,
-    ]);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('denies authorization for restricted clients when the user is not explicitly allowed', function () {
@@ -128,7 +134,7 @@ it('denies authorization for restricted clients when the user is not explicitly 
     expect($location)->toContain('state=client-access-state');
 
     expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('missing_active_access');
-    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('denies inactive users from authorizing clients', function () {
@@ -222,11 +228,14 @@ it('allows authorization inside an active date window', function () {
 
     $response = $this->actingAs($user)->get(route('oauth.authorize', authorizeParams($client)));
 
-    $response->assertRedirect();
-    $this->assertDatabaseHas('authorization_codes', [
-        'sso_client_id' => $client->id,
-        'user_id' => $user->id,
-    ]);
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OAuth/Consent')
+            ->where('client.name', 'Portal Client')
+            ->has('consentToken'));
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('audits denied authorization attempts caused by client access restrictions', function () {

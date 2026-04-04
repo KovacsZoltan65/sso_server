@@ -1,14 +1,19 @@
 <?php
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Models\AuthorizationCode;
 use App\Models\ClientSecret;
 use App\Models\Scope;
 use App\Models\SsoClient;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Models\UserClientConsent;
+use App\Services\OAuth\OAuthAuthorizationService;
+use App\Services\OAuth\OAuthRememberedConsentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
 
 beforeEach(function (): void {
@@ -38,6 +43,7 @@ function oauthClient(array $overrides = []): array
         'client_id' => 'client_portal_'.fake()->unique()->numerify('###'),
         'token_policy_id' => $policy->id,
         'is_active' => true,
+        ...($overrides['client'] ?? []),
     ]);
 
     $client->redirectUris()->create([
@@ -58,7 +64,27 @@ function oauthClient(array $overrides = []): array
     return [$client->fresh(['redirectUris', 'scopes', 'tokenPolicy']), $policy, $plainSecret];
 }
 
-it('issues an authorization code and redirects back to the registered callback', function () {
+function issueAuthorizationCodeForOauthClient(User $user, SsoClient $client, array $overrides = []): array
+{
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $payload = array_merge([
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'oauth-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ], $overrides);
+
+    $result = app(OAuthAuthorizationService::class)->approve($user, $payload);
+
+    return [$result['code'], $verifier, $payload];
+}
+
+it('renders the consent page and stores a consent context for valid authorize requests', function () {
     [$client] = oauthClient();
     $user = User::factory()->create();
     $verifier = 'plain-test-verifier-123456789';
@@ -74,14 +100,72 @@ it('issues an authorization code and redirects back to the registered callback',
         'code_challenge_method' => 'S256',
     ]));
 
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OAuth/Consent')
+            ->where('type', 'consent')
+            ->where('client.name', 'Portal Client')
+            ->where('scopes.0.name', 'OpenID')
+            ->where('scopes.1.name', 'Profile')
+            ->where('summary.title', 'Portal Client is requesting access to your account.')
+            ->has('consentToken'));
+
+    $consentToken = $response->viewData('page')['props']['consentToken'] ?? null;
+    $storedContext = session('oauth.consent_contexts.'.$consentToken);
+
+    expect($consentToken)->not->toBeNull()
+        ->and($storedContext['client_id'] ?? null)->toBe($client->client_id)
+        ->and($storedContext['user_id'] ?? null)->toBe($user->id)
+        ->and($storedContext['state'] ?? null)->toBe('abc123');
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.trust_decision.show_consent',
+        'description' => 'OAuth trust policy decision evaluated.',
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.remembered_consent.not_used',
+        'description' => 'OAuth remembered consent decision evaluated.',
+    ]);
+});
+
+it('skips consent for trusted first-party clients when bypass is allowed', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_TRUSTED,
+            'is_first_party' => true,
+            'consent_bypass_allowed' => true,
+        ],
+    ]);
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $response = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'skip-consent-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
     $response->assertRedirect();
     $location = $response->headers->get('Location');
 
-    expect($location)->toStartWith('https://portal.example.com/callback?');
+    expect($location)->not->toBeNull()
+        ->and($location)->toStartWith('https://portal.example.com/callback?');
+
     parse_str(parse_url($location, PHP_URL_QUERY) ?: '', $query);
 
-    expect($query['state'] ?? null)->toBe('abc123');
-    expect($query['code'] ?? null)->not->toBeNull();
+    expect($query['code'] ?? null)->not->toBeNull()
+        ->and($query['state'] ?? null)->toBe('skip-consent-state');
 
     $this->assertDatabaseHas('authorization_codes', [
         'sso_client_id' => $client->id,
@@ -89,10 +173,191 @@ it('issues an authorization code and redirects back to the registered callback',
         'code_hash' => hash('sha256', (string) $query['code']),
     ]);
 
+    expect(session('oauth.consent_contexts', []))->toBe([]);
+
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.authorization_code.issued',
-        'description' => 'OAuth authorization code issued.',
+        'event' => 'oauth.trust_decision.skip_consent',
+        'description' => 'OAuth trust policy decision evaluated.',
+    ]);
+});
+
+it('denies interactive authorization for machine-to-machine trust tier clients', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'trust_tier' => SsoClient::TRUST_TIER_MACHINE_TO_MACHINE,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ],
+    ]);
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $response = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'machine-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    expect($location)->not->toBeNull();
+    expect($location)->toContain('https://portal.example.com/callback');
+    expect($location)->toContain('error=access_denied');
+    expect($location)->toContain('state=machine-state');
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
+    expect(session('oauth.consent_contexts', []))->toBe([]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.trust_decision.deny_authorization',
+        'description' => 'OAuth trust policy decision evaluated.',
+    ]);
+});
+
+it('skips consent by reusing remembered consent when trust decision would otherwise show consent', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ],
+    ]);
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    app(OAuthRememberedConsentService::class)->storeApprovedConsent(
+        user: $user,
+        client: $client,
+        scopeCodes: ['openid', 'profile'],
+        redirectUri: 'https://portal.example.com/callback',
+    );
+
+    $response = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'remembered-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    expect($location)->not->toBeNull()
+        ->and($location)->toStartWith('https://portal.example.com/callback?');
+
+    parse_str(parse_url($location, PHP_URL_QUERY) ?: '', $query);
+
+    expect($query['code'] ?? null)->not->toBeNull()
+        ->and($query['state'] ?? null)->toBe('remembered-state');
+
+    expect(AuthorizationCode::query()->count())->toBe(1);
+    expect(UserClientConsent::query()->count())->toBe(1);
+    expect(session('oauth.consent_contexts', []))->toBe([]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.remembered_consent.used',
+        'description' => 'OAuth remembered consent decision evaluated.',
+    ]);
+});
+
+it('renders consent when remembered consent exists but scope does not exactly match', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ],
+    ]);
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    app(OAuthRememberedConsentService::class)->storeApprovedConsent(
+        user: $user,
+        client: $client,
+        scopeCodes: ['openid'],
+        redirectUri: 'https://portal.example.com/callback',
+    );
+
+    $response = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'scope-mismatch-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OAuth/Consent')
+            ->where('client.name', 'Portal Client')
+            ->has('consentToken'));
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.remembered_consent.mismatch',
+        'description' => 'OAuth remembered consent decision evaluated.',
+    ]);
+});
+
+it('does not let remembered consent override trust-based deny decisions', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'trust_tier' => SsoClient::TRUST_TIER_MACHINE_TO_MACHINE,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ],
+    ]);
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    app(OAuthRememberedConsentService::class)->storeApprovedConsent(
+        user: $user,
+        client: $client,
+        scopeCodes: ['openid', 'profile'],
+        redirectUri: 'https://portal.example.com/callback',
+    );
+
+    $response = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'deny-before-remembered',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    expect($location)->not->toBeNull();
+    expect($location)->toContain('error=access_denied');
+    expect($location)->toContain('state=deny-before-remembered');
+    expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $this->assertDatabaseMissing('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.remembered_consent.used',
     ]);
 });
 
@@ -116,7 +381,7 @@ it('rejects authorize requests when the redirect uri does not strictly match the
             'redirect_uri' => 'The redirect URI does not match the registered client redirect URIs.',
         ]);
 
-    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('rejects authorize requests when the client requests a scope it is not allowed to use', function () {
@@ -145,7 +410,7 @@ it('rejects authorize requests when the client requests a scope it is not allowe
             'scope' => 'The requested scope [email] is not allowed for this client.',
         ]);
 
-    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('rejects authorize requests when the client is invalid with a validation error instead of 404', function () {
@@ -192,7 +457,7 @@ it('rejects authorize requests when the code challenge method is plain', functio
             'code_challenge_method' => 'The selected code challenge method is invalid.',
         ]);
 
-    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('rejects authorize requests when the code challenge method is missing', function () {
@@ -214,7 +479,7 @@ it('rejects authorize requests when the code challenge method is missing', funct
             'code_challenge_method' => 'The code challenge method field is required when code challenge is present.',
         ]);
 
-    expect(\App\Models\AuthorizationCode::query()->count())->toBe(0);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
 it('exchanges authorization code for tokens with valid pkce verifier', function () {
@@ -223,23 +488,13 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
     $verifier = 'plain-test-verifier-123456789';
     $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
-        'response_type' => 'code',
-        'client_id' => $client->client_id,
-        'redirect_uri' => 'https://portal.example.com/callback',
-        'scope' => 'openid profile',
-        'state' => 'oauth-state',
-        'code_challenge' => $challenge,
-        'code_challenge_method' => 'S256',
-    ]));
-
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client);
 
     $tokenResponse = $this->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => $verifier,
     ]);
@@ -278,7 +533,7 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
     ]);
 
     $this->assertDatabaseHas('authorization_codes', [
-        'code_hash' => hash('sha256', $query['code']),
+        'code_hash' => hash('sha256', $code),
     ]);
     expect(Token::query()->count())->toBe(1);
 
@@ -302,22 +557,13 @@ it('rejects token exchange when pkce verifier is invalid', function () {
     $verifier = 'plain-test-verifier-123456789';
     $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
-        'response_type' => 'code',
-        'client_id' => $client->client_id,
-        'redirect_uri' => 'https://portal.example.com/callback',
-        'scope' => 'openid profile',
-        'code_challenge' => $challenge,
-        'code_challenge_method' => 'S256',
-    ]));
-
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client, ['state' => null]);
 
     $this->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => 'wrong-verifier',
     ])
@@ -334,21 +580,17 @@ it('rejects token exchange when the authorization code was issued without a PKCE
     ]);
     $user = User::factory()->create();
 
-    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
-        'response_type' => 'code',
-        'client_id' => $client->client_id,
-        'redirect_uri' => 'https://portal.example.com/callback',
-        'scope' => 'openid profile',
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client, [
         'state' => 'missing-pkce-state',
-    ]));
-
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+        'code_challenge' => null,
+        'code_challenge_method' => null,
+    ]);
 
     $this->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => 'plain-test-verifier-123456789',
     ])
@@ -363,22 +605,13 @@ it('rotates refresh token on refresh grant when policy requires rotation', funct
     $verifier = 'plain-test-verifier-123456789';
     $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
-        'response_type' => 'code',
-        'client_id' => $client->client_id,
-        'redirect_uri' => 'https://portal.example.com/callback',
-        'scope' => 'openid profile',
-        'code_challenge' => $challenge,
-        'code_challenge_method' => 'S256',
-    ]));
-
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client, ['state' => null]);
 
     $firstTokenResponse = $this->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => $verifier,
     ])->assertOk();
@@ -413,23 +646,13 @@ it('rejects replay when the same authorization code is exchanged twice', functio
     $verifier = 'plain-test-verifier-123456789';
     $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
-        'response_type' => 'code',
-        'client_id' => $client->client_id,
-        'redirect_uri' => 'https://portal.example.com/callback',
-        'scope' => 'openid profile',
-        'state' => 'replay-state',
-        'code_challenge' => $challenge,
-        'code_challenge_method' => 'S256',
-    ]));
-
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client, ['state' => 'replay-state']);
 
     $this->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => $verifier,
     ])->assertOk();
@@ -438,7 +661,7 @@ it('rejects replay when the same authorization code is exchanged twice', functio
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => $verifier,
     ])
@@ -459,19 +682,9 @@ it('rejects token exchange for an expired authorization code', function () {
     $verifier = 'plain-test-verifier-123456789';
     $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
-        'response_type' => 'code',
-        'client_id' => $client->client_id,
-        'redirect_uri' => 'https://portal.example.com/callback',
-        'scope' => 'openid profile',
-        'state' => 'expired-code-state',
-        'code_challenge' => $challenge,
-        'code_challenge_method' => 'S256',
-    ]));
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client, ['state' => 'expired-code-state']);
 
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
-
-    \App\Models\AuthorizationCode::query()->update([
+    AuthorizationCode::query()->update([
         'expires_at' => now()->subMinute(),
     ]);
 
@@ -479,7 +692,7 @@ it('rejects token exchange for an expired authorization code', function () {
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => $verifier,
     ])
@@ -488,7 +701,7 @@ it('rejects token exchange for an expired authorization code', function () {
         ->assertJsonPath('errors.code.0', 'The authorization code is expired, revoked, or already used.');
 });
 
-it('continues the intended authorize flow after login and returns an inertia external redirect', function () {
+it('continues the intended authorize flow after login and renders the consent page', function () {
     [$client] = oauthClient();
     $user = User::factory()->create();
     $verifier = 'plain-test-verifier-123456789';
@@ -530,28 +743,20 @@ it('continues the intended authorize flow after login and returns an inertia ext
     expect($loginQuery['code_challenge'] ?? null)->toBe($challenge);
     expect($loginQuery['code_challenge_method'] ?? null)->toBe('S256');
 
+    $this->flushHeaders();
+
     $response = $this
         ->actingAs($user)
-        ->withHeader('X-Inertia', 'true')
-        ->withHeader('X-Inertia-Version', (string) app(HandleInertiaRequests::class)->version(Request::create($loginRedirect, 'GET')))
-        ->withHeader('X-Requested-With', 'XMLHttpRequest')
         ->get($loginRedirect);
 
-    $response->assertStatus(409);
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OAuth/Consent')
+            ->where('client.name', 'Portal Client')
+            ->where('scopes.0.name', 'OpenID')
+            ->where('scopes.1.name', 'Profile')
+            ->has('consentToken'));
 
-    $location = $response->headers->get('X-Inertia-Location');
-
-    expect($location)->not->toBeNull()
-        ->and($location)->toStartWith('https://portal.example.com/callback?');
-
-    parse_str(parse_url($location, PHP_URL_QUERY) ?: '', $query);
-
-    expect($query['state'] ?? null)->toBe('local-dev-state');
-    expect($query['code'] ?? null)->not->toBeNull();
-
-    $this->assertDatabaseHas('authorization_codes', [
-        'sso_client_id' => $client->id,
-        'user_id' => $user->id,
-        'code_hash' => hash('sha256', (string) $query['code']),
-    ]);
+    expect(AuthorizationCode::query()->count())->toBe(0);
 });

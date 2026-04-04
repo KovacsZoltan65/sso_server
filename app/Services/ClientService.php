@@ -26,6 +26,9 @@ use Illuminate\Validation\ValidationException;
  *     name: string,
  *     is_active: bool,
  *     token_policy_id?: int|null,
+ *     trust_tier: string,
+ *     is_first_party: bool,
+ *     consent_bypass_allowed: bool,
  *     redirect_uris?: array<int, mixed>,
  *     scopes?: array<int, mixed>
  * }
@@ -42,6 +45,9 @@ use Illuminate\Validation\ValidationException;
  *     scopes: array<int, string>,
  *     scopesCount: int,
  *     tokenPolicyId: int|null,
+ *     trustTier: string,
+ *     isFirstParty: bool,
+ *     consentBypassAllowed: bool,
  *     createdAt: string,
  *     canDelete: bool
  * }
@@ -64,6 +70,9 @@ use Illuminate\Validation\ValidationException;
  *     isActive: bool,
  *     scopes: array<int, string>,
  *     tokenPolicyId: int|null,
+ *     trustTier: string,
+ *     isFirstParty: bool,
+ *     consentBypassAllowed: bool,
  *     secrets: array<int, ClientSecretView>
  * }
  */
@@ -133,7 +142,9 @@ class ClientService
     /**
      * @return array{
      *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
-     *     tokenPolicies: array<int, array{id: int, name: string}>
+     *     tokenPolicies: array<int, array{id: int, name: string}>,
+     *     trustTierOptions: array<int, array{label: string, value: string, helper: string}>,
+     *     defaults: array{trustTier: string, isFirstParty: bool, consentBypassAllowed: bool}
      * }
      */
     public function getCreatePayload(): array
@@ -141,6 +152,12 @@ class ClientService
         return [
             'scopeOptions' => ClientOptions::scopeOptions(),
             'tokenPolicies' => ClientOptions::tokenPolicies(),
+            'trustTierOptions' => ClientOptions::trustTierOptions(),
+            'defaults' => [
+                'trustTier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+                'isFirstParty' => false,
+                'consentBypassAllowed' => false,
+            ],
         ];
     }
 
@@ -149,6 +166,7 @@ class ClientService
      *     client: EditableClient,
      *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
      *     tokenPolicies: array<int, array{id: int, name: string}>,
+     *     trustTierOptions: array<int, array{label: string, value: string, helper: string}>,
      *     canManageSecrets: bool
      * }
      */
@@ -160,6 +178,7 @@ class ClientService
             'client' => $this->editableClient($client),
             'scopeOptions' => ClientOptions::scopeOptions(),
             'tokenPolicies' => ClientOptions::tokenPolicies(),
+            'trustTierOptions' => ClientOptions::trustTierOptions(),
             'canManageSecrets' => auth()->user()?->can(ClientPermissions::MANAGE_SECRETS)
                 || auth()->user()?->can(ClientPermissions::ROTATE_SECRET)
                 || auth()->user()?->can(ClientPermissions::REVOKE_SECRET)
@@ -181,7 +200,7 @@ class ClientService
             $scopeCodes = $this->sanitizeScopes($payload['scopes'] ?? []);
 
             $client = $this->clients->createClient([
-                ...Arr::only($payload, ['name', 'is_active', 'token_policy_id']),
+                ...Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed']),
                 'client_id' => $this->generateClientId(),
                 'client_secret_hash' => Hash::make($plainSecret),
                 'redirect_uris' => $redirectUris,
@@ -209,6 +228,9 @@ class ClientService
                     'redirect_uri_count' => count($redirectUris),
                     'scope_codes' => $scopeCodes,
                     'policy_id' => $client->token_policy_id,
+                    'trust_tier' => $client->trust_tier,
+                    'is_first_party' => (bool) $client->is_first_party,
+                    'consent_bypass_allowed' => (bool) $client->consent_bypass_allowed,
                     'status' => $client->is_active ? 'active' : 'inactive',
                 ],
             );
@@ -250,7 +272,7 @@ class ClientService
             $previousScopeCodes = $client->normalizedScopeCodes();
 
             $updatedClient = $this->clients->updateClient($client, [
-                ...Arr::only($payload, ['name', 'is_active', 'token_policy_id']),
+                ...Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed']),
                 'redirect_uris' => $redirectUris,
                 'scopes' => $scopeCodes,
             ]);
@@ -267,10 +289,13 @@ class ClientService
                 properties: [
                     'client_id' => $updatedClient->id,
                     'client_public_id' => $updatedClient->client_id,
-                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'redirect_uris', 'scopes']))),
+                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed', 'redirect_uris', 'scopes']))),
                     'redirect_uri_count' => count($redirectUris),
                     'scope_codes' => $scopeCodes,
                     'policy_id' => $updatedClient->token_policy_id,
+                    'trust_tier' => $updatedClient->trust_tier,
+                    'is_first_party' => (bool) $updatedClient->is_first_party,
+                    'consent_bypass_allowed' => (bool) $updatedClient->consent_bypass_allowed,
                     'status' => $updatedClient->is_active ? 'active' : 'inactive',
                 ],
             );
@@ -405,6 +430,9 @@ class ClientService
             'isActive' => (bool) $client->is_active,
             'scopes' => $client->normalizedScopeCodes(),
             'tokenPolicyId' => $client->token_policy_id,
+            'trustTier' => $client->trust_tier,
+            'isFirstParty' => (bool) $client->is_first_party,
+            'consentBypassAllowed' => (bool) $client->consent_bypass_allowed,
             'secrets' => $client->secrets
                 ->map(fn (ClientSecret $secret): array => [
                     'id' => $secret->id,

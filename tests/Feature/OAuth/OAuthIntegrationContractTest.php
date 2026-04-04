@@ -8,12 +8,16 @@ use App\Models\SsoClient;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Services\OAuth\OAuthAuthorizationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    $this->withoutVite();
+
     Scope::factory()->create(['name' => 'OpenID', 'code' => 'openid', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Profile', 'code' => 'profile', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Email', 'code' => 'email', 'is_active' => true]);
@@ -66,7 +70,25 @@ function integrationContractClient(array $scopeCodes = ['openid', 'profile', 'em
     return [$client->fresh(['redirectUris', 'scopes', 'tokenPolicy']), $policy, $plainSecret, $redirectUri];
 }
 
-it('documents the authorize success callback contract', function (): void {
+function issueIntegrationAuthorizationCode(User $user, SsoClient $client, string $redirectUri): array
+{
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $result = app(OAuthAuthorizationService::class)->approve($user, [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => $redirectUri,
+        'scope' => 'openid profile email',
+        'state' => 'contract-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]);
+
+    return [$result['code'], $verifier];
+}
+
+it('documents the authorize consent render contract', function (): void {
     [$client, , , $redirectUri] = integrationContractClient();
     $user = User::factory()->create();
     $verifier = 'plain-test-verifier-123456789';
@@ -82,44 +104,27 @@ it('documents the authorize success callback contract', function (): void {
         'code_challenge_method' => 'S256',
     ]));
 
-    $response->assertRedirect();
-
-    $location = $response->headers->get('Location');
-
-    expect($location)->not->toBeNull();
-    expect(parse_url($location, PHP_URL_PATH))->toBe('/auth/sso/callback');
-
-    parse_str(parse_url($location, PHP_URL_QUERY) ?: '', $query);
-
-    expect($query)->toHaveKeys(['code', 'state'])
-        ->and($query['state'])->toBe('expected-state-value')
-        ->and($query['code'])->not->toBe('');
-    expect($query)->not->toHaveKeys(['error', 'error_description']);
+    $response
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('OAuth/Consent')
+            ->where('client.name', 'Portal Client')
+            ->where('scopes.0.name', 'OpenID')
+            ->where('scopes.1.name', 'Profile')
+            ->where('scopes.2.name', 'Email')
+            ->has('consentToken'));
 });
 
 it('documents the token success json contract', function (): void {
     [$client, $policy, $plainSecret, $redirectUri] = integrationContractClient();
     $user = User::factory()->create();
-    $verifier = 'plain-test-verifier-123456789';
-    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
-
-    $authorize = $this->actingAs($user)->get(route('oauth.authorize', [
-        'response_type' => 'code',
-        'client_id' => $client->client_id,
-        'redirect_uri' => $redirectUri,
-        'scope' => 'openid profile email',
-        'state' => 'contract-state',
-        'code_challenge' => $challenge,
-        'code_challenge_method' => 'S256',
-    ]));
-
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+    [$code, $verifier] = issueIntegrationAuthorizationCode($user, $client, $redirectUri);
 
     $response = $this->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $code,
         'redirect_uri' => $redirectUri,
         'code_verifier' => $verifier,
     ]);

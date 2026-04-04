@@ -20,6 +20,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property bool $is_active
  * @property array<int, string>|null $scopes
  * @property int|null $token_policy_id
+ * @property string $trust_tier
+ * @property bool $is_first_party
+ * @property bool $consent_bypass_allowed
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \Illuminate\Database\Eloquent\Collection<int, RedirectUri> $redirectUris
@@ -27,6 +30,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $secrets
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $activeSecrets
  * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientUserAccess> $userAccesses
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, UserClientConsent> $userConsents
  * @property-read \Illuminate\Database\Eloquent\Collection<int, AuthorizationCode> $authorizationCodes
  * @property-read \Illuminate\Database\Eloquent\Collection<int, Token> $tokens
  * @property-read TokenPolicy|null $tokenPolicy
@@ -62,12 +66,20 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'is_active',
     'scopes',
     'token_policy_id',
+    'trust_tier',
+    'is_first_party',
+    'consent_bypass_allowed',
 ])]
 #[Hidden(['client_secret_hash'])]
 class SsoClient extends Model
 {
     /** @use HasFactory<SsoClientFactory> */
     use HasFactory;
+
+    public const TRUST_TIER_FIRST_PARTY_TRUSTED = 'first_party_trusted';
+    public const TRUST_TIER_FIRST_PARTY_UNTRUSTED = 'first_party_untrusted';
+    public const TRUST_TIER_THIRD_PARTY = 'third_party';
+    public const TRUST_TIER_MACHINE_TO_MACHINE = 'machine_to_machine';
 
     protected $table = 'sso_clients';
 
@@ -83,6 +95,25 @@ class SsoClient extends Model
             'scopes' => 'array',
             'is_active' => 'boolean',
             'token_policy_id' => 'integer',
+            'is_first_party' => 'boolean',
+            'consent_bypass_allowed' => 'boolean',
+        ];
+    }
+
+    /**
+     * trust_tier is the primary trust field.
+     * is_first_party is descriptive metadata.
+     * consent_bypass_allowed is only a future precondition.
+     *
+     * @return array<int, string>
+     */
+    public static function supportedTrustTiers(): array
+    {
+        return [
+            self::TRUST_TIER_FIRST_PARTY_TRUSTED,
+            self::TRUST_TIER_FIRST_PARTY_UNTRUSTED,
+            self::TRUST_TIER_THIRD_PARTY,
+            self::TRUST_TIER_MACHINE_TO_MACHINE,
         ];
     }
 
@@ -128,6 +159,14 @@ class SsoClient extends Model
     public function userAccesses(): HasMany
     {
         return $this->hasMany(ClientUserAccess::class, 'client_id')->latest('id');
+    }
+
+    /**
+     * @return HasMany<UserClientConsent, $this>
+     */
+    public function userConsents(): HasMany
+    {
+        return $this->hasMany(UserClientConsent::class, 'client_id')->latest('granted_at');
     }
 
     /**

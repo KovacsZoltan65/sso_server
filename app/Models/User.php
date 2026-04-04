@@ -25,6 +25,8 @@ use Spatie\Permission\Traits\HasRoles;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read Collection<int, \Spatie\Activitylog\Models\Activity> $activities
  * @property-read int|null $activities_count
+ * @property-read Collection<int, UserClientConsent> $clientConsents
+ * @property-read int|null $client_consents_count
  * @property-read \Illuminate\Notifications\DatabaseNotificationCollection<int, \Illuminate\Notifications\DatabaseNotification> $notifications
  * @property-read int|null $notifications_count
  * @property-read Collection<int, \Spatie\Permission\Models\Permission> $permissions
@@ -78,6 +80,14 @@ class User extends Authenticatable
     public function clientAccesses(): HasMany
     {
         return $this->hasMany(ClientUserAccess::class)->latest('id');
+    }
+
+    /**
+     * @return HasMany<UserClientConsent, $this>
+     */
+    public function clientConsents(): HasMany
+    {
+        return $this->hasMany(UserClientConsent::class)->latest('granted_at');
     }
 
     /**

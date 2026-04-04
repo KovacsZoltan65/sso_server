@@ -9,6 +9,7 @@ use App\Models\SsoClient;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Services\OAuth\OAuthAuthorizationService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Spatie\Activitylog\Models\Activity;
@@ -68,7 +69,7 @@ function issueAuthorizationCodeTokenPair(SsoClient $client, string $plainSecret,
     $verifier = 'plain-test-verifier-123456789';
     $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-    $authorize = test()->actingAs($user)->get(route('oauth.authorize', [
+    $authorize = app(OAuthAuthorizationService::class)->approve($user, [
         'response_type' => 'code',
         'client_id' => $client->client_id,
         'redirect_uri' => 'https://portal.example.com/callback',
@@ -76,15 +77,13 @@ function issueAuthorizationCodeTokenPair(SsoClient $client, string $plainSecret,
         'state' => 'token-lifecycle-state',
         'code_challenge' => $challenge,
         'code_challenge_method' => 'S256',
-    ]));
-
-    parse_str(parse_url($authorize->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+    ]);
 
     $response = test()->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
         'client_secret' => $plainSecret,
-        'code' => $query['code'],
+        'code' => $authorize['code'],
         'redirect_uri' => 'https://portal.example.com/callback',
         'code_verifier' => $verifier,
     ])->assertOk();

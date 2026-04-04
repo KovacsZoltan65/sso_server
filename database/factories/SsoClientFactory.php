@@ -26,6 +26,9 @@ class SsoClientFactory extends Factory
             'is_active' => true,
             'scopes' => ['openid'],
             'token_policy_id' => null,
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
         ];
     }
 }

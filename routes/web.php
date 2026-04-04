@@ -11,6 +11,8 @@ use App\Http\Controllers\Admin\TokenController as AdminTokenController;
 use App\Http\Controllers\Admin\TokenPolicyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\OAuth\AuthorizationController;
+use App\Http\Controllers\OAuth\OAuthConsentApproveController;
+use App\Http\Controllers\OAuth\OAuthConsentDenyController;
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,6 +20,8 @@ Route::redirect('/', '/dashboard');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/oauth/authorize', AuthorizationController::class)->name('oauth.authorize');
+    Route::post('/oauth/authorize/approve', OAuthConsentApproveController::class)->name('oauth.authorize.approve');
+    Route::post('/oauth/authorize/deny', OAuthConsentDenyController::class)->name('oauth.authorize.deny');
 
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
 

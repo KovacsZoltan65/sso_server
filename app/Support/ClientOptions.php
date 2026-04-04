@@ -3,6 +3,7 @@
 namespace App\Support;
 
 use App\Models\Scope;
+use App\Models\SsoClient;
 use App\Models\TokenPolicy;
 use Illuminate\Support\Facades\Schema;
 
@@ -100,6 +101,35 @@ class ClientOptions
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<int, array{label: string, value: string, helper: string}>
+     */
+    public static function trustTierOptions(): array
+    {
+        return [
+            [
+                'label' => 'First-party trusted',
+                'value' => SsoClient::TRUST_TIER_FIRST_PARTY_TRUSTED,
+                'helper' => 'Internal client with the highest planned trust baseline.',
+            ],
+            [
+                'label' => 'First-party untrusted',
+                'value' => SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED,
+                'helper' => 'Internal client that still requires explicit consent behavior.',
+            ],
+            [
+                'label' => 'Third-party',
+                'value' => SsoClient::TRUST_TIER_THIRD_PARTY,
+                'helper' => 'Default partner or external application trust baseline.',
+            ],
+            [
+                'label' => 'Machine-to-machine',
+                'value' => SsoClient::TRUST_TIER_MACHINE_TO_MACHINE,
+                'helper' => 'Non-interactive integration trust classification.',
+            ],
+        ];
     }
 
     /**

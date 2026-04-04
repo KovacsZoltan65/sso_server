@@ -16,6 +16,9 @@ use Spatie\LaravelData\Data;
  *     scopes: array<int, string>,
  *     scopesCount: int,
  *     tokenPolicyId: int|null,
+ *     trustTier: string,
+ *     isFirstParty: bool,
+ *     consentBypassAllowed: bool,
  *     createdAt: string,
  *     canDelete: bool
  * }
@@ -36,6 +39,9 @@ class ClientSummaryData extends Data
         public array $scopes,
         public int $scopesCount,
         public ?int $tokenPolicyId,
+        public string $trustTier,
+        public bool $isFirstParty,
+        public bool $consentBypassAllowed,
         public string $createdAt,
         public bool $canDelete,
     ) {
@@ -62,6 +68,9 @@ class ClientSummaryData extends Data
             scopes: $scopes,
             scopesCount: count($scopes),
             tokenPolicyId: $client->token_policy_id,
+            trustTier: $client->trust_tier,
+            isFirstParty: (bool) $client->is_first_party,
+            consentBypassAllowed: (bool) $client->consent_bypass_allowed,
             createdAt: $client->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
             canDelete: $canDelete,
         );

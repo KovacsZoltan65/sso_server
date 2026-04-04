@@ -15,6 +15,9 @@ it('seeds the portal client with the expected redirect uri and scopes', function
     expect($client)->not->toBeNull();
     expect($client->name)->toBe('Portal Client');
     expect($client->is_active)->toBeTrue();
+    expect($client->trust_tier)->toBe(SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED);
+    expect($client->is_first_party)->toBeTrue();
+    expect($client->consent_bypass_allowed)->toBeFalse();
     expect($client->redirect_uris)->toBe(['http://sso-client.test/auth/sso/callback']);
     expect($client->scopes)->toBe(['openid', 'profile', 'email']);
     expect($client->redirectUris)->toHaveCount(1);
@@ -38,6 +41,9 @@ it('is idempotent and does not create a second active secret automatically', fun
     expect($client->redirectUris)->toHaveCount(1);
     expect($client->scopes)->toHaveCount(3);
     expect($client->activeSecrets)->toHaveCount(1);
+    expect($client->trust_tier)->toBe(SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED);
+    expect($client->is_first_party)->toBeTrue();
+    expect($client->consent_bypass_allowed)->toBeFalse();
     expect($client->activeSecrets->first()?->is($secret))->toBeTrue();
 });
 

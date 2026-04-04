@@ -36,6 +36,9 @@ class SsoClientSeeder extends Seeder
                     'redirect_uris' => [$redirectUri],
                     'is_active' => true,
                     'scopes' => $scopeCodes,
+                    'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED,
+                    'is_first_party' => true,
+                    'consent_bypass_allowed' => false,
                 ],
             );
 

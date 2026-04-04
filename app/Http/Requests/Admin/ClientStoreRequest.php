@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\Scope;
+use App\Models\SsoClient;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -48,6 +49,9 @@ class ClientStoreRequest extends FormRequest
             'scopes.*' => ['string', 'distinct:strict', Rule::exists(Scope::class, 'code')->where('is_active', true)],
             'is_active' => ['required', 'boolean'],
             'token_policy_id' => ['nullable', 'integer', 'min:1', 'exists:token_policies,id'],
+            'trust_tier' => ['required', 'string', Rule::in(SsoClient::supportedTrustTiers())],
+            'is_first_party' => ['required', 'boolean'],
+            'consent_bypass_allowed' => ['required', 'boolean'],
         ];
     }
 }

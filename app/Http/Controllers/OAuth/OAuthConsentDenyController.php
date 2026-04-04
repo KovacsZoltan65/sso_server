@@ -3,24 +3,19 @@
 namespace App\Http\Controllers\OAuth;
 
 use App\Http\Controllers\Controller;
-use App\Http\Requests\OAuth\OAuthAuthorizeRequest;
+use App\Http\Requests\OAuth\OAuthConsentDenyRequest;
 use App\Services\OAuth\OAuthAuthorizationService;
-use Inertia\Response as InertiaResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Symfony\Component\HttpFoundation\Response;
 
-class AuthorizationController extends Controller
+class OAuthConsentDenyController extends Controller
 {
     public function __invoke(
-        OAuthAuthorizeRequest $request,
+        OAuthConsentDenyRequest $request,
         OAuthAuthorizationService $authorizationService,
-    ): Response|RedirectResponse|InertiaResponse {
-        $result = $authorizationService->prepareConsent($request->user(), $request->validated());
-
-        if ($result['type'] === 'consent') {
-            return Inertia::render('OAuth/Consent', $result);
-        }
+    ): Response|RedirectResponse {
+        $result = $authorizationService->denyConsent($request->user(), (string) $request->validated('consent_token'));
 
         if ($request->header('X-Inertia')) {
             return Inertia::location($result['redirect_url']);
