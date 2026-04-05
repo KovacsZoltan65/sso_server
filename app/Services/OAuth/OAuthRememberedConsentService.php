@@ -34,7 +34,7 @@ class OAuthRememberedConsentService
             'redirect_uri_hash' => $this->redirectUriFingerprint($redirectUri),
             'trust_tier_snapshot' => $client->trust_tier,
             'consent_bypass_allowed_snapshot' => (bool) $client->consent_bypass_allowed,
-            'consent_policy_version' => self::CONSENT_POLICY_VERSION,
+            'consent_policy_version' => $this->consentPolicyVersion(),
             'granted_at' => $grantedAt,
             'expires_at' => $grantedAt->copy()->addDays($this->rememberedConsentTtlDays()),
         ]);
@@ -107,7 +107,7 @@ class OAuthRememberedConsentService
                 continue;
             }
 
-            if ($candidate->consent_policy_version !== self::CONSENT_POLICY_VERSION) {
+            if ($candidate->consent_policy_version !== $this->consentPolicyVersion()) {
                 continue;
             }
 
@@ -161,7 +161,7 @@ class OAuthRememberedConsentService
                 );
             }
 
-            if ($candidate->consent_policy_version !== self::CONSENT_POLICY_VERSION) {
+            if ($candidate->consent_policy_version !== $this->consentPolicyVersion()) {
                 return new OAuthRememberedConsentDecisionResult(
                     shouldReuse: false,
                     reason: 'remembered_consent_policy_mismatch',
@@ -243,6 +243,12 @@ class OAuthRememberedConsentService
     public function redirectUriFingerprint(string $redirectUri): string
     {
         return hash('sha256', trim($redirectUri));
+    }
+
+    public function consentPolicyVersion(): string
+    {
+        return trim((string) config('services.oauth.consent_policy_version', self::CONSENT_POLICY_VERSION))
+            ?: self::CONSENT_POLICY_VERSION;
     }
 
     private function rememberedConsentTtlDays(): int

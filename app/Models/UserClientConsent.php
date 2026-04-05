@@ -86,4 +86,17 @@ class UserClientConsent extends Model
     {
         return ! $this->isRevoked() && ! $this->isExpired();
     }
+
+    public function currentStatus(): string
+    {
+        if ($this->isRevoked()) {
+            return 'revoked';
+        }
+
+        if ($this->isExpired()) {
+            return 'expired';
+        }
+
+        return 'active';
+    }
 }

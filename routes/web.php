@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ClientUserAccessPageController;
 use App\Http\Controllers\Admin\PermissionController;
 use App\Http\Controllers\Admin\PlaceholderPageController;
+use App\Http\Controllers\Admin\RememberedConsentController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TokenController as AdminTokenController;
@@ -100,6 +101,11 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/tokens', 'index')->name('index');
             Route::post('/tokens/{token}/revoke', 'revoke')->name('revoke');
             Route::post('/tokens/families/{familyId}/revoke', 'revokeFamily')->name('revoke-family');
+        });
+
+        Route::controller(RememberedConsentController::class)->name('remembered-consents.')->group(function () {
+            Route::get('/remembered-consents', 'index')->name('index');
+            Route::post('/remembered-consents/{consent}/revoke', 'revoke')->name('revoke');
         });
 
         // PlaceholderPageController routes

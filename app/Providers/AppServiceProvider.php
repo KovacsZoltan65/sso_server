@@ -7,6 +7,7 @@ use App\Models\Scope;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Models\UserClientConsent;
 use App\Policies\AuditLogPolicy;
 use App\Policies\ClientPolicy;
 use App\Policies\ClientUserAccessPolicy;
@@ -16,6 +17,7 @@ use App\Policies\ScopePolicy;
 use App\Policies\TokenModelPolicy;
 use App\Policies\TokenPolicyPolicy;
 use App\Policies\UserPolicy;
+use App\Policies\UserClientConsentPolicy;
 use App\Repositories\ClientUserAccessRepository;
 use App\Repositories\ClientRepository;
 use App\Repositories\Contracts\ClientUserAccessRepositoryInterface;
@@ -25,11 +27,13 @@ use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\ScopeRepositoryInterface;
 use App\Repositories\Contracts\TokenPolicyRepositoryInterface;
 use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\Contracts\UserClientConsentRepositoryInterface;
 use App\Repositories\PermissionRepository;
 use App\Repositories\RoleRepository;
 use App\Repositories\ScopeRepository;
 use App\Repositories\TokenPolicyRepository;
 use App\Repositories\UserRepository;
+use App\Repositories\UserClientConsentRepository;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -57,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ScopeRepositoryInterface::class, ScopeRepository::class);
         $this->app->bind(TokenPolicyRepositoryInterface::class, TokenPolicyRepository::class);
         $this->app->bind(TokenRepositoryInterface::class, TokenRepository::class);
+        $this->app->bind(UserClientConsentRepositoryInterface::class, UserClientConsentRepository::class);
     }
 
     /**
@@ -72,6 +77,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Scope::class, ScopePolicy::class);
         Gate::policy(Token::class, TokenModelPolicy::class);
         Gate::policy(TokenPolicy::class, TokenPolicyPolicy::class);
+        Gate::policy(UserClientConsent::class, UserClientConsentPolicy::class);
         Gate::policy(AuditLogPage::class, AuditLogPolicy::class);
 
         $this->configureRateLimiting();

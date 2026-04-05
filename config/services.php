@@ -38,6 +38,7 @@ return [
     'oauth' => [
         'consent_context_ttl_minutes' => env('OAUTH_CONSENT_CONTEXT_TTL_MINUTES', 5),
         'remembered_consent_ttl_days' => env('OAUTH_REMEMBERED_CONSENT_TTL_DAYS', 30),
+        'consent_policy_version' => env('OAUTH_CONSENT_POLICY_VERSION', 'remembered-consent-v1'),
     ],
 
 ];

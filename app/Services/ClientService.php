@@ -7,6 +7,7 @@ use App\Models\ClientSecret;
 use App\Models\SsoClient;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use App\Services\Audit\AuditLogService;
+use App\Services\OAuth\RememberedConsentInvalidationService;
 use App\Support\ClientOptions;
 use App\Support\Permissions\ClientPermissions;
 use Illuminate\Support\Arr;
@@ -81,6 +82,7 @@ class ClientService
     public function __construct(
         private readonly ClientRepositoryInterface $clients,
         private readonly AuditLogService $auditLogService,
+        private readonly RememberedConsentInvalidationService $rememberedConsentInvalidationService,
     ) {
     }
 
@@ -270,6 +272,7 @@ class ClientService
             $scopeCodes = $this->sanitizeScopes($payload['scopes'] ?? []);
             $previousRedirectUris = $client->normalizedRedirectUris();
             $previousScopeCodes = $client->normalizedScopeCodes();
+            $trustFieldChanges = $this->resolveRememberedConsentTrustChanges($client, $payload);
 
             $updatedClient = $this->clients->updateClient($client, [
                 ...Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed']),
@@ -302,6 +305,13 @@ class ClientService
 
             $this->logRedirectUriChanges($updatedClient, $previousRedirectUris, $redirectUris);
             $this->logClientScopeChanges($updatedClient, $previousScopeCodes, $scopeCodes);
+
+            if ($trustFieldChanges !== []) {
+                $this->rememberedConsentInvalidationService->invalidateForClientTrustChange(
+                    $updatedClient,
+                    $trustFieldChanges,
+                );
+            }
 
             return $updatedClient->fresh(['redirectUris', 'scopes', 'secrets']);
         });
@@ -482,6 +492,34 @@ class ClientService
             ->unique()
             ->values()
             ->all();
+    }
+
+    /**
+     * @param ClientWritePayload $payload
+     * @return array<string, array{old: mixed, new: mixed}>
+     */
+    private function resolveRememberedConsentTrustChanges(SsoClient $client, array $payload): array
+    {
+        $changes = [];
+
+        if (array_key_exists('trust_tier', $payload) && (string) $client->trust_tier !== (string) $payload['trust_tier']) {
+            $changes['trust_tier'] = [
+                'old' => (string) $client->trust_tier,
+                'new' => (string) $payload['trust_tier'],
+            ];
+        }
+
+        if (
+            array_key_exists('consent_bypass_allowed', $payload)
+            && (bool) $client->consent_bypass_allowed !== (bool) $payload['consent_bypass_allowed']
+        ) {
+            $changes['consent_bypass_allowed'] = [
+                'old' => (bool) $client->consent_bypass_allowed,
+                'new' => (bool) $payload['consent_bypass_allowed'],
+            ];
+        }
+
+        return $changes;
     }
 
     /**
