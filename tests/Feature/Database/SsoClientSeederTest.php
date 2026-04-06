@@ -18,11 +18,18 @@ it('seeds the portal client with the expected redirect uri and scopes', function
     expect($client->trust_tier)->toBe(SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED);
     expect($client->is_first_party)->toBeTrue();
     expect($client->consent_bypass_allowed)->toBeFalse();
-    expect($client->redirect_uris)->toBe(['http://sso-client.test/auth/sso/callback']);
+    expect($client->redirect_uris)->toBe([
+        'http://sso-client.test/auth/sso/callback',
+        'http://sso-client.test/auth/logout/return',
+    ]);
     expect($client->scopes)->toBe(['openid', 'profile', 'email']);
-    expect($client->redirectUris)->toHaveCount(1);
-    expect($client->redirectUris->first()?->uri)->toBe('http://sso-client.test/auth/sso/callback');
-    expect($client->redirectUris->first()?->is_primary)->toBeTrue();
+    expect($client->redirectUris)->toHaveCount(2);
+    expect($client->redirectUris->pluck('uri')->all())->toBe([
+        'http://sso-client.test/auth/sso/callback',
+        'http://sso-client.test/auth/logout/return',
+    ]);
+    expect($client->redirectUris->firstWhere('uri', 'http://sso-client.test/auth/sso/callback')?->is_primary)->toBeTrue();
+    expect($client->redirectUris->firstWhere('uri', 'http://sso-client.test/auth/logout/return')?->is_primary)->toBeFalse();
     expect($client->getRelation('scopes')->pluck('code')->all())->toBe(['email', 'openid', 'profile']);
     expect($client->activeSecrets)->toHaveCount(1);
     expect($client->activeSecrets->first()?->is_active)->toBeTrue();
@@ -38,7 +45,7 @@ it('is idempotent and does not create a second active secret automatically', fun
 
     $client->refresh()->load(['redirectUris', 'scopes', 'activeSecrets']);
 
-    expect($client->redirectUris)->toHaveCount(1);
+    expect($client->redirectUris)->toHaveCount(2);
     expect($client->scopes)->toHaveCount(3);
     expect($client->activeSecrets)->toHaveCount(1);
     expect($client->trust_tier)->toBe(SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED);

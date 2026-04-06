@@ -79,6 +79,27 @@ class OidcSigningKeyService
         }
     }
 
+    public function verify(string $input, string $signature): bool
+    {
+        $publicKey = $this->publicKeyResource();
+
+        try {
+            $verified = openssl_verify($input, $signature, $publicKey, OPENSSL_ALGO_SHA256);
+
+            if ($verified === 1) {
+                return true;
+            }
+
+            if ($verified === 0) {
+                return false;
+            }
+
+            throw new RuntimeException('OIDC signature verification failed.');
+        } finally {
+            openssl_free_key($publicKey);
+        }
+    }
+
     private function privateKeyPem(): string
     {
         $path = trim((string) config('oidc.signing.private_key_path', ''));
@@ -98,6 +119,23 @@ class OidcSigningKeyService
 
     private function publicKeyDetails(): array
     {
+        $publicKey = $this->publicKeyResource();
+
+        try {
+            $details = openssl_pkey_get_details($publicKey);
+
+            if (! is_array($details)) {
+                throw new RuntimeException('OIDC signing public key details are unavailable.');
+            }
+
+            return $details;
+        } finally {
+            openssl_free_key($publicKey);
+        }
+    }
+
+    private function publicKeyResource(): \OpenSSLAsymmetricKey
+    {
         $path = trim((string) config('oidc.signing.public_key_path', ''));
 
         if ($path === '' || ! is_file($path)) {
@@ -112,21 +150,11 @@ class OidcSigningKeyService
 
         $publicKey = openssl_pkey_get_public($pem);
 
-        if ($publicKey === false) {
+        if (! $publicKey instanceof \OpenSSLAsymmetricKey) {
             throw new RuntimeException('OIDC signing public key could not be loaded.');
         }
 
-        try {
-            $details = openssl_pkey_get_details($publicKey);
-
-            if (! is_array($details)) {
-                throw new RuntimeException('OIDC signing public key details are unavailable.');
-            }
-
-            return $details;
-        } finally {
-            openssl_free_key($publicKey);
-        }
+        return $publicKey;
     }
 
     private function base64UrlEncode(string $value): string

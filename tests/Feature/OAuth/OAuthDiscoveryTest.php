@@ -33,6 +33,7 @@ it('serves openid provider discovery metadata', function (): void {
         ->assertJsonPath('authorization_endpoint', 'https://sso-server.test/oauth/authorize')
         ->assertJsonPath('token_endpoint', 'https://sso-server.test/api/oauth/token')
         ->assertJsonPath('userinfo_endpoint', 'https://sso-server.test/api/oauth/userinfo')
+        ->assertJsonPath('end_session_endpoint', 'https://sso-server.test/oidc/logout')
         ->assertJsonPath('jwks_uri', 'https://sso-server.test/.well-known/jwks.json')
         ->assertJsonPath('response_types_supported.0', 'code')
         ->assertJsonPath('grant_types_supported.0', 'authorization_code')
@@ -44,7 +45,6 @@ it('serves openid provider discovery metadata', function (): void {
     expect($response->json('scopes_supported'))
         ->toBe(['email', 'openid', 'profile']);
 
-    $response->assertJsonMissingPath('end_session_endpoint');
     $response->assertJsonMissingPath('registration_endpoint');
 
     $this->assertDatabaseHas('activity_log', [
@@ -59,6 +59,7 @@ it('keeps discovery metadata urls consistent with the configured issuer and jwks
     $payload = $response->json();
     $jwksPath = route('oidc.jwks', absolute: false);
     $userinfoPath = route('oauth.userinfo', absolute: false);
+    $endSessionPath = route('oidc.end_session', absolute: false);
 
     expect($payload)->toBeArray()
         ->and($payload['issuer'] ?? null)->toBe('https://sso-server.test')
@@ -66,5 +67,6 @@ it('keeps discovery metadata urls consistent with the configured issuer and jwks
         ->and($payload['authorization_endpoint'] ?? null)->toStartWith('https://sso-server.test/')
         ->and($payload['token_endpoint'] ?? null)->toStartWith('https://sso-server.test/')
         ->and(parse_url((string) ($payload['userinfo_endpoint'] ?? ''), PHP_URL_PATH))->toBe($userinfoPath)
+        ->and(parse_url((string) ($payload['end_session_endpoint'] ?? ''), PHP_URL_PATH))->toBe($endSessionPath)
         ->and(parse_url((string) ($payload['jwks_uri'] ?? ''), PHP_URL_PATH))->toBe($jwksPath);
 });

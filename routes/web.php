@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\TokenPolicyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\OAuth\AuthorizationController;
 use App\Http\Controllers\OAuth\OidcDiscoveryController;
+use App\Http\Controllers\OAuth\OidcEndSessionController;
 use App\Http\Controllers\OAuth\OidcJwksController;
 use App\Http\Controllers\OAuth\OAuthConsentApproveController;
 use App\Http\Controllers\OAuth\OAuthConsentDenyController;
@@ -23,6 +24,7 @@ Route::redirect('/', '/dashboard');
 
 Route::get('/.well-known/openid-configuration', OidcDiscoveryController::class)->name('oidc.discovery');
 Route::get('/.well-known/jwks.json', OidcJwksController::class)->name('oidc.jwks');
+Route::get('/oidc/logout', OidcEndSessionController::class)->name('oidc.end_session');
 
 Route::middleware(['auth'])->group(function () {
     Route::get('/oauth/authorize', AuthorizationController::class)->name('oauth.authorize');

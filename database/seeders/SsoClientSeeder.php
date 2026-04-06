@@ -16,7 +16,16 @@ class SsoClientSeeder extends Seeder
         $plainSecret = null;
 
         DB::transaction(function () use (&$plainSecret): void {
-            $redirectUri = trim('http://sso-client.test/auth/sso/callback');
+            $redirectUris = [
+                [
+                    'uri' => trim('http://sso-client.test/auth/sso/callback'),
+                    'is_primary' => true,
+                ],
+                [
+                    'uri' => trim('http://sso-client.test/auth/logout/return'),
+                    'is_primary' => false,
+                ],
+            ];
             $scopeDefinitions = $this->scopeDefinitions();
             $scopeCodes = collect($scopeDefinitions)->pluck('code')->values()->all();
             $existingClient = SsoClient::query()
@@ -33,7 +42,7 @@ class SsoClientSeeder extends Seeder
                 [
                     'name' => 'Portal Client',
                     'client_secret_hash' => $existingClient?->client_secret_hash ?: Hash::make($plainSecret ?? Str::random(64)),
-                    'redirect_uris' => [$redirectUri],
+                    'redirect_uris' => collect($redirectUris)->pluck('uri')->all(),
                     'is_active' => true,
                     'scopes' => $scopeCodes,
                     'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED,
@@ -42,7 +51,7 @@ class SsoClientSeeder extends Seeder
                 ],
             );
 
-            $this->syncRedirectUri($client, $redirectUri);
+            $this->syncRedirectUris($client, $redirectUris);
             $this->syncScopes($client, $scopeDefinitions);
 
             if (! $client->activeSecrets()->exists()) {
@@ -67,20 +76,29 @@ class SsoClientSeeder extends Seeder
         }
     }
 
-    private function syncRedirectUri(SsoClient $client, string $redirectUri): void
+    /**
+     * @param array<int, array{uri: string, is_primary: bool}> $redirectUris
+     */
+    private function syncRedirectUris(SsoClient $client, array $redirectUris): void
     {
-        $redirectUriHash = hash('sha256', $redirectUri);
+        $hashes = [];
 
-        $client->redirectUris()->updateOrCreate(
-            ['uri_hash' => $redirectUriHash],
-            [
-                'uri' => $redirectUri,
-                'is_primary' => true,
-            ],
-        );
+        foreach ($redirectUris as $redirectUri) {
+            $uri = trim($redirectUri['uri']);
+            $uriHash = hash('sha256', $uri);
+            $hashes[] = $uriHash;
+
+            $client->redirectUris()->updateOrCreate(
+                ['uri_hash' => $uriHash],
+                [
+                    'uri' => $uri,
+                    'is_primary' => $redirectUri['is_primary'],
+                ],
+            );
+        }
 
         $client->redirectUris()
-            ->where('uri_hash', '!=', $redirectUriHash)
+            ->whereNotIn('uri_hash', $hashes)
             ->delete();
     }
 

@@ -112,18 +112,19 @@ OpenID Provider discovery endpoint:
   - `userinfo_endpoint`
   - `jwks_uri`
   - `response_types_supported`
-  - `grant_types_supported`
-  - `subject_types_supported`
-  - `id_token_signing_alg_values_supported`
-  - `scopes_supported`
-  - `code_challenge_methods_supported`
-  - `claims_supported`
+- `grant_types_supported`
+- `subject_types_supported`
+- `id_token_signing_alg_values_supported`
+- `scopes_supported`
+- `code_challenge_methods_supported`
+- `claims_supported`
+- `end_session_endpoint`
 - tudatosan nincs benne peldaul:
-  - `end_session_endpoint`
   - `registration_endpoint`
 - a metadata URL-jei az `issuer` baseline-hoz igazodnak
 - a `jwks_uri` a mar mukodo `/.well-known/jwks.json` vegpontra mutat
 - a `userinfo_endpoint` a mar mukodo bearer tokennel vedett `/api/oauth/userinfo` vegpontra mutat
+- az `end_session_endpoint` a mar mukodo `GET /oidc/logout` provider logout vegpontra mutat
 
 Hibás válasz formátuma:
 
@@ -177,11 +178,35 @@ Kliens oldali szerződés:
 
 ## 5. Logout szerződés
 
-Jelenlegi explicit szerződés:
+Provider logout végpont:
 
-- az `sso_client` csak lokális logoutot hajt végre (`POST /auth/logout`)
-- a session teljesen törlődik lokálisan
-- jelenleg nincs aktív single logout handshake a szerverrel
+- `GET /oidc/logout`
+- discoveryben: `end_session_endpoint`
+
+Fogadott paraméterek:
+
+- `id_token_hint` opcionális
+- `post_logout_redirect_uri` opcionális
+- `state` opcionális
+
+Validációs szabály:
+
+- `post_logout_redirect_uri` csak akkor fogadhato el, ha a szerver megbizhato klienskontextust tud feloldani a sajat alairasú `id_token_hint`-bol
+- a redirect celjanak pontosan egyeznie kell az adott kliens egyik regisztralt redirect URI-javal
+- ervenytelen vagy nem ellenorizheto redirect soha nem okozhat open redirectet
+
+Logout viselkedés:
+
+- a provider session tenylegesen lezarul
+- valid `post_logout_redirect_uri` eseten a szerver oda redirectel
+- ha `state` erkezett es a redirect ervenyes, a szerver visszaechozza a redirect URL queryjeben
+- ha nincs ervenyes redirect, a szerver a sajat login oldalra ter vissza status uzenettel
+
+Tudatosan nincs benne meg:
+
+- front-channel logout propagation
+- back-channel logout
+- global multi-client session kill
 
 ## 6. Self-service profile szerződés
 

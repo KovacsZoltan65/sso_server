@@ -23,6 +23,7 @@ class OidcDiscoveryService
             'authorization_endpoint' => $this->absoluteUrl(route('oauth.authorize', absolute: false)),
             'token_endpoint' => $this->absoluteUrl(route('oauth.token', absolute: false)),
             'userinfo_endpoint' => $this->absoluteUrl(route('oauth.userinfo', absolute: false)),
+            'end_session_endpoint' => $this->absoluteUrl(route('oidc.end_session', absolute: false)),
             'jwks_uri' => $this->absoluteUrl(route('oidc.jwks', absolute: false)),
             'response_types_supported' => ['code'],
             'grant_types_supported' => ['authorization_code', 'refresh_token'],
