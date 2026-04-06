@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $code_hash
  * @property string $redirect_uri
  * @property string $redirect_uri_hash
+ * @property string|null $nonce
  * @property string|null $code_challenge
  * @property string|null $code_challenge_method
  * @property array<array-key, mixed>|null $scopes
@@ -35,6 +36,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereExpiresAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereNonce($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereRedirectUri($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereRedirectUriHash($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereRevokedAt($value)
@@ -56,6 +58,7 @@ class AuthorizationCode extends Model
         'code_hash',
         'redirect_uri',
         'redirect_uri_hash',
+        'nonce',
         'code_challenge',
         'code_challenge_method',
         'scopes',
@@ -84,5 +87,42 @@ class AuthorizationCode extends Model
     public function tokenPolicy(): BelongsTo
     {
         return $this->belongsTo(TokenPolicy::class);
+    }
+
+    public function identityResponseNonce(): ?string
+    {
+        $nonce = trim((string) ($this->nonce ?? ''));
+
+        return $nonce !== '' ? $nonce : null;
+    }
+
+    public function hasIdentityResponseNonce(): bool
+    {
+        return $this->identityResponseNonce() !== null;
+    }
+
+    public function requiresIdentityNonceValidation(): bool
+    {
+        return in_array('openid', $this->scopes ?? [], true);
+    }
+
+    /**
+     * @return array{
+     *     authorization_code_id: int,
+     *     client_id: int,
+     *     user_id: int,
+     *     returned_nonce: string|null,
+     *     scope_contains_openid: bool
+     * }
+     */
+    public function identityNonceContext(): array
+    {
+        return [
+            'authorization_code_id' => $this->id,
+            'client_id' => $this->sso_client_id,
+            'user_id' => $this->user_id,
+            'returned_nonce' => $this->identityResponseNonce(),
+            'scope_contains_openid' => $this->requiresIdentityNonceValidation(),
+        ];
     }
 }

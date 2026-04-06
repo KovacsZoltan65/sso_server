@@ -22,6 +22,7 @@ use Illuminate\Validation\ValidationException;
  *     redirect_uri: string,
  *     scope?: string|null,
  *     state?: string|null,
+ *     nonce?: string|null,
  *     code_challenge?: string|null,
  *     code_challenge_method?: string|null
  * }
@@ -78,11 +79,13 @@ class OAuthAuthorizationService
 
         $requestedScopes = $this->resolveScopes($client, (string) ($payload['scope'] ?? ''), $user);
         $policy = $this->resolvePolicy($client);
+        $nonce = trim((string) ($payload['nonce'] ?? ''));
 
         $codeChallenge = trim((string) ($payload['code_challenge'] ?? ''));
         $codeChallengeMethod = trim((string) ($payload['code_challenge_method'] ?? ''));
 
         $this->assertPkceRequirements($user, $client, $policy, $codeChallenge, $codeChallengeMethod);
+        $this->logNonceAccepted($user, $client, $requestedScopes, $nonce);
 
         $accessDecision = $this->clientUserAccessService->evaluateUserAccess($user, $client);
 
@@ -133,6 +136,7 @@ class OAuthAuthorizationService
                     redirectUri: $redirectUri,
                     requestedScopes: $requestedScopes,
                     state: Arr::get($payload, 'state'),
+                    nonce: $nonce !== '' ? $nonce : null,
                     codeChallenge: $codeChallenge,
                     codeChallengeMethod: $codeChallengeMethod,
                 )['redirect_url'],
@@ -170,6 +174,7 @@ class OAuthAuthorizationService
                     redirectUri: $redirectUri,
                     requestedScopes: $requestedScopes,
                     state: Arr::get($payload, 'state'),
+                    nonce: $nonce !== '' ? $nonce : null,
                     codeChallenge: $codeChallenge,
                     codeChallengeMethod: $codeChallengeMethod,
                 )['redirect_url'],
@@ -211,10 +216,12 @@ class OAuthAuthorizationService
         $this->assertRedirectUriMatches($user, $client, $redirectUri);
         $requestedScopes = $this->resolveScopes($client, (string) ($payload['scope'] ?? ''), $user);
         $policy = $this->resolvePolicy($client);
+        $nonce = trim((string) ($payload['nonce'] ?? ''));
 
         $codeChallenge = trim((string) ($payload['code_challenge'] ?? ''));
         $codeChallengeMethod = trim((string) ($payload['code_challenge_method'] ?? ''));
         $this->assertPkceRequirements($user, $client, $policy, $codeChallenge, $codeChallengeMethod);
+        $this->logNonceAccepted($user, $client, $requestedScopes, $nonce);
 
         $accessDecision = $this->clientUserAccessService->evaluateUserAccess($user, $client);
 
@@ -256,6 +263,7 @@ class OAuthAuthorizationService
             redirectUri: $redirectUri,
             requestedScopes: $requestedScopes,
             state: Arr::get($payload, 'state'),
+            nonce: $nonce !== '' ? $nonce : null,
             codeChallenge: $codeChallenge,
             codeChallengeMethod: $codeChallengeMethod,
         );
@@ -310,6 +318,7 @@ class OAuthAuthorizationService
                 redirectUri: $context->redirectUri,
                 requestedScopes: $context->requestedScopes,
                 state: $context->state,
+                nonce: $context->nonce,
                 codeChallenge: $context->codeChallenge ?? '',
                 codeChallengeMethod: $context->codeChallengeMethod ?? '',
             );
@@ -418,12 +427,13 @@ class OAuthAuthorizationService
         string $redirectUri,
         array $requestedScopes,
         ?string $state,
+        ?string $nonce,
         string $codeChallenge,
         string $codeChallengeMethod,
     ): array {
         $plainCode = Str::random(64);
 
-        DB::transaction(function () use ($client, $user, $policy, $plainCode, $redirectUri, $requestedScopes, $codeChallenge, $codeChallengeMethod): void {
+        DB::transaction(function () use ($client, $user, $policy, $plainCode, $redirectUri, $requestedScopes, $nonce, $codeChallenge, $codeChallengeMethod): void {
             AuthorizationCode::query()->create([
                 'sso_client_id' => $client->id,
                 'user_id' => $user->id,
@@ -431,6 +441,7 @@ class OAuthAuthorizationService
                 'code_hash' => hash('sha256', $plainCode),
                 'redirect_uri' => $redirectUri,
                 'redirect_uri_hash' => hash('sha256', $redirectUri),
+                'nonce' => $nonce !== null && $nonce !== '' ? $nonce : null,
                 'code_challenge' => $codeChallenge !== '' ? $codeChallenge : null,
                 'code_challenge_method' => $codeChallengeMethod !== '' ? $codeChallengeMethod : null,
                 'scopes' => $requestedScopes,
@@ -448,8 +459,27 @@ class OAuthAuthorizationService
                     'client_public_id' => $client->client_id,
                     'scope_codes' => $requestedScopes,
                     'redirect_uri' => $redirectUri,
+                    'has_nonce' => $nonce !== null && $nonce !== '',
+                    'scope_contains_openid' => in_array('openid', $requestedScopes, true),
                 ],
             );
+
+            if (in_array('openid', $requestedScopes, true)) {
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.nonce.bound_to_authorization_code',
+                    description: 'OAuth nonce bound to authorization code.',
+                    subject: $client,
+                    causer: $user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
+                        'target_user_id' => $user->id,
+                        'has_nonce' => $nonce !== null && $nonce !== '',
+                        'scope_contains_openid' => true,
+                    ],
+                );
+            }
         });
 
         $query = array_filter([
@@ -657,6 +687,31 @@ class OAuthAuthorizationService
         $normalized = trim((string) ($value ?? ''));
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    /**
+     * @param array<int, string> $requestedScopes
+     */
+    private function logNonceAccepted(User $user, SsoClient $client, array $requestedScopes, string $nonce): void
+    {
+        if (! in_array('openid', $requestedScopes, true)) {
+            return;
+        }
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.nonce.accepted',
+            description: 'OAuth nonce accepted for authorization request.',
+            subject: $client,
+            causer: $user,
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+                'target_user_id' => $user->id,
+                'has_nonce' => $nonce !== '',
+                'scope_contains_openid' => true,
+            ],
+        );
     }
 
     private function logTrustDecision(User $user, SsoClient $client, OAuthTrustDecisionResult $decision): void

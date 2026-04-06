@@ -17,6 +17,12 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->withoutVite();
+    config()->set('oidc.issuer', 'https://sso-server.test');
+    config()->set('oidc.id_token_ttl_seconds', 300);
+    config()->set('oidc.signing.alg', 'RS256');
+    config()->set('oidc.signing.kid', 'integration-oidc-key-1');
+    config()->set('oidc.signing.private_key_path', base_path('tests/Fixtures/oidc/private.pem'));
+    config()->set('oidc.signing.public_key_path', base_path('tests/Fixtures/oidc/public.pem'));
 
     Scope::factory()->create(['name' => 'OpenID', 'code' => 'openid', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Profile', 'code' => 'profile', 'is_active' => true]);
@@ -81,6 +87,7 @@ function issueIntegrationAuthorizationCode(User $user, SsoClient $client, string
         'redirect_uri' => $redirectUri,
         'scope' => 'openid profile email',
         'state' => 'contract-state',
+        'nonce' => 'contract-nonce',
         'code_challenge' => $challenge,
         'code_challenge_method' => 'S256',
     ]);
@@ -100,6 +107,7 @@ it('documents the authorize consent render contract', function (): void {
         'redirect_uri' => $redirectUri,
         'scope' => 'openid profile email',
         'state' => 'expected-state-value',
+        'nonce' => 'expected-nonce-value',
         'code_challenge' => $challenge,
         'code_challenge_method' => 'S256',
     ]));
@@ -140,6 +148,7 @@ it('documents the token success json contract', function (): void {
                 'expires_in',
                 'refresh_token_expires_in',
                 'scope',
+                'id_token',
             ],
             'meta',
             'errors',
@@ -158,6 +167,7 @@ it('documents the token success json contract', function (): void {
 
     expect($data['access_token'])->not->toBeEmpty()
         ->and($data['refresh_token'])->not->toBeEmpty()
+        ->and($data['id_token'])->toBeString()
         ->and($data['expires_in'])->toBeInt()
         ->and($data['refresh_token_expires_in'])->toBeInt();
 

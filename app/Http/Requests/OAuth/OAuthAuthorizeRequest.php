@@ -20,6 +20,7 @@ class OAuthAuthorizeRequest extends FormRequest
             'redirect_uri' => ['required', 'url', 'max:4000'],
             'scope' => ['nullable', 'string', 'max:1000'],
             'state' => ['nullable', 'string', 'max:1000'],
+            'nonce' => ['nullable', 'string', 'max:255'],
             'code_challenge' => ['nullable', 'string', 'max:255'],
             'code_challenge_method' => ['nullable', 'string', Rule::in(['S256'])],
         ];
@@ -32,6 +33,7 @@ class OAuthAuthorizeRequest extends FormRequest
             'redirect_uri' => trim((string) $this->input('redirect_uri')),
             'scope' => trim((string) $this->input('scope')),
             'state' => trim((string) $this->input('state')),
+            'nonce' => trim((string) $this->input('nonce')),
             'code_challenge' => trim((string) $this->input('code_challenge')),
             'code_challenge_method' => trim((string) $this->input('code_challenge_method')),
         ]);
@@ -50,6 +52,18 @@ class OAuthAuthorizeRequest extends FormRequest
             if (($method !== '' && $method !== null) && ($challenge === '' || $challenge === null)) {
                 $validator->errors()->add('code_challenge', 'The code challenge field is required when code challenge method is present.');
             }
+
+            if ($this->scopeContainsOpenId() && trim((string) $this->input('nonce')) === '') {
+                $validator->errors()->add('nonce', 'The nonce field is required when requesting the openid scope.');
+            }
         });
+    }
+
+    private function scopeContainsOpenId(): bool
+    {
+        return collect(preg_split('/\s+/', trim((string) $this->input('scope'))) ?: [])
+            ->map(static fn (string $scope): string => trim($scope))
+            ->filter()
+            ->contains('openid');
     }
 }

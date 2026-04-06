@@ -62,6 +62,7 @@ function consentAuthorizeParams(SsoClient $client, array $overrides = []): array
         'redirect_uri' => 'https://portal.example.com/callback',
         'scope' => 'openid profile',
         'state' => 'approved-state',
+        'nonce' => 'approve-nonce',
         'code_challenge' => 'test-code-challenge',
         'code_challenge_method' => 'S256',
     ], $overrides);
@@ -101,6 +102,7 @@ it('approves a valid consent token and redirects back with code and state', func
         'sso_client_id' => $client->id,
         'user_id' => $user->id,
         'code_hash' => hash('sha256', (string) $query['code']),
+        'nonce' => 'approve-nonce',
     ]);
 
     $grant = UserClientConsent::query()->where('user_id', $user->id)->where('client_id', $client->id)->first();

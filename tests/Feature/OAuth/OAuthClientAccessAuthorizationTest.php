@@ -66,6 +66,7 @@ function authorizeParams(SsoClient $client): array
         'redirect_uri' => 'https://portal.example.com/callback',
         'scope' => 'openid profile',
         'state' => 'client-access-state',
+        'nonce' => 'client-access-nonce',
         'code_challenge' => $challenge,
         'code_challenge_method' => 'S256',
     ];
@@ -133,7 +134,7 @@ it('denies authorization for restricted clients when the user is not explicitly 
     expect($location)->toContain('error_description=Access+to+this+client+was+denied.');
     expect($location)->toContain('state=client-access-state');
 
-    expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('missing_active_access');
+    expect(Activity::query()->where('event', 'oauth.authorization.denied')->latest('id')->firstOrFail()->properties->get('reason'))->toBe('missing_active_access');
     expect(AuthorizationCode::query()->count())->toBe(0);
 });
 
@@ -151,7 +152,7 @@ it('denies inactive users from authorizing clients', function () {
     expect($location)->toContain('error=access_denied');
     expect($location)->toContain('state=client-access-state');
 
-    expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('inactive_user');
+    expect(Activity::query()->where('event', 'oauth.authorization.denied')->latest('id')->firstOrFail()->properties->get('reason'))->toBe('inactive_user');
 });
 
 it('denies authorization when the client is inactive', function () {
@@ -187,7 +188,7 @@ it('denies authorization before allowed_from', function () {
     expect($location)->toContain('error=access_denied');
     expect($location)->toContain('state=client-access-state');
 
-    expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('before_allowed_from');
+    expect(Activity::query()->where('event', 'oauth.authorization.denied')->latest('id')->firstOrFail()->properties->get('reason'))->toBe('before_allowed_from');
 });
 
 it('denies authorization after allowed_until expires', function () {
@@ -211,7 +212,7 @@ it('denies authorization after allowed_until expires', function () {
     expect($location)->toContain('error=access_denied');
     expect($location)->toContain('state=client-access-state');
 
-    expect(Activity::query()->latest()->firstOrFail()->properties->get('reason'))->toBe('after_allowed_until');
+    expect(Activity::query()->where('event', 'oauth.authorization.denied')->latest('id')->firstOrFail()->properties->get('reason'))->toBe('after_allowed_until');
 });
 
 it('allows authorization inside an active date window', function () {

@@ -35,7 +35,8 @@ use Illuminate\Validation\ValidationException;
  *     refresh_token: string,
  *     expires_in: int,
  *     refresh_token_expires_in: int,
- *     scope: string
+ *     scope: string,
+ *     id_token?: string
  * }
  * @phpstan-type IssuedTokenPair array{
  *     token: Token,
@@ -64,6 +65,7 @@ class OAuthTokenService
         private readonly TokenRepositoryInterface $tokenRepository,
         private readonly AuditLogService $auditLogService,
         private readonly TokenFamilyService $tokenFamilyService,
+        private readonly OidcIdTokenService $oidcIdTokenService,
     ) {
     }
 
@@ -154,7 +156,29 @@ class OAuthTokenService
                 causer: $authorizationCode->user,
             );
 
-            return $issued['payload'];
+            $payload = $issued['payload'];
+            $idToken = $this->issueIdTokenIfRequired($authorizationCode);
+
+            if ($idToken !== null) {
+                $payload['id_token'] = $idToken;
+
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.id_token.issued_asymmetric',
+                    description: 'OIDC asymmetric ID token issued.',
+                    subject: $client,
+                    causer: $authorizationCode->user,
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
+                        'target_user_id' => $authorizationCode->user_id,
+                        'scope_contains_openid' => true,
+                        'has_nonce' => $authorizationCode->hasIdentityResponseNonce(),
+                    ],
+                );
+            }
+
+            return $payload;
         });
     }
 
@@ -384,6 +408,15 @@ class OAuthTokenService
                 'scope' => implode(' ', $scopes),
             ],
         ];
+    }
+
+    private function issueIdTokenIfRequired(AuthorizationCode $authorizationCode): ?string
+    {
+        if (! $authorizationCode->requiresIdentityNonceValidation()) {
+            return null;
+        }
+
+        return $this->oidcIdTokenService->issueForAuthorizationCode($authorizationCode);
     }
 
     /**

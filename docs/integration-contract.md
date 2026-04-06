@@ -77,7 +77,8 @@ Sikeres válasz hiteles formátuma:
     "refresh_token": "...",
     "expires_in": 3600,
     "refresh_token_expires_in": 86400,
-    "scope": "openid profile email"
+    "scope": "openid profile email",
+    "id_token": "eyJ..."
   },
   "meta": {},
   "errors": {}
@@ -86,7 +87,19 @@ Sikeres válasz hiteles formátuma:
 
 Szerződés szabály:
 
-- az `sso_client` kizárólag a `data.access_token` mezőt olvassa, nincs top-level fallback
+- az `id_token` csak akkor jelenik meg, ha a kiadott scope-ok között szerepel az `openid`
+- az `id_token` RS256 algoritmussal, aszimmetrikusan alairt JWT
+- a JWT header legalabb ezeket tartalmazza: `alg`, `typ`, `kid`
+- az `id_token` minimális claim készlete: `iss`, `sub`, `aud`, `iat`, `exp`
+- a `nonce` claim csak akkor kerül bele, ha az authorize/code flow hordozott nonce-ot
+- az `sso_client` továbbra is kizárólag a `data` envelope-ból dolgozik, nincs top-level fallback
+
+JWKS endpoint:
+
+- `GET /.well-known/jwks.json`
+- szabvanyos JWK Set valaszt ad: `{"keys":[...]}`
+- az aktiv publikus alairasi kulcs legalabb ezeket tartalmazza: `kty`, `kid`, `use`, `alg`, `n`, `e`
+- private key anyag soha nem jelenhet meg a valaszban
 
 Hibás válasz formátuma:
 
@@ -290,4 +303,3 @@ Kliens:
 - `tests/Feature/ProfileTest.php`
 
 Ezek a tesztek adják ennek a szerződésnek a regressziós védelmét.
-

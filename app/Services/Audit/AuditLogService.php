@@ -85,6 +85,8 @@ class AuditLogService
         'decision',
         'revocation_reason',
         'result',
+        'has_nonce',
+        'scope_contains_openid',
         'deleted_count',
         'client_access_id',
         'allowed_from',

@@ -18,6 +18,12 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->withoutVite();
+    config()->set('oidc.issuer', 'https://sso-server.test');
+    config()->set('oidc.id_token_ttl_seconds', 300);
+    config()->set('oidc.signing.alg', 'RS256');
+    config()->set('oidc.signing.kid', 'lifecycle-oidc-key-1');
+    config()->set('oidc.signing.private_key_path', base_path('tests/Fixtures/oidc/private.pem'));
+    config()->set('oidc.signing.public_key_path', base_path('tests/Fixtures/oidc/public.pem'));
 
     Scope::factory()->create(['name' => 'OpenID', 'code' => 'openid', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Profile', 'code' => 'profile', 'is_active' => true]);
@@ -75,6 +81,7 @@ function issueAuthorizationCodeTokenPair(SsoClient $client, string $plainSecret,
         'redirect_uri' => 'https://portal.example.com/callback',
         'scope' => 'openid profile',
         'state' => 'token-lifecycle-state',
+        'nonce' => 'token-lifecycle-nonce',
         'code_challenge' => $challenge,
         'code_challenge_method' => 'S256',
     ]);

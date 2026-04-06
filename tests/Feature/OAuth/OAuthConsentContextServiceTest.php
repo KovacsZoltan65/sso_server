@@ -55,6 +55,7 @@ function consentPayload(SsoClient $client, array $overrides = []): array
         'redirect_uri' => 'https://portal.example.com/callback',
         'scope' => 'openid profile',
         'state' => 'consent-state',
+        'nonce' => 'consent-nonce',
         'code_challenge' => 'test-code-challenge',
         'code_challenge_method' => 'S256',
     ], $overrides);
@@ -75,6 +76,7 @@ it('creates and stores a consent context in the current session', function (): v
         ->and($context->redirectUri)->toBe('https://portal.example.com/callback')
         ->and($context->requestedScopes)->toBe(['openid', 'profile'])
         ->and($context->state)->toBe('consent-state')
+        ->and($context->nonce)->toBe('consent-nonce')
         ->and($context->responseType)->toBe('code')
         ->and($context->codeChallenge)->toBe('test-code-challenge')
         ->and($context->codeChallengeMethod)->toBe('S256')
@@ -85,7 +87,8 @@ it('creates and stores a consent context in the current session', function (): v
     expect($storedContexts)->toHaveKey($context->consentToken)
         ->and($storedContexts[$context->consentToken]['client_id'] ?? null)->toBe($client->client_id)
         ->and($storedContexts[$context->consentToken]['user_id'] ?? null)->toBe($user->id)
-        ->and($storedContexts[$context->consentToken]['requested_scopes'] ?? null)->toBe(['openid', 'profile']);
+        ->and($storedContexts[$context->consentToken]['requested_scopes'] ?? null)->toBe(['openid', 'profile'])
+        ->and($storedContexts[$context->consentToken]['nonce'] ?? null)->toBe('consent-nonce');
 });
 
 it('retrieves a stored consent context by token with consistent data', function (): void {
@@ -102,6 +105,7 @@ it('retrieves a stored consent context by token with consistent data', function 
         ->and($retrieved->redirectUri)->toBe($created->redirectUri)
         ->and($retrieved->requestedScopes)->toBe($created->requestedScopes)
         ->and($retrieved->state)->toBe('return-state')
+        ->and($retrieved->nonce)->toBe('consent-nonce')
         ->and($retrieved->userId)->toBe($user->id);
 });
 

@@ -18,6 +18,7 @@ use Illuminate\Validation\ValidationException;
  *     redirect_uri: string,
  *     scope?: string|null,
  *     state?: string|null,
+ *     nonce?: string|null,
  *     code_challenge?: string|null,
  *     code_challenge_method?: string|null
  * }
@@ -93,6 +94,7 @@ class OAuthConsentContextService
             redirectUri: trim((string) $payload['redirect_uri']),
             requestedScopes: $requestedScopes,
             state: $this->normalizeNullableString($payload['state'] ?? null),
+            nonce: $this->normalizeNullableString($payload['nonce'] ?? null),
             responseType: trim((string) $payload['response_type']),
             codeChallenge: $this->normalizeNullableString($payload['code_challenge'] ?? null),
             codeChallengeMethod: $this->normalizeNullableString($payload['code_challenge_method'] ?? null),

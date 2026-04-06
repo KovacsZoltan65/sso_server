@@ -54,6 +54,7 @@ function consentDenyAuthorizeParams(SsoClient $client, array $overrides = []): a
         'redirect_uri' => 'https://portal.example.com/callback',
         'scope' => 'openid profile',
         'state' => 'denied-state',
+        'nonce' => 'deny-nonce',
         'code_challenge' => 'test-code-challenge',
         'code_challenge_method' => 'S256',
     ], $overrides);
