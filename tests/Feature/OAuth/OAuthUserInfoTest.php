@@ -7,16 +7,20 @@
 declare(strict_types=1);
 
 use App\Models\ClientSecret;
+use App\Models\AuthorizationCode;
 use App\Models\Scope;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Services\OAuth\OidcIdTokenService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 
 uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
+    config()->set('oidc.issuer', 'https://sso-server.test');
+
     Scope::factory()->create(['name' => 'OpenID', 'code' => 'openid', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Profile', 'code' => 'profile', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Email', 'code' => 'email', 'is_active' => true]);
@@ -348,4 +352,48 @@ it('updates last used timestamp after successful userinfo request', function ():
         ->assertOk();
 
     expect($token->fresh()?->last_used_at)->not->toBeNull();
+});
+
+it('returns a sub claim that is consistent with the id token subject contract', function (): void {
+    [$client, $policy] = userinfoOauthClient();
+    $user = User::factory()->create([
+        'name' => 'Teszt Elek',
+        'email' => 'elek@example.com',
+    ]);
+
+    $plainAccessToken = str_repeat('z', 40);
+
+    Token::query()->create([
+        'sso_client_id' => $client->id,
+        'user_id' => $user->id,
+        'token_policy_id' => $policy->id,
+        'access_token_hash' => hash('sha256', $plainAccessToken),
+        'refresh_token_hash' => hash('sha256', str_repeat('r', 40)),
+        'scopes' => ['openid', 'profile', 'email'],
+        'access_token_expires_at' => now()->addHour(),
+        'refresh_token_expires_at' => now()->addDay(),
+    ]);
+
+    $authorizationCode = AuthorizationCode::query()->create([
+        'sso_client_id' => $client->id,
+        'user_id' => $user->id,
+        'token_policy_id' => $policy->id,
+        'code_hash' => hash('sha256', 'oidc-userinfo-code'),
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'redirect_uri_hash' => hash('sha256', 'https://portal.example.com/callback'),
+        'nonce' => 'userinfo-nonce',
+        'code_challenge' => 'challenge',
+        'code_challenge_method' => 'S256',
+        'scopes' => ['openid', 'profile', 'email'],
+        'expires_at' => now()->addMinutes(5),
+    ]);
+
+    $userinfoSubject = $this->withHeader('Authorization', 'Bearer '.$plainAccessToken)
+        ->getJson(route('oauth.userinfo'))
+        ->assertOk()
+        ->json('data.sub');
+
+    $idTokenClaims = app(OidcIdTokenService::class)->claimsForAuthorizationCode($authorizationCode);
+
+    expect($userinfoSubject)->toBe($idTokenClaims['sub'] ?? null);
 });

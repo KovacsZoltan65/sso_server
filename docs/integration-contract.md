@@ -109,6 +109,7 @@ OpenID Provider discovery endpoint:
   - `issuer`
   - `authorization_endpoint`
   - `token_endpoint`
+  - `userinfo_endpoint`
   - `jwks_uri`
   - `response_types_supported`
   - `grant_types_supported`
@@ -116,12 +117,13 @@ OpenID Provider discovery endpoint:
   - `id_token_signing_alg_values_supported`
   - `scopes_supported`
   - `code_challenge_methods_supported`
+  - `claims_supported`
 - tudatosan nincs benne peldaul:
   - `end_session_endpoint`
   - `registration_endpoint`
-  - `userinfo_endpoint`
 - a metadata URL-jei az `issuer` baseline-hoz igazodnak
 - a `jwks_uri` a mar mukodo `/.well-known/jwks.json` vegpontra mutat
+- a `userinfo_endpoint` a mar mukodo bearer tokennel vedett `/api/oauth/userinfo` vegpontra mutat
 
 Hibás válasz formátuma:
 
@@ -162,13 +164,16 @@ Sikeres válasz:
 
 Claim szerződés:
 
-- garantált: `data.sub`
-- scope-függően opcionális: `data.name`, `data.email`, `data.email_verified`
+- `openid` scope eseten garantalt: `data.sub`
+- `profile` scope eseten opcionális: `data.name`
+- `email` scope eseten opcionális: `data.email`, `data.email_verified`
+- a `data.sub` ugyanazt a stabil identity subjectet használja, mint az `id_token.sub`
 
 Kliens oldali szerződés:
 
 - a userinfo választ csak a `data` mezőből olvassa
-- a lokális user session felépítéséhez szükséges a `data.email`
+- a kliens a `userinfo.sub` erteket kontrollaltan osszevetheti az `id_token.sub` claimmel
+- a lokális user session felépítéséhez jelenleg szükséges a `data.email`
 
 ## 5. Logout szerződés
 

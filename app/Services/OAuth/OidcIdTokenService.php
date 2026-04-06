@@ -13,6 +13,7 @@ class OidcIdTokenService
 {
     public function __construct(
         private readonly OidcSigningKeyService $signingKeyService,
+        private readonly OidcSubjectService $subjectService,
     ) {
     }
 
@@ -43,7 +44,7 @@ class OidcIdTokenService
 
         $claims = [
             'iss' => $this->issuer(),
-            'sub' => (string) $authorizationCode->user_id,
+            'sub' => $this->subjectService->forUserId($authorizationCode->user_id),
             'aud' => (string) $authorizationCode->client->client_id,
             'iat' => $issuedAt->getTimestamp(),
             'exp' => $expiresAt->getTimestamp(),

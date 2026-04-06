@@ -66,6 +66,8 @@ class OAuthTokenService
         private readonly AuditLogService $auditLogService,
         private readonly TokenFamilyService $tokenFamilyService,
         private readonly OidcIdTokenService $oidcIdTokenService,
+        private readonly OidcUserInfoService $oidcUserInfoService,
+        private readonly OidcSubjectService $oidcSubjectService,
     ) {
     }
 
@@ -589,7 +591,7 @@ class OAuthTokenService
             throw new AuthorizationException('The access token does not grant the openid scope.');
         }
 
-        $claims = $this->formatUserInfoClaims($token->user, $token->scopes ?? []);
+        $claims = $this->oidcUserInfoService->claimsForToken($token);
 
         $token->forceFill([
             'last_used_at' => now(),
@@ -721,7 +723,7 @@ class OAuthTokenService
             'token_type' => $tokenType,
             'client_id' => (string) $token->client->client_id,
             'scope' => implode(' ', $token->scopes ?? []),
-            'sub' => (string) $token->user_id,
+            'sub' => $this->oidcSubjectService->forUserId($token->user_id),
             'exp' => $expiresAt?->getTimestamp(),
         ];
     }
@@ -752,30 +754,6 @@ class OAuthTokenService
         }
 
         return $token;
-    }
-
-    /**
-     * Build the user info response body from the granted OpenID scopes.
-     *
-     * @param array<int, string> $scopes
-     * @return UserInfoClaims
-     */
-    private function formatUserInfoClaims(User $user, array $scopes): array
-    {
-        $claims = [
-            'sub' => (string) $user->id,
-        ];
-
-        if (in_array('profile', $scopes, true)) {
-            $claims['name'] = $user->name;
-        }
-
-        if (in_array('email', $scopes, true)) {
-            $claims['email'] = $user->email;
-            $claims['email_verified'] = $user->email_verified_at !== null;
-        }
-
-        return $claims;
     }
 
     /**

@@ -32,6 +32,7 @@ it('serves openid provider discovery metadata', function (): void {
         ->assertJsonPath('issuer', 'https://sso-server.test')
         ->assertJsonPath('authorization_endpoint', 'https://sso-server.test/oauth/authorize')
         ->assertJsonPath('token_endpoint', 'https://sso-server.test/api/oauth/token')
+        ->assertJsonPath('userinfo_endpoint', 'https://sso-server.test/api/oauth/userinfo')
         ->assertJsonPath('jwks_uri', 'https://sso-server.test/.well-known/jwks.json')
         ->assertJsonPath('response_types_supported.0', 'code')
         ->assertJsonPath('grant_types_supported.0', 'authorization_code')
@@ -45,7 +46,6 @@ it('serves openid provider discovery metadata', function (): void {
 
     $response->assertJsonMissingPath('end_session_endpoint');
     $response->assertJsonMissingPath('registration_endpoint');
-    $response->assertJsonMissingPath('userinfo_endpoint');
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
@@ -58,11 +58,13 @@ it('keeps discovery metadata urls consistent with the configured issuer and jwks
     $response = getJson('/.well-known/openid-configuration');
     $payload = $response->json();
     $jwksPath = route('oidc.jwks', absolute: false);
+    $userinfoPath = route('oauth.userinfo', absolute: false);
 
     expect($payload)->toBeArray()
         ->and($payload['issuer'] ?? null)->toBe('https://sso-server.test')
         ->and($payload['jwks_uri'] ?? null)->toBe('https://sso-server.test/.well-known/jwks.json')
         ->and($payload['authorization_endpoint'] ?? null)->toStartWith('https://sso-server.test/')
         ->and($payload['token_endpoint'] ?? null)->toStartWith('https://sso-server.test/')
+        ->and(parse_url((string) ($payload['userinfo_endpoint'] ?? ''), PHP_URL_PATH))->toBe($userinfoPath)
         ->and(parse_url((string) ($payload['jwks_uri'] ?? ''), PHP_URL_PATH))->toBe($jwksPath);
 });
