@@ -10,6 +10,7 @@ use App\Models\TokenPolicy;
 use App\Models\User;
 use App\Models\UserClientConsent;
 use App\Services\OAuth\OAuthAuthorizationService;
+use App\Services\OAuth\OidcFrontChannelLogoutService;
 use App\Services\OAuth\OAuthRememberedConsentService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -259,6 +260,13 @@ it('skips consent for trusted first-party clients when bypass is allowed', funct
             'scope_contains_openid' => true,
         ]);
 
+    $participants = app(OidcFrontChannelLogoutService::class)->participatingClients(app('session.store'));
+
+    expect($participants[$client->client_id] ?? null)->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+    ]);
+
     expect(session('oauth.consent_contexts', []))->toBe([]);
 
     $this->assertDatabaseHas('activity_log', [
@@ -271,6 +279,12 @@ it('skips consent for trusted first-party clients when bypass is allowed', funct
         'log_name' => 'oauth',
         'event' => 'oauth.nonce.bound_to_authorization_code',
         'description' => 'OAuth nonce bound to authorization code.',
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.frontchannel_logout.registered_client',
+        'description' => 'OIDC front-channel logout client registered for the provider session.',
     ]);
 });
 
@@ -572,6 +586,7 @@ it('rejects authorize requests when the client requests a scope it is not allowe
         ]);
 
     expect(AuthorizationCode::query()->count())->toBe(0);
+    expect(app(OidcFrontChannelLogoutService::class)->participatingClients(app('session.store')))->toBe([]);
 });
 
 it('rejects authorize requests when the client is invalid with a validation error instead of 404', function () {

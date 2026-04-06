@@ -118,6 +118,7 @@ OpenID Provider discovery endpoint:
 - `scopes_supported`
 - `code_challenge_methods_supported`
 - `claims_supported`
+- `frontchannel_logout_supported`
 - `end_session_endpoint`
 - a `claims_supported` jelenleg pontosan ezeket a claim-eket publikalja: `sub`, `name`, `email`, `email_verified`
 - tudatosan nincs benne peldaul:
@@ -127,6 +128,7 @@ OpenID Provider discovery endpoint:
 - a `userinfo_endpoint` a mar mukodo bearer tokennel vedett `/api/oauth/userinfo` vegpontra mutat
 - az `end_session_endpoint` a mar mukodo `GET /oidc/logout` provider logout vegpontra mutat
 - a discovery `claims_supported` mar a kozponti OIDC claim policybol epul
+- a `frontchannel_logout_supported` azt jelzi, hogy a provider oldalon elerheto a front-channel logout foundation
 
 Hibás válasz formátuma:
 
@@ -213,11 +215,24 @@ Logout viselkedés:
 - ha `state` erkezett es a redirect ervenyes, a szerver visszaechozza a redirect URL queryjeben
 - ha nincs ervenyes redirect, a szerver a sajat login oldalra ter vissza status uzenettel
 
+Front-channel logout foundation:
+
+- a provider session alatt a szerver explicit RP participation listat tarol
+- a regisztracio csak sikeres authorization code kiadas utan tortenik meg
+- kliensenkent a tarolt minimum adatok:
+  - `client_id`
+  - `frontchannel_logout_uri`
+- logoutkor a szerver a resztvevo RP-khez front-channel logout cel URL-eket epit
+- ha van ilyen cel, a provider egy relay oldalt ad vissza, amely betolti ezeket a front-channel logout URL-eket, majd tovabblep a vegso redirect vagy fallback oldal fele
+- a kliens fele a jelenlegi foundation ezeket a query parametereket kuldi:
+  - `iss`
+  - `client_id`
+
 Tudatosan nincs benne meg:
 
-- front-channel logout propagation
 - back-channel logout
 - global multi-client session kill
+- teljes garantalt distributed single logout
 
 ## 6. Self-service profile szerződés
 

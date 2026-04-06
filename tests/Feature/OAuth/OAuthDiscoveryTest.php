@@ -40,7 +40,8 @@ it('serves openid provider discovery metadata', function (): void {
         ->assertJsonPath('grant_types_supported.1', 'refresh_token')
         ->assertJsonPath('subject_types_supported.0', 'public')
         ->assertJsonPath('id_token_signing_alg_values_supported.0', 'RS256')
-        ->assertJsonPath('code_challenge_methods_supported.0', 'S256');
+        ->assertJsonPath('code_challenge_methods_supported.0', 'S256')
+        ->assertJsonPath('frontchannel_logout_supported', true);
 
     expect($response->json('scopes_supported'))
         ->toBe(['email', 'openid', 'profile']);

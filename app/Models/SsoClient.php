@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $client_id
  * @property string $client_secret_hash
  * @property array<int, string>|null $redirect_uris
+ * @property string|null $frontchannel_logout_uri
  * @property bool $is_active
  * @property array<int, string>|null $scopes
  * @property int|null $token_policy_id
@@ -49,6 +50,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientSecretHash($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereFrontchannelLogoutUri($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereIsActive($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereName($value)
@@ -63,6 +65,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'client_id',
     'client_secret_hash',
     'redirect_uris',
+    'frontchannel_logout_uri',
     'is_active',
     'scopes',
     'token_policy_id',
@@ -214,6 +217,13 @@ class SsoClient extends Model
             ->filter()
             ->values()
             ->all();
+    }
+
+    public function normalizedFrontChannelLogoutUri(): ?string
+    {
+        $uri = trim((string) ($this->frontchannel_logout_uri ?? ''));
+
+        return $uri === '' ? null : $uri;
     }
 
     /**

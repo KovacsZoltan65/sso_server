@@ -61,6 +61,7 @@ class OAuthAuthorizationService
         private readonly OAuthConsentContextService $consentContextService,
         private readonly OAuthTrustDecisionService $trustDecisionService,
         private readonly OAuthRememberedConsentService $rememberedConsentService,
+        private readonly OidcFrontChannelLogoutService $frontChannelLogoutService,
     ) {
     }
 
@@ -481,6 +482,8 @@ class OAuthAuthorizationService
                 );
             }
         });
+
+        $this->frontChannelLogoutService->registerParticipatingClient($client);
 
         $query = array_filter([
             'code' => $plainCode,

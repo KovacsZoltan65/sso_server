@@ -87,6 +87,8 @@ class AuditLogService
         'result',
         'has_nonce',
         'scope_contains_openid',
+        'has_frontchannel_logout_uri',
+        'frontchannel_target_count',
         'deleted_count',
         'client_access_id',
         'allowed_from',

@@ -42,6 +42,7 @@ function logoutOauthClient(): array
         'name' => 'Portal Client',
         'client_id' => 'portal-client-'.fake()->unique()->numerify('###'),
         'token_policy_id' => $policy->id,
+        'frontchannel_logout_uri' => 'http://sso-client.test/auth/frontchannel-logout',
         'is_active' => true,
     ]);
 
@@ -81,10 +82,11 @@ function logoutIdTokenHint(\App\Models\SsoClient $client, User $user, TokenPolic
     return app(OidcIdTokenService::class)->issueForAuthorizationCode($authorizationCode);
 }
 
-it('logs out the provider session and redirects to a valid post logout redirect uri', function (): void {
+it('renders a front-channel relay page and keeps the valid post logout redirect target', function (): void {
     [$client, $policy] = logoutOauthClient();
     $user = User::factory()->create();
     $idTokenHint = logoutIdTokenHint($client, $user, $policy);
+    app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client);
 
     $response = $this->actingAs($user)->get(route('oidc.end_session', [
         'id_token_hint' => $idTokenHint,
@@ -92,7 +94,11 @@ it('logs out the provider session and redirects to a valid post logout redirect 
         'state' => 'logout-state-123',
     ]));
 
-    $response->assertRedirect('http://sso-client.test/auth/logout/return?state=logout-state-123');
+    $response
+        ->assertOk()
+        ->assertSee('http://sso-client.test/auth/frontchannel-logout?iss=https%3A%2F%2Fsso-server.test&amp;client_id='.$client->client_id, false)
+        ->assertSee('http://sso-client.test/auth/logout/return?state=logout-state-123');
+
     $this->assertGuest();
 
     $this->assertDatabaseHas('activity_log', [
@@ -106,12 +112,25 @@ it('logs out the provider session and redirects to a valid post logout redirect 
         'event' => 'oauth.end_session.completed',
         'description' => 'OIDC end session completed.',
     ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.frontchannel_logout.dispatched',
+        'description' => 'OIDC front-channel logout dispatched.',
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.frontchannel_logout.completed_provider_side',
+        'description' => 'OIDC front-channel logout completed provider side.',
+    ]);
 });
 
 it('does not allow open redirects when the logout redirect is not registered for the hinted client', function (): void {
     [$client, $policy] = logoutOauthClient();
     $user = User::factory()->create();
     $idTokenHint = logoutIdTokenHint($client, $user, $policy);
+    app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client);
 
     $response = $this->actingAs($user)->get(route('oidc.end_session', [
         'id_token_hint' => $idTokenHint,
@@ -120,8 +139,9 @@ it('does not allow open redirects when the logout redirect is not registered for
     ]));
 
     $response
-        ->assertRedirect(route('login'))
-        ->assertSessionHas('status', 'Sikeres kijelentkezes.');
+        ->assertOk()
+        ->assertSee('http://sso-client.test/auth/frontchannel-logout?iss=https%3A%2F%2Fsso-server.test&amp;client_id='.$client->client_id, false)
+        ->assertSee(route('login'));
 
     $this->assertGuest();
 
@@ -136,14 +156,16 @@ it('falls back cleanly when no post logout redirect uri is provided', function (
     [$client, $policy] = logoutOauthClient();
     $user = User::factory()->create();
     $idTokenHint = logoutIdTokenHint($client, $user, $policy);
+    app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client);
 
     $response = $this->actingAs($user)->get(route('oidc.end_session', [
         'id_token_hint' => $idTokenHint,
     ]));
 
     $response
-        ->assertRedirect(route('login'))
-        ->assertSessionHas('status', 'Sikeres kijelentkezes.');
+        ->assertOk()
+        ->assertSee('http://sso-client.test/auth/frontchannel-logout?iss=https%3A%2F%2Fsso-server.test&amp;client_id='.$client->client_id, false)
+        ->assertSee(route('login'));
 
     $this->assertGuest();
 });
@@ -161,4 +183,29 @@ it('still completes logout when the id token hint is malformed', function (): vo
         ->assertSessionHas('status', 'Sikeres kijelentkezes.');
 
     $this->assertGuest();
+});
+
+it('falls back to the direct post logout redirect when no explicit front-channel logout uri is registered', function (): void {
+    [$client, $policy] = logoutOauthClient();
+    $client->forceFill([
+        'frontchannel_logout_uri' => null,
+    ])->save();
+
+    $user = User::factory()->create();
+    $idTokenHint = logoutIdTokenHint($client->fresh(), $user, $policy);
+    app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client->fresh());
+
+    $response = $this->actingAs($user)->get(route('oidc.end_session', [
+        'id_token_hint' => $idTokenHint,
+        'post_logout_redirect_uri' => 'http://sso-client.test/auth/logout/return',
+        'state' => 'logout-state-direct',
+    ]));
+
+    $response->assertRedirect('http://sso-client.test/auth/logout/return?state=logout-state-direct');
+
+    $this->assertDatabaseMissing('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.frontchannel_logout.dispatched',
+        'description' => 'OIDC front-channel logout dispatched.',
+    ]);
 });
