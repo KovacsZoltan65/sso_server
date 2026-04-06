@@ -47,4 +47,9 @@ interface ScopeRepositoryInterface
      * @return array<string, int>
      */
     public function clientUsageCounts(array $codes): array;
+
+    /**
+     * @return array<int, string>
+     */
+    public function activeCodes(): array;
 }

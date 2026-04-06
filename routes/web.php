@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\TokenController as AdminTokenController;
 use App\Http\Controllers\Admin\TokenPolicyController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\OAuth\AuthorizationController;
+use App\Http\Controllers\OAuth\OidcDiscoveryController;
 use App\Http\Controllers\OAuth\OidcJwksController;
 use App\Http\Controllers\OAuth\OAuthConsentApproveController;
 use App\Http\Controllers\OAuth\OAuthConsentDenyController;
@@ -20,6 +21,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
 
+Route::get('/.well-known/openid-configuration', OidcDiscoveryController::class)->name('oidc.discovery');
 Route::get('/.well-known/jwks.json', OidcJwksController::class)->name('oidc.jwks');
 
 Route::middleware(['auth'])->group(function () {

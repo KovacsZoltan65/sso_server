@@ -101,6 +101,28 @@ JWKS endpoint:
 - az aktiv publikus alairasi kulcs legalabb ezeket tartalmazza: `kty`, `kid`, `use`, `alg`, `n`, `e`
 - private key anyag soha nem jelenhet meg a valaszban
 
+OpenID Provider discovery endpoint:
+
+- `GET /.well-known/openid-configuration`
+- szabvanyos OpenID Provider Metadata dokumentumot ad
+- jelenleg csak a tenylegesen implementalt baseline-t publikálja:
+  - `issuer`
+  - `authorization_endpoint`
+  - `token_endpoint`
+  - `jwks_uri`
+  - `response_types_supported`
+  - `grant_types_supported`
+  - `subject_types_supported`
+  - `id_token_signing_alg_values_supported`
+  - `scopes_supported`
+  - `code_challenge_methods_supported`
+- tudatosan nincs benne peldaul:
+  - `end_session_endpoint`
+  - `registration_endpoint`
+  - `userinfo_endpoint`
+- a metadata URL-jei az `issuer` baseline-hoz igazodnak
+- a `jwks_uri` a mar mukodo `/.well-known/jwks.json` vegpontra mutat
+
 Hibás válasz formátuma:
 
 ```json

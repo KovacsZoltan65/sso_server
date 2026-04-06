@@ -128,4 +128,19 @@ class ScopeRepository extends Repository implements ScopeRepositoryInterface
 
         return $counts;
     }
+
+    public function activeCodes(): array
+    {
+        /** @var array<int, string> $codes */
+        $codes = $this->getModel()
+            ->newQuery()
+            ->where('is_active', true)
+            ->orderBy('code')
+            ->pluck('code')
+            ->filter(static fn (mixed $code): bool => is_string($code) && trim($code) !== '')
+            ->values()
+            ->all();
+
+        return $codes;
+    }
 }
