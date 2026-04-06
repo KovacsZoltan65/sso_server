@@ -9,6 +9,7 @@ class OidcUserInfoService
 {
     public function __construct(
         private readonly OidcSubjectService $subjectService,
+        private readonly OidcClaimPolicyService $claimPolicyService,
     ) {
     }
 
@@ -29,20 +30,11 @@ class OidcUserInfoService
      */
     public function claimsForUser(User $user, array $scopes): array
     {
-        $claims = [
-            'sub' => $this->subjectService->forUser($user),
-        ];
-
-        if (in_array('profile', $scopes, true)) {
-            $claims['name'] = $user->name;
-        }
-
-        if (in_array('email', $scopes, true)) {
-            $claims['email'] = $user->email;
-            $claims['email_verified'] = $user->email_verified_at !== null;
-        }
-
-        return $claims;
+        return $this->claimPolicyService->userInfoClaimsForUser(
+            user: $user,
+            scopes: $scopes,
+            subject: $this->subjectService->forUser($user),
+        );
     }
 
     /**
@@ -50,6 +42,6 @@ class OidcUserInfoService
      */
     public function supportedClaims(): array
     {
-        return ['sub', 'name', 'email', 'email_verified'];
+        return $this->claimPolicyService->supportedClaims();
     }
 }

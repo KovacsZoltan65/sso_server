@@ -9,7 +9,7 @@ class OidcDiscoveryService
     public function __construct(
         private readonly ScopeRepositoryInterface $scopeRepository,
         private readonly OidcSigningKeyService $signingKeyService,
-        private readonly OidcUserInfoService $oidcUserInfoService,
+        private readonly OidcClaimPolicyService $claimPolicyService,
     ) {
     }
 
@@ -31,7 +31,7 @@ class OidcDiscoveryService
             'id_token_signing_alg_values_supported' => [$this->signingKeyService->algorithm()],
             'scopes_supported' => $this->scopeRepository->activeCodes(),
             'code_challenge_methods_supported' => ['S256'],
-            'claims_supported' => $this->oidcUserInfoService->supportedClaims(),
+            'claims_supported' => $this->claimPolicyService->supportedClaims(),
         ];
     }
 

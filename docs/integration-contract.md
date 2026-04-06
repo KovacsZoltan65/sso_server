@@ -119,12 +119,14 @@ OpenID Provider discovery endpoint:
 - `code_challenge_methods_supported`
 - `claims_supported`
 - `end_session_endpoint`
+- a `claims_supported` jelenleg pontosan ezeket a claim-eket publikalja: `sub`, `name`, `email`, `email_verified`
 - tudatosan nincs benne peldaul:
   - `registration_endpoint`
 - a metadata URL-jei az `issuer` baseline-hoz igazodnak
 - a `jwks_uri` a mar mukodo `/.well-known/jwks.json` vegpontra mutat
 - a `userinfo_endpoint` a mar mukodo bearer tokennel vedett `/api/oauth/userinfo` vegpontra mutat
 - az `end_session_endpoint` a mar mukodo `GET /oidc/logout` provider logout vegpontra mutat
+- a discovery `claims_supported` mar a kozponti OIDC claim policybol epul
 
 Hibás válasz formátuma:
 
@@ -169,6 +171,15 @@ Claim szerződés:
 - `profile` scope eseten opcionális: `data.name`
 - `email` scope eseten opcionális: `data.email`, `data.email_verified`
 - a `data.sub` ugyanazt a stabil identity subjectet használja, mint az `id_token.sub`
+- a scope -> claim mapping kozponti OIDC claim policyban van rogzitve, nem kulon userinfo-specifikus stringlistakban
+
+ID token claim szerződés:
+
+- az `id_token` minimalis marad
+- garantalt protokoll es identity baseline: `iss`, `sub`, `aud`, `iat`, `exp`
+- `nonce` csak akkor szerepel benne, ha a flow-ban volt nonce
+- `name`, `email`, `email_verified` claim-ek nem kerulnek automatikusan az `id_token`-ba
+- a reszletesebb identity claim-ek elsodleges helye tovabbra is a `userinfo`
 
 Kliens oldali szerződés:
 

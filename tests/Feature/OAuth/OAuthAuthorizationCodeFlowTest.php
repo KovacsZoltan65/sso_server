@@ -699,7 +699,10 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
         ->and($claims['nonce'] ?? null)->toBe('oauth-nonce')
         ->and($claims['iat'] ?? null)->toBeInt()
         ->and($claims['exp'] ?? null)->toBeInt()
-        ->and(($claims['exp'] ?? 0) - ($claims['iat'] ?? 0))->toBe(300);
+        ->and(($claims['exp'] ?? 0) - ($claims['iat'] ?? 0))->toBe(300)
+        ->and(array_key_exists('name', $claims))->toBeFalse()
+        ->and(array_key_exists('email', $claims))->toBeFalse()
+        ->and(array_key_exists('email_verified', $claims))->toBeFalse();
 
     $this->assertDatabaseHas('tokens', [
         'sso_client_id' => $client->id,

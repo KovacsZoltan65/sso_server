@@ -14,6 +14,7 @@ class OidcIdTokenService
     public function __construct(
         private readonly OidcSigningKeyService $signingKeyService,
         private readonly OidcSubjectService $subjectService,
+        private readonly OidcClaimPolicyService $claimPolicyService,
     ) {
     }
 
@@ -42,9 +43,10 @@ class OidcIdTokenService
         $issuedAt ??= now();
         $expiresAt = $issuedAt->copy()->addSeconds($this->ttlSeconds());
 
+        $subject = $this->subjectService->forUserId($authorizationCode->user_id);
         $claims = [
             'iss' => $this->issuer(),
-            'sub' => $this->subjectService->forUserId($authorizationCode->user_id),
+            'sub' => $subject,
             'aud' => (string) $authorizationCode->client->client_id,
             'iat' => $issuedAt->getTimestamp(),
             'exp' => $expiresAt->getTimestamp(),
@@ -56,7 +58,10 @@ class OidcIdTokenService
             $claims['nonce'] = $nonce;
         }
 
-        return $claims;
+        return array_merge(
+            $claims,
+            $this->claimPolicyService->idTokenIdentityClaimsForAuthorizationCode($authorizationCode, $subject),
+        );
     }
 
     /**

@@ -45,6 +45,9 @@ it('serves openid provider discovery metadata', function (): void {
     expect($response->json('scopes_supported'))
         ->toBe(['email', 'openid', 'profile']);
 
+    expect($response->json('claims_supported'))
+        ->toBe(['sub', 'name', 'email', 'email_verified']);
+
     $response->assertJsonMissingPath('registration_endpoint');
 
     $this->assertDatabaseHas('activity_log', [
