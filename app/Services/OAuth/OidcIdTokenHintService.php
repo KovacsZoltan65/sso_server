@@ -57,7 +57,7 @@ class OidcIdTokenHintService
 
         if (
             $alg !== $this->signingKeyService->algorithm()
-            || $kid !== $this->signingKeyService->kid()
+            || $kid === ''
             || $issuer !== rtrim((string) config('oidc.issuer'), '/')
         ) {
             return null;
@@ -65,7 +65,11 @@ class OidcIdTokenHintService
 
         $signingInput = $headerSegment.'.'.$payloadSegment;
 
-        if (! $this->signingKeyService->verify($signingInput, $signature)) {
+        try {
+            if (! $this->signingKeyService->verify($signingInput, $signature, $kid)) {
+                return null;
+            }
+        } catch (\RuntimeException) {
             return null;
         }
 

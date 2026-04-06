@@ -98,8 +98,13 @@ JWKS endpoint:
 
 - `GET /.well-known/jwks.json`
 - szabvanyos JWK Set valaszt ad: `{"keys":[...]}`
-- az aktiv publikus alairasi kulcs legalabb ezeket tartalmazza: `kty`, `kid`, `use`, `alg`, `n`, `e`
+- a JWKS immar tobb kulcsot is publikálhat ugyanabban a `keys` tombben
+- minden publikalt verify kulcs legalabb ezeket tartalmazza: `kty`, `kid`, `use`, `alg`, `n`, `e`
+- a szerver pontosan egy aktiv signing kulcsot tart fenn, az uj `id_token`-ek mindig ezzel irodnak ala
+- a korabbi kulcsok legacy verify kulcskent tovabbra is benne maradhatnak a JWKS-ben, ameddig a szerver ezt vallalja
+- a `kid` stabil szerzodeses azonosito: az `id_token` header `kid` erteke mindig ugyanarra a JWKS kulcsra mutat
 - private key anyag soha nem jelenhet meg a valaszban
+- tudatosan nincs meg admin key management UI, automatizalt rotacios scheduler vagy KMS/HSM integracio
 
 OpenID Provider discovery endpoint:
 

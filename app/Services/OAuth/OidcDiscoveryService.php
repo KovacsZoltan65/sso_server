@@ -28,7 +28,7 @@ class OidcDiscoveryService
             'response_types_supported' => ['code'],
             'grant_types_supported' => ['authorization_code', 'refresh_token'],
             'subject_types_supported' => ['public'],
-            'id_token_signing_alg_values_supported' => [$this->signingKeyService->algorithm()],
+            'id_token_signing_alg_values_supported' => $this->signingKeyService->supportedAlgorithms(),
             'scopes_supported' => $this->scopeRepository->activeCodes(),
             'code_challenge_methods_supported' => ['S256'],
             'claims_supported' => $this->claimPolicyService->supportedClaims(),

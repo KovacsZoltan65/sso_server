@@ -68,6 +68,7 @@ class OAuthTokenService
         private readonly OidcIdTokenService $oidcIdTokenService,
         private readonly OidcUserInfoService $oidcUserInfoService,
         private readonly OidcSubjectService $oidcSubjectService,
+        private readonly OidcSigningKeyService $oidcSigningKeyService,
     ) {
     }
 
@@ -163,11 +164,12 @@ class OAuthTokenService
 
             if ($idToken !== null) {
                 $payload['id_token'] = $idToken;
+                $activeSigningKey = $this->oidcSigningKeyService->getActiveSigningKey();
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
-                    event: 'oauth.id_token.issued_asymmetric',
-                    description: 'OIDC asymmetric ID token issued.',
+                    event: 'oauth.id_token.issued_with_kid',
+                    description: 'OIDC asymmetric ID token issued with active signing kid.',
                     subject: $client,
                     causer: $authorizationCode->user,
                     properties: [
@@ -176,6 +178,7 @@ class OAuthTokenService
                         'target_user_id' => $authorizationCode->user_id,
                         'scope_contains_openid' => true,
                         'has_nonce' => $authorizationCode->hasIdentityResponseNonce(),
+                        'kid' => $activeSigningKey['kid'] ?? null,
                     ],
                 );
             }

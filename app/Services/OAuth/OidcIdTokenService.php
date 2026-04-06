@@ -22,14 +22,16 @@ class OidcIdTokenService
     {
         $issuedAt = now();
         $claims = $this->claimsForAuthorizationCode($authorizationCode, $issuedAt);
+        $signingKey = $this->signingKeyService->getActiveSigningKey();
 
         return $this->encodeJwt(
             header: [
-                'alg' => $this->signingKeyService->algorithm(),
+                'alg' => $signingKey['alg'],
                 'typ' => 'JWT',
-                'kid' => $this->signingKeyService->kid(),
+                'kid' => $signingKey['kid'],
             ],
             payload: $claims,
+            signingKey: $signingKey,
         );
     }
 
@@ -67,13 +69,14 @@ class OidcIdTokenService
     /**
      * @param array<string, int|string> $header
      * @param array<string, int|string> $payload
+     * @param array{kid: string, alg: string, private_key_path: string|null, public_key_path: string, published: bool} $signingKey
      */
-    private function encodeJwt(array $header, array $payload): string
+    private function encodeJwt(array $header, array $payload, array $signingKey): string
     {
         $headerSegment = $this->base64UrlEncode(json_encode($header, JSON_THROW_ON_ERROR));
         $payloadSegment = $this->base64UrlEncode(json_encode($payload, JSON_THROW_ON_ERROR));
         $signingInput = $headerSegment.'.'.$payloadSegment;
-        $signature = $this->signingKeyService->sign($signingInput);
+        $signature = $this->signingKeyService->sign($signingInput, $signingKey);
 
         return $signingInput.'.'.$this->base64UrlEncode($signature);
     }

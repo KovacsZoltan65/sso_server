@@ -11,15 +11,18 @@ class OidcJwksController extends Controller
 {
     public function __invoke(OidcJwksService $jwksService, AuditLogService $auditLogService): JsonResponse
     {
+        $jwks = $jwksService->currentJwkSet();
+
         $auditLogService->logSuccess(
             logName: AuditLogService::LOG_OAUTH,
-            event: 'oauth.jwks.served',
-            description: 'OIDC JWKS served.',
+            event: 'oauth.jwks.served_multikey',
+            description: 'OIDC multi-key JWKS served.',
             properties: [
+                'key_count' => count($jwks['keys'] ?? []),
                 'status' => 'served',
             ],
         );
 
-        return response()->json($jwksService->currentJwkSet());
+        return response()->json($jwks);
     }
 }

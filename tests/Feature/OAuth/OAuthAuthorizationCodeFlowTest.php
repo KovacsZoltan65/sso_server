@@ -22,10 +22,23 @@ beforeEach(function (): void {
 
     config()->set('oidc.issuer', 'https://sso-server.test');
     config()->set('oidc.id_token_ttl_seconds', 300);
-    config()->set('oidc.signing.alg', 'RS256');
-    config()->set('oidc.signing.kid', 'test-oidc-key-1');
-    config()->set('oidc.signing.private_key_path', base_path('tests/Fixtures/oidc/private.pem'));
-    config()->set('oidc.signing.public_key_path', base_path('tests/Fixtures/oidc/public.pem'));
+    config()->set('oidc.signing.active_kid', 'test-oidc-key-1');
+    config()->set('oidc.signing.keys', [
+        [
+            'kid' => 'test-oidc-key-1',
+            'alg' => 'RS256',
+            'private_key_path' => base_path('tests/Fixtures/oidc/private.pem'),
+            'public_key_path' => base_path('tests/Fixtures/oidc/public.pem'),
+            'published' => true,
+        ],
+        [
+            'kid' => 'legacy-oidc-key-1',
+            'alg' => 'RS256',
+            'private_key_path' => base_path('tests/Fixtures/oidc/legacy-private.pem'),
+            'public_key_path' => base_path('tests/Fixtures/oidc/legacy-public.pem'),
+            'published' => true,
+        ],
+    ]);
 
     Scope::factory()->create(['name' => 'OpenID', 'code' => 'openid', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Profile', 'code' => 'profile', 'is_active' => true]);
@@ -740,8 +753,8 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.id_token.issued_asymmetric',
-        'description' => 'OIDC asymmetric ID token issued.',
+        'event' => 'oauth.id_token.issued_with_kid',
+        'description' => 'OIDC asymmetric ID token issued with active signing kid.',
     ]);
 
     $issueActivity = Activity::query()
@@ -778,8 +791,8 @@ it('does not include id token in token response when openid scope is not granted
 
     $this->assertDatabaseMissing('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.id_token.issued_asymmetric',
-        'description' => 'OIDC asymmetric ID token issued.',
+        'event' => 'oauth.id_token.issued_with_kid',
+        'description' => 'OIDC asymmetric ID token issued with active signing kid.',
     ]);
 });
 
@@ -805,12 +818,16 @@ it('serves a standards-aligned jwks endpoint without private key material', func
 
     $jwks = $response->json();
 
+    expect($jwks['keys'])->toHaveCount(2);
+    expect(collect($jwks['keys'])->pluck('kid')->all())
+        ->toBe(['test-oidc-key-1', 'legacy-oidc-key-1']);
     expect($jwks['keys'][0])->not->toHaveKeys(['d', 'p', 'q', 'dp', 'dq', 'qi', 'private_key']);
+    expect($jwks['keys'][1])->not->toHaveKeys(['d', 'p', 'q', 'dp', 'dq', 'qi', 'private_key']);
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.jwks.served',
-        'description' => 'OIDC JWKS served.',
+        'event' => 'oauth.jwks.served_multikey',
+        'description' => 'OIDC multi-key JWKS served.',
     ]);
 });
 

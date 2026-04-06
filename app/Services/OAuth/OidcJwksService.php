@@ -15,9 +15,10 @@ class OidcJwksService
     public function currentJwkSet(): array
     {
         return [
-            'keys' => [
-                $this->signingKeyService->publicJwk(),
-            ],
+            'keys' => array_values(array_map(
+                fn (array $key): array => $this->signingKeyService->publicJwk($key),
+                $this->signingKeyService->getPublishedVerificationKeys(),
+            )),
         ];
     }
 }

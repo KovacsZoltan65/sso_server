@@ -13,10 +13,23 @@ beforeEach(function (): void {
     $this->withoutVite();
 
     config()->set('oidc.issuer', 'https://sso-server.test');
-    config()->set('oidc.signing.alg', 'RS256');
-    config()->set('oidc.signing.kid', 'discovery-test-key-1');
-    config()->set('oidc.signing.private_key_path', base_path('tests/Fixtures/oidc/private.pem'));
-    config()->set('oidc.signing.public_key_path', base_path('tests/Fixtures/oidc/public.pem'));
+    config()->set('oidc.signing.active_kid', 'discovery-test-key-1');
+    config()->set('oidc.signing.keys', [
+        [
+            'kid' => 'discovery-test-key-1',
+            'alg' => 'RS256',
+            'private_key_path' => base_path('tests/Fixtures/oidc/private.pem'),
+            'public_key_path' => base_path('tests/Fixtures/oidc/public.pem'),
+            'published' => true,
+        ],
+        [
+            'kid' => 'discovery-legacy-key-1',
+            'alg' => 'RS256',
+            'private_key_path' => null,
+            'public_key_path' => base_path('tests/Fixtures/oidc/legacy-public.pem'),
+            'published' => true,
+        ],
+    ]);
 
     Scope::factory()->create(['name' => 'OpenID', 'code' => 'openid', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Profile', 'code' => 'profile', 'is_active' => true]);
