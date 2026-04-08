@@ -88,7 +88,9 @@ class AuditLogService
         'has_nonce',
         'scope_contains_openid',
         'has_frontchannel_logout_uri',
+        'has_backchannel_logout_uri',
         'frontchannel_target_count',
+        'backchannel_target_count',
         'kid',
         'key_count',
         'deleted_count',
@@ -104,6 +106,7 @@ class AuditLogService
         'already_revoked',
         'trigger',
         'incident_detected_at',
+        'http_status',
     ];
 
     /**

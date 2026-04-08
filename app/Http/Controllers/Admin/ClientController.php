@@ -18,18 +18,21 @@ use Inertia\Response;
 
 class ClientController extends Controller
 {
+    public function __construct(
+            private readonly ClientService $clientService
+    ) {}
     /**
      * Rendereld a kliens indexoldalát az aktuális szűrő-, rendezési és tördelési hasznos adattartalommal.
      *
      * @return Response
      */
-    public function index(ClientIndexRequest $request, ClientService $clientService): Response
+    public function index(ClientIndexRequest $request): Response
     {
         $this->authorize('viewAny', SsoClient::class);
 
         $validated = $request->validated();
 
-        return Inertia::render('Clients/Index', $clientService->getIndexPayload(
+        return Inertia::render('Clients/Index', $this->clientService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'name' => $validated['name'] ?? null,
@@ -47,11 +50,11 @@ class ClientController extends Controller
      *
      * @return Response
      */
-    public function create(ClientService $clientService): Response
+    public function create(): Response
     {
         $this->authorize('create', SsoClient::class);
 
-        return Inertia::render('Clients/Create', $clientService->getCreatePayload());
+        return Inertia::render('Clients/Create', $this->clientService->getCreatePayload());
     }
 
     /**
@@ -59,11 +62,11 @@ class ClientController extends Controller
      *
      * @return RedirectResponse
      */
-    public function store(ClientStoreRequest $request, ClientService $clientService): RedirectResponse
+    public function store(ClientStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', SsoClient::class);
 
-        $result = $clientService->createClient($request->validated());
+        $result = $this->clientService->createClient($request->validated());
 
         return redirect()
             ->route('admin.sso-clients.index')
@@ -79,11 +82,11 @@ class ClientController extends Controller
      *
      * @return Response
      */
-    public function edit(SsoClient $ssoClient, ClientService $clientService): Response
+    public function edit(SsoClient $ssoClient): Response
     {
         $this->authorize('update', $ssoClient);
 
-        return Inertia::render('Clients/Edit', $clientService->getEditPayload($ssoClient));
+        return Inertia::render('Clients/Edit', $this->clientService->getEditPayload($ssoClient));
     }
 
     /**
@@ -93,12 +96,11 @@ class ClientController extends Controller
      */
     public function update(
         ClientUpdateRequest $request,
-        SsoClient $ssoClient,
-        ClientService $clientService,
+        SsoClient $ssoClient
     ): RedirectResponse {
         $this->authorize('update', $ssoClient);
 
-        $clientService->updateClient($ssoClient, $request->validated());
+        $this->clientService->updateClient($ssoClient, $request->validated());
 
         return redirect()
             ->route('admin.sso-clients.index')
@@ -112,12 +114,11 @@ class ClientController extends Controller
      */
     public function rotateSecret(
         ClientRotateSecretRequest $request,
-        SsoClient $ssoClient,
-        ClientService $clientService,
+        SsoClient $ssoClient
     ): RedirectResponse {
         $this->authorize('rotateSecret', $ssoClient);
 
-        $result = $clientService->rotateSecret($ssoClient, $request->validated());
+        $result = $this->clientService->rotateSecret($ssoClient, $request->validated());
 
         return redirect()
             ->route('admin.sso-clients.edit', $ssoClient)
@@ -136,12 +137,11 @@ class ClientController extends Controller
     public function revokeSecret(
         ClientRevokeSecretRequest $request,
         SsoClient $ssoClient,
-        ClientSecret $clientSecret,
-        ClientService $clientService,
+        ClientSecret $clientSecret
     ): RedirectResponse|JsonResponse {
         $this->authorize('revokeSecret', [$ssoClient, $clientSecret]);
 
-        $clientService->revokeSecret($ssoClient, $clientSecret);
+        $this->clientService->revokeSecret($ssoClient, $clientSecret);
 
         if ($request->expectsJson()) {
             return $this->successResponse(
@@ -160,11 +160,11 @@ class ClientController extends Controller
      *
      * @return RedirectResponse|JsonResponse
      */
-    public function destroy(SsoClient $ssoClient, ClientService $clientService): RedirectResponse|JsonResponse
+    public function destroy(SsoClient $ssoClient): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $ssoClient);
 
-        $clientService->deleteClient($ssoClient);
+        $this->clientService->deleteClient($ssoClient);
 
         if (request()->expectsJson()) {
             return $this->successResponse(

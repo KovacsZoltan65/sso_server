@@ -17,13 +17,17 @@ use Spatie\Permission\Models\Permission;
 
 class PermissionController extends Controller
 {
-    public function index(PermissionIndexRequest $request, PermissionService $permissionService): Response
+    public function __construct(
+            private readonly PermissionService $permissionService
+    ) {}
+    
+    public function index(PermissionIndexRequest $request): Response
     {
         $this->authorize('viewAny', Permission::class);
 
         $validated = $request->validated();
 
-        return Inertia::render('Permissions/Index', $permissionService->getIndexPayload(
+        return Inertia::render('Permissions/Index', $this->permissionService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'name' => $validated['name'] ?? null,
@@ -35,51 +39,50 @@ class PermissionController extends Controller
         ));
     }
 
-    public function create(PermissionService $permissionService): Response
+    public function create(): Response
     {
         $this->authorize('create', Permission::class);
 
-        return Inertia::render('Permissions/Create', $permissionService->getCreatePayload());
+        return Inertia::render('Permissions/Create', $this->permissionService->getCreatePayload());
     }
 
-    public function store(PermissionStoreRequest $request, PermissionService $permissionService): RedirectResponse
+    public function store(PermissionStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', Permission::class);
 
-        $permissionService->createPermission($request->validated());
+        $this->permissionService->createPermission($request->validated());
 
         return redirect()
             ->route('admin.permissions.index')
             ->with('success', 'Permission created successfully.');
     }
 
-    public function edit(Permission $permission, PermissionService $permissionService): Response
+    public function edit(Permission $permission): Response
     {
         $this->authorize('update', $permission);
 
-        return Inertia::render('Permissions/Edit', $permissionService->getEditPayload($permission));
+        return Inertia::render('Permissions/Edit', $this->permissionService->getEditPayload($permission));
     }
 
     public function update(
         PermissionUpdateRequest $request,
-        Permission $permission,
-        PermissionService $permissionService,
+        Permission $permission
     ): RedirectResponse {
         $this->authorize('update', $permission);
 
-        $permissionService->updatePermission($permission, $request->validated());
+        $this->permissionService->updatePermission($permission, $request->validated());
 
         return redirect()
             ->route('admin.permissions.index')
             ->with('success', 'Permission updated successfully.');
     }
 
-    public function destroy(Permission $permission, PermissionService $permissionService): RedirectResponse|JsonResponse
+    public function destroy(Permission $permission): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $permission);
 
         try {
-            $permissionService->deletePermission($permission);
+            $this->permissionService->deletePermission($permission);
         } catch (RuntimeException $exception) {
             if (request()->expectsJson()) {
                 return $this->errorResponse(
@@ -106,13 +109,12 @@ class PermissionController extends Controller
     }
 
     public function bulkDestroy(
-        PermissionBulkDestroyRequest $request,
-        PermissionService $permissionService,
+        PermissionBulkDestroyRequest $request
     ): JsonResponse {
         $this->authorize('bulkDelete', Permission::class);
 
         try {
-            $deletedIds = $permissionService->bulkDeletePermissions($request->validated('ids'));
+            $deletedIds = $this->permissionService->bulkDeletePermissions($request->validated('ids'));
         } catch (RuntimeException $exception) {
             return $this->errorResponse(
                 message: $exception->getMessage(),

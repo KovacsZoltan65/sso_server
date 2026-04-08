@@ -23,6 +23,24 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read User $user
  * @property-read SsoClient $client
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent newModelQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent newQuery()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereConsentBypassAllowedSnapshot($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereConsentPolicyVersion($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereExpiresAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereGrantedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereGrantedScopeCodes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereGrantedScopeFingerprint($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereRedirectUriHash($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereRevocationReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereRevokedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereTrustTierSnapshot($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|UserClientConsent whereUserId($value)
  * @mixin \Eloquent
  */
 class UserClientConsent extends Model

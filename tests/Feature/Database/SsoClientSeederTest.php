@@ -23,6 +23,7 @@ it('seeds the portal client with the expected redirect uri and scopes', function
         'http://sso-client.test/auth/logout/return',
     ]);
     expect($client->frontchannel_logout_uri)->toBe('http://sso-client.test/auth/frontchannel-logout');
+    expect($client->backchannel_logout_uri)->toBe('http://sso-client.test/auth/backchannel-logout');
     expect($client->scopes)->toBe(['openid', 'profile', 'email']);
     expect($client->redirectUris)->toHaveCount(2);
     expect($client->redirectUris->pluck('uri')->all())->toBe([
@@ -53,6 +54,7 @@ it('is idempotent and does not create a second active secret automatically', fun
     expect($client->is_first_party)->toBeTrue();
     expect($client->consent_bypass_allowed)->toBeFalse();
     expect($client->frontchannel_logout_uri)->toBe('http://sso-client.test/auth/frontchannel-logout');
+    expect($client->backchannel_logout_uri)->toBe('http://sso-client.test/auth/backchannel-logout');
     expect($client->activeSecrets->first()?->is($secret))->toBeTrue();
 });
 

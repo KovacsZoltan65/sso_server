@@ -44,6 +44,7 @@ class SsoClientSeeder extends Seeder
                     'client_secret_hash' => $existingClient?->client_secret_hash ?: Hash::make($plainSecret ?? Str::random(64)),
                     'redirect_uris' => collect($redirectUris)->pluck('uri')->all(),
                     'frontchannel_logout_uri' => 'http://sso-client.test/auth/frontchannel-logout',
+                    'backchannel_logout_uri' => 'http://sso-client.test/auth/backchannel-logout',
                     'is_active' => true,
                     'scopes' => $scopeCodes,
                     'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED,

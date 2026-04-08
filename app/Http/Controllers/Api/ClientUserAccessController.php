@@ -16,14 +16,16 @@ use Illuminate\Http\JsonResponse;
 
 class ClientUserAccessController extends Controller
 {
-    public function index(
-        ClientUserAccessIndexRequest $request,
-        ClientUserAccessService $accessService,
-    ): JsonResponse {
+    public function __construct(
+        private readonly ClientUserAccessService $accessService
+    ) {}
+    
+    public function index(ClientUserAccessIndexRequest $request): JsonResponse
+    {
         $this->authorize('viewAny', ClientUserAccess::class);
 
         $validated = $request->validated();
-        $payload = $accessService->getIndexPayload(
+        $payload = $this->accessService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'client_id' => $validated['client_id'] ?? null,
@@ -49,13 +51,11 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    public function store(
-        StoreClientUserAccessRequest $request,
-        ClientUserAccessService $accessService,
-    ): JsonResponse {
+    public function store(StoreClientUserAccessRequest $request): JsonResponse
+    {
         $this->authorize('create', ClientUserAccess::class);
 
-        $access = $accessService->createAccess($request->validated());
+        $access = $this->accessService->createAccess($request->validated());
 
         return $this->successResponse(
             message: 'Client user access created successfully.',
@@ -64,14 +64,11 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    public function update(
-        UpdateClientUserAccessRequest $request,
-        ClientUserAccess $clientUserAccess,
-        ClientUserAccessService $accessService,
-    ): JsonResponse {
+    public function update(UpdateClientUserAccessRequest $request, ClientUserAccess $clientUserAccess): JsonResponse
+    {
         $this->authorize('update', $clientUserAccess);
 
-        $updatedAccess = $accessService->updateAccess($clientUserAccess, $request->validated());
+        $updatedAccess = $this->accessService->updateAccess($clientUserAccess, $request->validated());
 
         return $this->successResponse(
             message: 'Client user access updated successfully.',
@@ -79,13 +76,11 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    public function destroy(
-        ClientUserAccess $clientUserAccess,
-        ClientUserAccessService $accessService,
-    ): JsonResponse {
+    public function destroy(ClientUserAccess $clientUserAccess): JsonResponse
+    {
         $this->authorize('delete', $clientUserAccess);
 
-        $accessService->deleteAccess($clientUserAccess);
+        $this->accessService->deleteAccess($clientUserAccess);
 
         return $this->successResponse(
             message: 'Client user access deleted successfully.',
@@ -93,13 +88,11 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    public function bulkDestroy(
-        ClientUserAccessBulkDestroyRequest $request,
-        ClientUserAccessService $accessService,
-    ): JsonResponse {
+    public function bulkDestroy(ClientUserAccessBulkDestroyRequest $request): JsonResponse
+    {
         $this->authorize('bulkDelete', ClientUserAccess::class);
 
-        $deletedIds = $accessService->bulkDelete($request->validated('ids'));
+        $deletedIds = $this->accessService->bulkDelete($request->validated('ids'));
 
         return $this->successResponse(
             message: 'Selected client user access records deleted successfully.',
@@ -108,14 +101,14 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    public function clientAccesses(SsoClient $ssoClient, ClientUserAccessService $accessService): JsonResponse
+    public function clientAccesses(SsoClient $ssoClient): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);
 
         return $this->successResponse(
             message: 'Client access assignments retrieved successfully.',
             data: [
-                'rows' => $accessService->listUsersForClient($ssoClient)->map(
+                'rows' => $this->accessService->listUsersForClient($ssoClient)->map(
                     fn (ClientUserAccess $access) => [
                         'id' => $access->id,
                         'user_id' => $access->user_id,
@@ -130,14 +123,14 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    public function userAccesses(User $user, ClientUserAccessService $accessService): JsonResponse
+    public function userAccesses(User $user): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);
 
         return $this->successResponse(
             message: 'User client access assignments retrieved successfully.',
             data: [
-                'rows' => $accessService->listClientsForUser($user)->map(
+                'rows' => $this->accessService->listClientsForUser($user)->map(
                     fn (ClientUserAccess $access) => [
                         'id' => $access->id,
                         'client_id' => $access->client_id,

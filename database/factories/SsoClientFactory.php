@@ -24,6 +24,7 @@ class SsoClientFactory extends Factory
                 fake()->url(),
             ],
             'frontchannel_logout_uri' => null,
+            'backchannel_logout_uri' => null,
             'is_active' => true,
             'scopes' => ['openid'],
             'token_policy_id' => null,

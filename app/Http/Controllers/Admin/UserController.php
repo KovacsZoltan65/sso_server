@@ -17,13 +17,17 @@ use RuntimeException;
 
 class UserController extends Controller
 {
-    public function index(UserIndexRequest $request, UserService $userService): Response
+    public function __construct(
+            private readonly UserService $userService
+    ) {}
+    
+    public function index(UserIndexRequest $request): Response
     {
         $this->authorize('viewAny', User::class);
 
         $validated = $request->validated();
 
-        return Inertia::render('Admin/Users/Index', $userService->getIndexPayload(
+        return Inertia::render('Admin/Users/Index', $this->userService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'name' => $validated['name'] ?? null,
@@ -38,30 +42,30 @@ class UserController extends Controller
         ));
     }
 
-    public function store(UserStoreRequest $request, UserService $userService): RedirectResponse
+    public function store(UserStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', User::class);
 
-        $userService->createUser($request->validated());
+        $this->userService->createUser($request->validated());
 
         return back()->with('success', 'User created successfully.');
     }
 
-    public function update(UserUpdateRequest $request, User $user, UserService $userService): RedirectResponse
+    public function update(UserUpdateRequest $request, User $user): RedirectResponse
     {
         $this->authorize('update', $user);
 
-        $userService->updateUser($user, $request->validated());
+        $this->userService->updateUser($user, $request->validated());
 
         return back()->with('success', 'User updated successfully.');
     }
 
-    public function destroy(User $user, UserService $userService): JsonResponse
+    public function destroy(User $user): JsonResponse
     {
         $this->authorize('delete', $user);
 
         try {
-            $userService->deleteUser($user, request()->user());
+            $this->userService->deleteUser($user, request()->user());
         } catch (RuntimeException $exception) {
             return $this->errorResponse(
                 message: $exception->getMessage(),
@@ -75,12 +79,12 @@ class UserController extends Controller
         );
     }
 
-    public function bulkDestroy(UserBulkDestroyRequest $request, UserService $userService): JsonResponse
+    public function bulkDestroy(UserBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', User::class);
 
         try {
-            $deletedIds = $userService->bulkDeleteUsers(
+            $deletedIds = $this->userService->bulkDeleteUsers(
                 ids: $request->validated('ids'),
                 actingUser: $request->user(),
             );

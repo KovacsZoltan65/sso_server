@@ -35,7 +35,7 @@ Route::middleware(['auth'])->group(function () {
 
     Route::prefix('admin')->name('admin.')->group(function () {
 
-        // UserController routes
+        // Users routes
         Route::controller(UserController::class)->name('users.')->group(function () {
             Route::get('/users', 'index')->name('index');
             Route::post('/users', 'store')->name('store');
@@ -44,7 +44,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/users/{user}', 'destroy')->name('destroy');
         });
 
-        // RoleController routes
+        // Roles routes
         Route::controller(RoleController::class)->name('roles.')->group(function () {
             Route::get('/roles', 'index')->name('index');
             Route::get('/roles/create', 'create')->name('create');
@@ -55,7 +55,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/roles/{role}', 'destroy')->name('destroy');
         });
 
-        // PermissionController routes
+        // Permissions routes
         Route::controller(PermissionController::class)->name('permissions.')->group(function () {
             Route::get('/permissions', 'index')->name('index');
             Route::get('/permissions/create', 'create')->name('create');
@@ -66,7 +66,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/permissions/{permission}', 'destroy')->name('destroy');
         });
 
-        // ClientController routes
+        // SSO Clients routes
         Route::controller(ClientController::class)->name('sso-clients.')->group(function () {
             Route::get('/sso-clients', 'index')->name('index');
             Route::get('/sso-clients/create', 'create')->name('create');
@@ -83,7 +83,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('/client-user-access', ClientUserAccessPageController::class)
             ->name('client-user-access.index');
 
-        // ScopeController routes
+        // Scopes routes
         Route::controller(ScopeController::class)->name('scopes.')->group(function () {
             Route::get('/scopes', 'index')->name('index');
             Route::get('/scopes/create', 'create')->name('create');
@@ -94,6 +94,7 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/scopes/{scope}', 'destroy')->name('destroy');
         });
 
+        // Token Poicies routes
         Route::controller(TokenPolicyController::class)->name('token-policies.')->group(function () {
             Route::get('/token-policies', 'index')->name('index');
             Route::get('/token-policies/create', 'create')->name('create');
@@ -104,12 +105,14 @@ Route::middleware(['auth'])->group(function () {
             Route::delete('/token-policies/{tokenPolicy}', 'destroy')->name('destroy');
         });
 
+        // Tokens routes
         Route::controller(AdminTokenController::class)->name('tokens.')->group(function () {
             Route::get('/tokens', 'index')->name('index');
             Route::post('/tokens/{token}/revoke', 'revoke')->name('revoke');
             Route::post('/tokens/families/{familyId}/revoke', 'revokeFamily')->name('revoke-family');
         });
 
+        // Remember Consents
         Route::controller(RememberedConsentController::class)->name('remembered-consents.')->group(function () {
             Route::get('/remembered-consents', 'index')->name('index');
             Route::post('/remembered-consents/{consent}/revoke', 'revoke')->name('revoke');

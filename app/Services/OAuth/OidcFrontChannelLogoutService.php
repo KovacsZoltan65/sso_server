@@ -28,6 +28,7 @@ class OidcFrontChannelLogoutService
             'client_id' => $client->id,
             'client_public_id' => $client->client_id,
             'frontchannel_logout_uri' => $client->normalizedFrontChannelLogoutUri(),
+            'backchannel_logout_uri' => $client->normalizedBackChannelLogoutUri(),
             'registered_at' => now()->toIso8601String(),
         ];
 
@@ -43,6 +44,7 @@ class OidcFrontChannelLogoutService
                 'client_id' => $client->id,
                 'client_public_id' => $client->client_id,
                 'has_frontchannel_logout_uri' => $client->normalizedFrontChannelLogoutUri() !== null,
+                'has_backchannel_logout_uri' => $client->normalizedBackChannelLogoutUri() !== null,
                 'status' => 'registered',
             ],
         );
@@ -53,6 +55,7 @@ class OidcFrontChannelLogoutService
      *     client_id: int,
      *     client_public_id: string,
      *     frontchannel_logout_uri: string|null,
+     *     backchannel_logout_uri: string|null,
      *     registered_at: string
      * }>
      */

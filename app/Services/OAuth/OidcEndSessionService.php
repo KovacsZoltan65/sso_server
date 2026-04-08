@@ -17,6 +17,7 @@ class OidcEndSessionService
         private readonly RedirectUriMatcher $redirectUriMatcher,
         private readonly OidcIdTokenHintService $idTokenHintService,
         private readonly OidcFrontChannelLogoutService $frontChannelLogoutService,
+        private readonly OidcBackChannelLogoutService $backChannelLogoutService,
     ) {
     }
 
@@ -31,6 +32,9 @@ class OidcEndSessionService
         $client = $this->idTokenHintService->resolveClientFromHint($idTokenHint);
         $redirectUri = $this->validatedRedirectUri($request, $client, $requestedRedirectUri);
         $frontChannelTargets = $this->frontChannelLogoutService->buildLogoutTargets($request->session());
+        $backChannelTargets = $request->user() !== null
+            ? $this->backChannelLogoutService->buildDispatchTargets($request->session(), $request->user()->getAuthIdentifier())
+            : [];
         $finalRedirectUrl = $redirectUri !== null
             ? $this->appendState($redirectUri, $state)
             : route('login');
@@ -65,9 +69,14 @@ class OidcEndSessionService
                 'client_public_id' => $client?->client_id,
                 'redirect_uri' => $redirectUri,
                 'frontchannel_target_count' => count($frontChannelTargets),
+                'backchannel_target_count' => count($backChannelTargets),
                 'status' => 'completed',
             ],
         );
+
+        if ($backChannelTargets !== []) {
+            $this->backChannelLogoutService->dispatch($backChannelTargets);
+        }
 
         if ($frontChannelTargets !== []) {
             foreach ($frontChannelTargets as $target) {
@@ -93,6 +102,7 @@ class OidcEndSessionService
                 causer: null,
                 properties: [
                     'frontchannel_target_count' => count($frontChannelTargets),
+                    'backchannel_target_count' => count($backChannelTargets),
                     'status' => 'completed_provider_side',
                 ],
             );

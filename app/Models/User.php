@@ -49,6 +49,9 @@ use Spatie\Permission\Traits\HasRoles;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutPermission($permissions)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|User withoutRole($roles, ?string $guard = null)
+ * @property-read Collection<int, \App\Models\ClientUserAccess> $clientAccesses
+ * @property-read int|null $client_accesses_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|User whereIsActive($value)
  * @mixin \Eloquent
  */
 #[Fillable(['name', 'email', 'password', 'is_active'])]

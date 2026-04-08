@@ -63,6 +63,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereUpdatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereUserAgent($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereUserId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereAccessTokenRevokedReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereFamilyId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereFamilyRevokedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereFamilyRevokedReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereMeta($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereRefreshTokenReuseDetectedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereRefreshTokenRevokedReason($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereRefreshTokenUsedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereReplacedByTokenId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereSecurityIncidentAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|Token whereSecurityIncidentReason($value)
  * @mixin \Eloquent
  */
 class Token extends Model

@@ -3,6 +3,7 @@
 return [
     'issuer' => env('OIDC_ISSUER', env('APP_URL')),
     'id_token_ttl_seconds' => (int) env('OIDC_ID_TOKEN_TTL_SECONDS', 300),
+    'backchannel_logout_ttl_seconds' => (int) env('OIDC_BACKCHANNEL_LOGOUT_TTL_SECONDS', 300),
     'signing' => [
         'active_kid' => env('OIDC_SIGNING_ACTIVE_KID', env('OIDC_SIGNING_KID', 'oidc-signing-key-1')),
         'keys' => array_values(array_filter([

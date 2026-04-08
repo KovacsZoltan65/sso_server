@@ -17,13 +17,19 @@ use Spatie\Permission\Models\Role;
 
 class RoleController extends Controller
 {
-    public function index(RoleIndexRequest $request, RoleService $roleService): Response
+    public function __construct(
+            private readonly RoleService $roleService
+    ) {
+        ;
+    }
+    
+    public function index(RoleIndexRequest $request): Response
     {
         $this->authorize('viewAny', Role::class);
 
         $validated = $request->validated();
 
-        return Inertia::render('Roles/Index', $roleService->getIndexPayload(
+        return Inertia::render('Roles/Index', $this->roleService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'name' => $validated['name'] ?? null,
@@ -35,48 +41,48 @@ class RoleController extends Controller
         ));
     }
 
-    public function create(RoleService $roleService): Response
+    public function create(): Response
     {
         $this->authorize('create', Role::class);
 
-        return Inertia::render('Roles/Create', $roleService->getCreatePayload());
+        return Inertia::render('Roles/Create', $this->roleService->getCreatePayload());
     }
 
-    public function store(RoleStoreRequest $request, RoleService $roleService): RedirectResponse
+    public function store(RoleStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', Role::class);
 
-        $roleService->createRole($request->validated());
+        $this->roleService->createRole($request->validated());
 
         return redirect()
             ->route('admin.roles.index')
             ->with('success', 'Role created successfully.');
     }
 
-    public function edit(Role $role, RoleService $roleService): Response
+    public function edit(Role $role): Response
     {
         $this->authorize('update', $role);
 
-        return Inertia::render('Roles/Edit', $roleService->getEditPayload($role));
+        return Inertia::render('Roles/Edit', $this->roleService->getEditPayload($role));
     }
 
-    public function update(RoleUpdateRequest $request, Role $role, RoleService $roleService): RedirectResponse
+    public function update(RoleUpdateRequest $request, Role $role): RedirectResponse
     {
         $this->authorize('update', $role);
 
-        $roleService->updateRole($role, $request->validated());
+        $this->roleService->updateRole($role, $request->validated());
 
         return redirect()
             ->route('admin.roles.index')
             ->with('success', 'Role updated successfully.');
     }
 
-    public function destroy(Role $role, RoleService $roleService): RedirectResponse|JsonResponse
+    public function destroy(Role $role): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $role);
 
         try {
-            $roleService->deleteRole($role);
+            $this->roleService->deleteRole($role);
         } catch (RuntimeException $exception) {
             if (request()->expectsJson()) {
                 return $this->errorResponse(
@@ -102,12 +108,12 @@ class RoleController extends Controller
             ->with('success', 'Role deleted successfully.');
     }
 
-    public function bulkDestroy(RoleBulkDestroyRequest $request, RoleService $roleService): JsonResponse
+    public function bulkDestroy(RoleBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', Role::class);
 
         try {
-            $deletedIds = $roleService->bulkDeleteRoles($request->validated('ids'));
+            $deletedIds = $this->roleService->bulkDeleteRoles($request->validated('ids'));
         } catch (RuntimeException $exception) {
             return $this->errorResponse(
                 message: $exception->getMessage(),

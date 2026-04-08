@@ -13,6 +13,10 @@ use Inertia\Response;
 
 class AuthenticatedSessionController extends Controller
 {
+    public function __construct(
+            private readonly AuthenticationService $authenticationService
+    ) {}
+    
     /**
      * Display the login view.
      */
@@ -27,9 +31,9 @@ class AuthenticatedSessionController extends Controller
     /**
      * Handle an incoming authentication request.
      */
-    public function store(LoginRequest $request, AuthenticationService $authenticationService): RedirectResponse
+    public function store(LoginRequest $request): RedirectResponse
     {
-        $authenticationService->login($request);
+        $this->authenticationService->login($request);
 
         return redirect()->intended(route('dashboard', absolute: false));
     }
@@ -37,9 +41,9 @@ class AuthenticatedSessionController extends Controller
     /**
      * Destroy an authenticated session.
      */
-    public function destroy(Request $request, AuthenticationService $authenticationService): RedirectResponse
+    public function destroy(Request $request): RedirectResponse
     {
-        $authenticationService->logout($request);
+        $this->authenticationService->logout($request);
 
         return redirect('/');
     }

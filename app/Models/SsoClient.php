@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $client_secret_hash
  * @property array<int, string>|null $redirect_uris
  * @property string|null $frontchannel_logout_uri
+ * @property string|null $backchannel_logout_uri
  * @property bool $is_active
  * @property array<int, string>|null $scopes
  * @property int|null $token_policy_id
@@ -50,6 +51,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientSecretHash($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereBackchannelLogoutUri($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereFrontchannelLogoutUri($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereIsActive($value)
@@ -58,6 +60,11 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereScopes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereTokenPolicyId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereUpdatedAt($value)
+ * @property-read int|null $user_accesses_count
+ * @property-read int|null $user_consents_count
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereConsentBypassAllowed($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereIsFirstParty($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereTrustTier($value)
  * @mixin \Eloquent
  */
 #[Fillable([
@@ -66,6 +73,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'client_secret_hash',
     'redirect_uris',
     'frontchannel_logout_uri',
+    'backchannel_logout_uri',
     'is_active',
     'scopes',
     'token_policy_id',
@@ -222,6 +230,13 @@ class SsoClient extends Model
     public function normalizedFrontChannelLogoutUri(): ?string
     {
         $uri = trim((string) ($this->frontchannel_logout_uri ?? ''));
+
+        return $uri === '' ? null : $uri;
+    }
+
+    public function normalizedBackChannelLogoutUri(): ?string
+    {
+        $uri = trim((string) ($this->backchannel_logout_uri ?? ''));
 
         return $uri === '' ? null : $uri;
     }

@@ -17,13 +17,17 @@ use RuntimeException;
 
 class TokenPolicyController extends Controller
 {
-    public function index(TokenPolicyIndexRequest $request, TokenPolicyService $tokenPolicyService): Response
+    public function __construct(
+            private readonly TokenPolicyService $tokenPolicyService
+    ) {}
+    
+    public function index(TokenPolicyIndexRequest $request): Response
     {
         $this->authorize('viewAny', TokenPolicy::class);
 
         $validated = $request->validated();
 
-        return Inertia::render('TokenPolicies/Index', $tokenPolicyService->getIndexPayload(
+        return Inertia::render('TokenPolicies/Index', $this->tokenPolicyService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'status' => $validated['status'] ?? null,
@@ -35,51 +39,48 @@ class TokenPolicyController extends Controller
         ));
     }
 
-    public function create(TokenPolicyService $tokenPolicyService): Response
+    public function create(): Response
     {
         $this->authorize('create', TokenPolicy::class);
 
-        return Inertia::render('TokenPolicies/Create', $tokenPolicyService->getCreatePayload());
+        return Inertia::render('TokenPolicies/Create', $this->tokenPolicyService->getCreatePayload());
     }
 
-    public function store(TokenPolicyStoreRequest $request, TokenPolicyService $tokenPolicyService): RedirectResponse
+    public function store(TokenPolicyStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', TokenPolicy::class);
 
-        $tokenPolicyService->createTokenPolicy($request->validated());
+        $this->tokenPolicyService->createTokenPolicy($request->validated());
 
         return redirect()
             ->route('admin.token-policies.index')
             ->with('success', 'Token policy created successfully.');
     }
 
-    public function edit(TokenPolicy $tokenPolicy, TokenPolicyService $tokenPolicyService): Response
+    public function edit(TokenPolicy $tokenPolicy): Response
     {
         $this->authorize('update', $tokenPolicy);
 
-        return Inertia::render('TokenPolicies/Edit', $tokenPolicyService->getEditPayload($tokenPolicy));
+        return Inertia::render('TokenPolicies/Edit', $this->tokenPolicyService->getEditPayload($tokenPolicy));
     }
 
-    public function update(
-        TokenPolicyUpdateRequest $request,
-        TokenPolicy $tokenPolicy,
-        TokenPolicyService $tokenPolicyService,
-    ): RedirectResponse {
+    public function update(TokenPolicyUpdateRequest $request, TokenPolicy $tokenPolicy): RedirectResponse
+    {
         $this->authorize('update', $tokenPolicy);
 
-        $tokenPolicyService->updateTokenPolicy($tokenPolicy, $request->validated());
+        $this->tokenPolicyService->updateTokenPolicy($tokenPolicy, $request->validated());
 
         return redirect()
             ->route('admin.token-policies.index')
             ->with('success', 'Token policy updated successfully.');
     }
 
-    public function destroy(TokenPolicy $tokenPolicy, TokenPolicyService $tokenPolicyService): JsonResponse|RedirectResponse
+    public function destroy(TokenPolicy $tokenPolicy): JsonResponse|RedirectResponse
     {
         $this->authorize('delete', $tokenPolicy);
 
         try {
-            $tokenPolicyService->deleteTokenPolicy($tokenPolicy);
+            $this->tokenPolicyService->deleteTokenPolicy($tokenPolicy);
         } catch (RuntimeException $exception) {
             if (request()->expectsJson()) {
                 return $this->errorResponse($exception->getMessage());
@@ -99,14 +100,12 @@ class TokenPolicyController extends Controller
             ->with('success', 'Token policy deleted successfully.');
     }
 
-    public function bulkDestroy(
-        TokenPolicyBulkDestroyRequest $request,
-        TokenPolicyService $tokenPolicyService,
-    ): JsonResponse {
+    public function bulkDestroy(TokenPolicyBulkDestroyRequest $request): JsonResponse
+    {
         $this->authorize('bulkDelete', TokenPolicy::class);
 
         try {
-            $result = $tokenPolicyService->bulkDeleteTokenPolicies($request->validated('ids', []));
+            $result = $this->tokenPolicyService->bulkDeleteTokenPolicies($request->validated('ids', []));
         } catch (RuntimeException $exception) {
             return $this->errorResponse($exception->getMessage());
         }

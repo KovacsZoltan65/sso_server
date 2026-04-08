@@ -17,13 +17,17 @@ use RuntimeException;
 
 class ScopeController extends Controller
 {
-    public function index(ScopeIndexRequest $request, ScopeService $scopeService): Response
+    public function __construct(
+            private readonly ScopeService $scopeService
+    ) {}
+    
+    public function index(ScopeIndexRequest $request): Response
     {
         $this->authorize('viewAny', Scope::class);
 
         $validated = $request->validated();
 
-        return Inertia::render('Scopes/Index', $scopeService->getIndexPayload(
+        return Inertia::render('Scopes/Index', $this->scopeService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'name' => $validated['name'] ?? null,
@@ -37,40 +41,36 @@ class ScopeController extends Controller
         ));
     }
 
-    public function create(ScopeService $scopeService): Response
+    public function create(): Response
     {
         $this->authorize('create', Scope::class);
 
-        return Inertia::render('Scopes/Create', $scopeService->getCreatePayload());
+        return Inertia::render('Scopes/Create', $this->scopeService->getCreatePayload());
     }
 
-    public function store(ScopeStoreRequest $request, ScopeService $scopeService): RedirectResponse
+    public function store(ScopeStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', Scope::class);
 
-        $scopeService->createScope($request->validated());
+        $this->scopeService->createScope($request->validated());
 
         return redirect()
             ->route('admin.scopes.index')
             ->with('success', 'Scope created successfully.');
     }
 
-    public function edit(Scope $scope, ScopeService $scopeService): Response
+    public function edit(Scope $scope): Response
     {
         $this->authorize('update', $scope);
 
-        return Inertia::render('Scopes/Edit', $scopeService->getEditPayload($scope));
+        return Inertia::render('Scopes/Edit', $this->scopeService->getEditPayload($scope));
     }
 
-    public function update(
-        ScopeUpdateRequest $request,
-        Scope $scope,
-        ScopeService $scopeService,
-    ): RedirectResponse {
+    public function update(ScopeUpdateRequest $request, Scope $scope): RedirectResponse {
         $this->authorize('update', $scope);
 
         try {
-            $scopeService->updateScope($scope, $request->validated());
+            $this->scopeService->updateScope($scope, $request->validated());
         } catch (RuntimeException $exception) {
             return redirect()
                 ->route('admin.scopes.edit', $scope)
@@ -82,12 +82,12 @@ class ScopeController extends Controller
             ->with('success', 'Scope updated successfully.');
     }
 
-    public function destroy(Scope $scope, ScopeService $scopeService): RedirectResponse|JsonResponse
+    public function destroy(Scope $scope): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $scope);
 
         try {
-            $scopeService->deleteScope($scope);
+            $this->scopeService->deleteScope($scope);
         } catch (RuntimeException $exception) {
             if (request()->expectsJson()) {
                 return $this->errorResponse(
@@ -113,14 +113,12 @@ class ScopeController extends Controller
             ->with('success', 'Scope deleted successfully.');
     }
 
-    public function bulkDestroy(
-        ScopeBulkDestroyRequest $request,
-        ScopeService $scopeService,
-    ): JsonResponse {
+    public function bulkDestroy(ScopeBulkDestroyRequest $request): JsonResponse
+    {
         $this->authorize('bulkDelete', Scope::class);
 
         try {
-            $deletedIds = $scopeService->bulkDeleteScopes($request->validated('ids'));
+            $deletedIds = $this->scopeService->bulkDeleteScopes($request->validated('ids'));
         } catch (RuntimeException $exception) {
             return $this->errorResponse(
                 message: $exception->getMessage(),

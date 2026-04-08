@@ -24,6 +24,15 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess query()
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereAllowedFrom($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereAllowedUntil($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereCreatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereIsActive($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereNotes($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereUpdatedAt($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|ClientUserAccess whereUserId($value)
  * @mixin \Eloquent
  */
 #[Fillable([

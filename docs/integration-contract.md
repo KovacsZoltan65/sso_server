@@ -124,6 +124,7 @@ OpenID Provider discovery endpoint:
 - `code_challenge_methods_supported`
 - `claims_supported`
 - `frontchannel_logout_supported`
+- `backchannel_logout_supported`
 - `end_session_endpoint`
 - a `claims_supported` jelenleg pontosan ezeket a claim-eket publikalja: `sub`, `name`, `email`, `email_verified`
 - tudatosan nincs benne peldaul:
@@ -134,6 +135,7 @@ OpenID Provider discovery endpoint:
 - az `end_session_endpoint` a mar mukodo `GET /oidc/logout` provider logout vegpontra mutat
 - a discovery `claims_supported` mar a kozponti OIDC claim policybol epul
 - a `frontchannel_logout_supported` azt jelzi, hogy a provider oldalon elerheto a front-channel logout foundation
+- a `backchannel_logout_supported` azt jelzi, hogy a provider signed logout tokent tud kuldeni a regisztralt RP back-channel vegpontokra
 
 Hibás válasz formátuma:
 
@@ -233,9 +235,28 @@ Front-channel logout foundation:
   - `iss`
   - `client_id`
 
+Back-channel logout foundation:
+
+- a kliens metadata explicit `backchannel_logout_uri` mezot kap
+- a provider session participation lista ezt is tarolja a `frontchannel_logout_uri` mellett
+- logoutkor a szerver a resztvevo RP-khez signed logout tokent epit es best-effort alapon `POST` kéréssel kuldi ki a `backchannel_logout_uri` vegpontokra
+- a payload jelenlegi formaja `application/x-www-form-urlencoded`, benne:
+  - `logout_token`
+- a logout token a meglévo OIDC signing kulcsok egyikével van aláírva, es legalabb ezeket a claim-eket hordozza:
+  - `iss`
+  - `aud`
+  - `iat`
+  - `exp`
+  - `jti`
+  - `sub`
+  - `events`
+- az `events` claim a szabvanykozeli back-channel logout eseményt hordozza: `http://schemas.openid.net/event/backchannel-logout`
+- a jelenlegi foundation `sub`-alapu korrelaciot hasznal; teljes `sid`-alapu session-correlation meg nincs
+- a dispatch best effort: hibas vagy nem valaszolo RP nem akaszthatja meg a provider logout flow-t
+- guaranteed delivery, queue/retry orchestration es eros replay-vedelem tudatosan kesobbi fazis
+
 Tudatosan nincs benne meg:
 
-- back-channel logout
 - global multi-client session kill
 - teljes garantalt distributed single logout
 

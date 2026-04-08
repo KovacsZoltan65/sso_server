@@ -15,13 +15,17 @@ use Inertia\Response;
 
 class TokenController extends Controller
 {
-    public function index(TokenIndexRequest $request, TokenManagementService $tokenService): Response
+    public function __construct(
+            private readonly TokenManagementService $tokenService
+    ) {}
+    
+    public function index(TokenIndexRequest $request): Response
     {
         $this->authorize('viewAny', Token::class);
 
         $validated = $request->validated();
         
-        return Inertia::render('Tokens/Index', $tokenService->getIndexPayload(
+        return Inertia::render('Tokens/Index', $this->tokenService->getIndexPayload(
             filters: [
                 'global' => $validated['global'] ?? null,
                 'client_id' => $validated['client_id'] ?? null,
@@ -36,12 +40,12 @@ class TokenController extends Controller
         ));
     }
 
-    public function revoke(RevokeTokenRequest $request, Token $token, TokenManagementService $tokenService): JsonResponse
+    public function revoke(RevokeTokenRequest $request, Token $token): JsonResponse
     {
         $this->authorize('revoke', $token);
 
         $token->loadMissing(['client', 'user']);
-        $tokenService->revokeToken(
+        $this->tokenService->revokeToken(
             token: $token,
             tokenType: (string) $request->validated('token_type'),
             reason: $request->validated('reason'),
@@ -53,12 +57,12 @@ class TokenController extends Controller
         );
     }
 
-    public function revokeFamily(RevokeTokenFamilyRequest $request, TokenManagementService $tokenService): JsonResponse
+    public function revokeFamily(RevokeTokenFamilyRequest $request): JsonResponse
     {
         $this->authorize('revokeFamily', Token::class);
 
         try {
-            $result = $tokenService->revokeFamily(
+            $result = $this->tokenService->revokeFamily(
                 familyId: (string) $request->validated('family_id'),
                 reason: $request->validated('reason'),
             );
