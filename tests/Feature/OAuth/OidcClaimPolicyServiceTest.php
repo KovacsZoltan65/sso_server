@@ -11,7 +11,7 @@ uses(RefreshDatabase::class);
 it('provides the supported claims and userinfo scope mapping from a central policy', function (): void {
     $service = app(OidcClaimPolicyService::class);
 
-    expect($service->supportedClaims())->toBe(['sub', 'name', 'email', 'email_verified'])
+    expect($service->supportedClaims())->toBe(['sub', 'name', 'email', 'email_verified', 'sid'])
         ->and($service->allowedClaimNamesForScopes(['openid'], 'userinfo'))->toBe(['sub'])
         ->and($service->allowedClaimNamesForScopes(['openid', 'profile'], 'userinfo'))->toBe(['sub', 'name'])
         ->and($service->allowedClaimNamesForScopes(['openid', 'profile', 'email'], 'userinfo'))->toBe(['sub', 'name', 'email', 'email_verified'])

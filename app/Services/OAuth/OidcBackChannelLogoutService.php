@@ -37,17 +37,19 @@ class OidcBackChannelLogoutService
             ->map(function (array $participant) use ($subject): ?array {
                 $backChannelLogoutUri = trim((string) ($participant['backchannel_logout_uri'] ?? ''));
                 $clientPublicId = trim((string) ($participant['client_public_id'] ?? ''));
+                $sid = trim((string) ($participant['sid'] ?? ''));
                 $clientId = (int) ($participant['client_id'] ?? 0);
 
-                if ($backChannelLogoutUri === '' || $clientPublicId === '' || $clientId <= 0) {
+                if ($backChannelLogoutUri === '' || $clientPublicId === '' || $sid === '' || $clientId <= 0) {
                     return null;
                 }
 
                 return [
                     'client_id' => $clientId,
                     'client_public_id' => $clientPublicId,
+                    'sid' => $sid,
                     'backchannel_logout_uri' => $backChannelLogoutUri,
-                    'logout_token' => $this->issueLogoutToken($clientPublicId, $subject),
+                    'logout_token' => $this->issueLogoutToken($clientPublicId, $subject, $sid),
                 ];
             })
             ->filter()
@@ -78,6 +80,20 @@ class OidcBackChannelLogoutService
                     properties: [
                         'client_id' => $target['client_id'],
                         'client_public_id' => $target['client_public_id'],
+                        'has_sid' => true,
+                        'status' => 'dispatched',
+                        'http_status' => $response->status(),
+                    ],
+                );
+
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.backchannel_logout.dispatched_with_sid',
+                    description: 'OIDC back-channel logout dispatched with sid correlation.',
+                    properties: [
+                        'client_id' => $target['client_id'],
+                        'client_public_id' => $target['client_public_id'],
+                        'has_sid' => true,
                         'status' => 'dispatched',
                         'http_status' => $response->status(),
                     ],
@@ -99,11 +115,11 @@ class OidcBackChannelLogoutService
         }
     }
 
-    public function issueLogoutToken(string $audience, string $subject, ?Carbon $issuedAt = null): string
+    public function issueLogoutToken(string $audience, string $subject, ?string $sid = null, ?Carbon $issuedAt = null): string
     {
         $issuedAt ??= now();
         $signingKey = $this->signingKeyService->getActiveSigningKey();
-        $payload = $this->logoutTokenClaims($audience, $subject, $issuedAt);
+        $payload = $this->logoutTokenClaims($audience, $subject, $sid, $issuedAt);
 
         $token = $this->encodeJwt(
             header: [
@@ -122,6 +138,7 @@ class OidcBackChannelLogoutService
             properties: [
                 'client_public_id' => $audience,
                 'kid' => $signingKey['kid'],
+                'has_sid' => trim((string) ($sid ?? '')) !== '',
                 'status' => 'issued',
             ],
         );
@@ -132,12 +149,12 @@ class OidcBackChannelLogoutService
     /**
      * @return array<string, int|string|object>
      */
-    public function logoutTokenClaims(string $audience, string $subject, ?Carbon $issuedAt = null): array
+    public function logoutTokenClaims(string $audience, string $subject, ?string $sid = null, ?Carbon $issuedAt = null): array
     {
         $issuedAt ??= now();
         $expiresAt = $issuedAt->copy()->addSeconds(max(60, (int) config('oidc.backchannel_logout_ttl_seconds', 300)));
 
-        return [
+        $claims = [
             'iss' => $this->issuer(),
             'aud' => trim($audience),
             'iat' => $issuedAt->getTimestamp(),
@@ -148,6 +165,14 @@ class OidcBackChannelLogoutService
                 self::LOGOUT_EVENT_CLAIM => new \stdClass(),
             ],
         ];
+
+        $sid = trim((string) ($sid ?? ''));
+
+        if ($sid !== '') {
+            $claims['sid'] = $sid;
+        }
+
+        return $claims;
     }
 
     /**

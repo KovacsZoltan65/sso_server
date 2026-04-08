@@ -86,6 +86,7 @@ class AuditLogService
         'revocation_reason',
         'result',
         'has_nonce',
+        'has_sid',
         'scope_contains_openid',
         'has_frontchannel_logout_uri',
         'has_backchannel_logout_uri',

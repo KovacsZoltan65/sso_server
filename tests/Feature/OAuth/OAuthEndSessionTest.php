@@ -101,7 +101,7 @@ it('renders a front-channel relay page and keeps the valid post logout redirect 
     [$client, $policy] = logoutOauthClient();
     $user = User::factory()->create();
     $idTokenHint = logoutIdTokenHint($client, $user, $policy);
-    app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client);
+    $sid = app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client);
 
     $response = $this->actingAs($user)->get(route('oidc.end_session', [
         'id_token_hint' => $idTokenHint,
@@ -112,6 +112,7 @@ it('renders a front-channel relay page and keeps the valid post logout redirect 
     $response
         ->assertOk()
         ->assertSee('http://sso-client.test/auth/frontchannel-logout?iss=https%3A%2F%2Fsso-server.test&amp;client_id='.$client->client_id, false)
+        ->assertSee('sid='.$sid, false)
         ->assertSee('http://sso-client.test/auth/logout/return?state=logout-state-123');
 
     $this->assertGuest();
@@ -145,7 +146,7 @@ it('dispatches a signed back-channel logout token to registered participants', f
     [$client, $policy] = logoutOauthClient();
     $user = User::factory()->create();
     $idTokenHint = logoutIdTokenHint($client, $user, $policy);
-    app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client);
+    $sid = app(\App\Services\OAuth\OidcFrontChannelLogoutService::class)->registerParticipatingClient($client);
 
     Http::fake([
         'http://sso-client.test/auth/backchannel-logout' => Http::response('ok', 200),
@@ -158,7 +159,7 @@ it('dispatches a signed back-channel logout token to registered participants', f
 
     $response->assertOk();
 
-    Http::assertSent(function (\Illuminate\Http\Client\Request $request) use ($client, $user): bool {
+    Http::assertSent(function (\Illuminate\Http\Client\Request $request) use ($client, $user, $sid): bool {
         if ($request->url() !== 'http://sso-client.test/auth/backchannel-logout' || $request->method() !== 'POST') {
             return false;
         }
@@ -187,6 +188,7 @@ it('dispatches a signed back-channel logout token to registered participants', f
             && ($claims['iss'] ?? null) === 'https://sso-server.test'
             && ($claims['aud'] ?? null) === $client->client_id
             && ($claims['sub'] ?? null) === (string) $user->id
+            && ($claims['sid'] ?? null) === $sid
             && isset($claims['jti'], $claims['iat'], $claims['exp'])
             && isset($claims['events']['http://schemas.openid.net/event/backchannel-logout'])
             && $verified === true;
@@ -204,6 +206,12 @@ it('dispatches a signed back-channel logout token to registered participants', f
         'log_name' => 'oauth',
         'event' => 'oauth.backchannel_logout.dispatched',
         'description' => 'OIDC back-channel logout dispatched.',
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.backchannel_logout.dispatched_with_sid',
+        'description' => 'OIDC back-channel logout dispatched with sid correlation.',
     ]);
 });
 

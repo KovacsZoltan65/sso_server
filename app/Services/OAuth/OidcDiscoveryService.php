@@ -33,7 +33,9 @@ class OidcDiscoveryService
             'code_challenge_methods_supported' => ['S256'],
             'claims_supported' => $this->claimPolicyService->supportedClaims(),
             'frontchannel_logout_supported' => true,
+            'frontchannel_logout_session_supported' => true,
             'backchannel_logout_supported' => true,
+            'backchannel_logout_session_supported' => true,
         ];
     }
 

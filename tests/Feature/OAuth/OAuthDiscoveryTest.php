@@ -55,13 +55,15 @@ it('serves openid provider discovery metadata', function (): void {
         ->assertJsonPath('id_token_signing_alg_values_supported.0', 'RS256')
         ->assertJsonPath('code_challenge_methods_supported.0', 'S256')
         ->assertJsonPath('frontchannel_logout_supported', true)
-        ->assertJsonPath('backchannel_logout_supported', true);
+        ->assertJsonPath('frontchannel_logout_session_supported', true)
+        ->assertJsonPath('backchannel_logout_supported', true)
+        ->assertJsonPath('backchannel_logout_session_supported', true);
 
     expect($response->json('scopes_supported'))
         ->toBe(['email', 'openid', 'profile']);
 
     expect($response->json('claims_supported'))
-        ->toBe(['sub', 'name', 'email', 'email_verified']);
+        ->toBe(['sub', 'name', 'email', 'email_verified', 'sid']);
 
     $response->assertJsonMissingPath('registration_endpoint');
 

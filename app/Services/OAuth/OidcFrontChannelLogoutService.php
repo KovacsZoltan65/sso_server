@@ -12,21 +12,26 @@ class OidcFrontChannelLogoutService
 
     public function __construct(
         private readonly AuditLogService $auditLogService,
+        private readonly OidcSessionService $oidcSessionService,
     ) {
     }
 
-    public function registerParticipatingClient(SsoClient $client): void
+    public function registerParticipatingClient(SsoClient $client, ?string $sid = null, ?\App\Models\User $user = null): string
     {
         $session = app('session.store');
+        $sid = trim((string) ($sid ?? $this->oidcSessionService->issueSidForClientSession($client, $user)));
 
         if (! $session instanceof Session) {
-            return;
+            return $sid;
         }
+
+        $this->oidcSessionService->registerSidParticipation($client, $sid, $user);
 
         $participants = $this->participatingClients($session);
         $participants[$client->client_id] = [
             'client_id' => $client->id,
             'client_public_id' => $client->client_id,
+            'sid' => $sid,
             'frontchannel_logout_uri' => $client->normalizedFrontChannelLogoutUri(),
             'backchannel_logout_uri' => $client->normalizedBackChannelLogoutUri(),
             'registered_at' => now()->toIso8601String(),
@@ -45,15 +50,19 @@ class OidcFrontChannelLogoutService
                 'client_public_id' => $client->client_id,
                 'has_frontchannel_logout_uri' => $client->normalizedFrontChannelLogoutUri() !== null,
                 'has_backchannel_logout_uri' => $client->normalizedBackChannelLogoutUri() !== null,
+                'has_sid' => true,
                 'status' => 'registered',
             ],
         );
+
+        return $sid;
     }
 
     /**
      * @return array<string, array{
      *     client_id: int,
      *     client_public_id: string,
+     *     sid?: string,
      *     frontchannel_logout_uri: string|null,
      *     backchannel_logout_uri: string|null,
      *     registered_at: string
@@ -82,19 +91,22 @@ class OidcFrontChannelLogoutService
             ->map(function (array $participant) use ($issuer): ?array {
                 $frontchannelLogoutUri = trim((string) ($participant['frontchannel_logout_uri'] ?? ''));
                 $clientPublicId = trim((string) ($participant['client_public_id'] ?? ''));
+                $sid = trim((string) ($participant['sid'] ?? ''));
                 $clientId = (int) ($participant['client_id'] ?? 0);
 
-                if ($frontchannelLogoutUri === '' || $clientPublicId === '' || $clientId <= 0) {
+                if ($frontchannelLogoutUri === '' || $clientPublicId === '' || $sid === '' || $clientId <= 0) {
                     return null;
                 }
 
                 return [
                     'client_id' => $clientId,
                     'client_public_id' => $clientPublicId,
+                    'sid' => $sid,
                     'frontchannel_logout_uri' => $frontchannelLogoutUri,
                     'logout_url' => $this->appendQueryParameters($frontchannelLogoutUri, [
                         'iss' => $issuer,
                         'client_id' => $clientPublicId,
+                        'sid' => $sid,
                     ]),
                 ];
             })

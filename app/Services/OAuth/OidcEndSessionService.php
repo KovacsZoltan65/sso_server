@@ -89,9 +89,26 @@ class OidcEndSessionService
                     properties: [
                         'client_id' => $target['client_id'],
                         'client_public_id' => $target['client_public_id'],
+                        'has_sid' => trim((string) ($target['sid'] ?? '')) !== '',
                         'status' => 'dispatched',
                     ],
                 );
+
+                if (trim((string) ($target['sid'] ?? '')) !== '') {
+                    $this->auditLogService->logSuccess(
+                        logName: AuditLogService::LOG_OAUTH,
+                        event: 'oauth.frontchannel_logout.dispatched_with_sid',
+                        description: 'OIDC front-channel logout dispatched with sid correlation.',
+                        subject: $client,
+                        causer: null,
+                        properties: [
+                            'client_id' => $target['client_id'],
+                            'client_public_id' => $target['client_public_id'],
+                            'has_sid' => true,
+                            'status' => 'dispatched',
+                        ],
+                    );
+                }
             }
 
             $this->auditLogService->logSuccess(

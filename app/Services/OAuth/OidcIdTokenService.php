@@ -60,6 +60,12 @@ class OidcIdTokenService
             $claims['nonce'] = $nonce;
         }
 
+        $sid = $authorizationCode->oidcSessionIdentifier();
+
+        if ($sid !== null) {
+            $claims['sid'] = $sid;
+        }
+
         return array_merge(
             $claims,
             $this->claimPolicyService->idTokenIdentityClaimsForAuthorizationCode($authorizationCode, $subject),

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @property string $redirect_uri
  * @property string $redirect_uri_hash
  * @property string|null $nonce
+ * @property string|null $oidc_sid
  * @property string|null $code_challenge
  * @property string|null $code_challenge_method
  * @property array<array-key, mixed>|null $scopes
@@ -37,6 +38,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereExpiresAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereNonce($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereOidcSid($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereRedirectUri($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereRedirectUriHash($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|AuthorizationCode whereRevokedAt($value)
@@ -59,6 +61,7 @@ class AuthorizationCode extends Model
         'redirect_uri',
         'redirect_uri_hash',
         'nonce',
+        'oidc_sid',
         'code_challenge',
         'code_challenge_method',
         'scopes',
@@ -96,6 +99,13 @@ class AuthorizationCode extends Model
         return $nonce !== '' ? $nonce : null;
     }
 
+    public function oidcSessionIdentifier(): ?string
+    {
+        $sid = trim((string) ($this->oidc_sid ?? ''));
+
+        return $sid !== '' ? $sid : null;
+    }
+
     public function hasIdentityResponseNonce(): bool
     {
         return $this->identityResponseNonce() !== null;
@@ -112,6 +122,7 @@ class AuthorizationCode extends Model
      *     client_id: int,
      *     user_id: int,
      *     returned_nonce: string|null,
+     *     oidc_sid: string|null,
      *     scope_contains_openid: bool
      * }
      */
@@ -122,6 +133,7 @@ class AuthorizationCode extends Model
             'client_id' => $this->sso_client_id,
             'user_id' => $this->user_id,
             'returned_nonce' => $this->identityResponseNonce(),
+            'oidc_sid' => $this->oidcSessionIdentifier(),
             'scope_contains_openid' => $this->requiresIdentityNonceValidation(),
         ];
     }

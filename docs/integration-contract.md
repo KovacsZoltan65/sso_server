@@ -92,6 +92,8 @@ Szerződés szabály:
 - a JWT header legalabb ezeket tartalmazza: `alg`, `typ`, `kid`
 - az `id_token` minimális claim készlete: `iss`, `sub`, `aud`, `iat`, `exp`
 - a `nonce` claim csak akkor kerül bele, ha az authorize/code flow hordozott nonce-ot
+- a `sid` claim akkor kerül bele, ha az OIDC session foundation sikeresen kötött provider-session + RP session azonosítót a kiadott authorization code-hoz
+- a `sub` identity subject, a `sid` session-korrelációs azonosító; a kettő nem helyettesíti egymást
 - az `sso_client` továbbra is kizárólag a `data` envelope-ból dolgozik, nincs top-level fallback
 
 JWKS endpoint:
@@ -124,9 +126,11 @@ OpenID Provider discovery endpoint:
 - `code_challenge_methods_supported`
 - `claims_supported`
 - `frontchannel_logout_supported`
+- `frontchannel_logout_session_supported`
 - `backchannel_logout_supported`
+- `backchannel_logout_session_supported`
 - `end_session_endpoint`
-- a `claims_supported` jelenleg pontosan ezeket a claim-eket publikalja: `sub`, `name`, `email`, `email_verified`
+- a `claims_supported` jelenleg pontosan ezeket a claim-eket publikalja: `sub`, `name`, `email`, `email_verified`, `sid`
 - tudatosan nincs benne peldaul:
   - `registration_endpoint`
 - a metadata URL-jei az `issuer` baseline-hoz igazodnak
@@ -136,6 +140,7 @@ OpenID Provider discovery endpoint:
 - a discovery `claims_supported` mar a kozponti OIDC claim policybol epul
 - a `frontchannel_logout_supported` azt jelzi, hogy a provider oldalon elerheto a front-channel logout foundation
 - a `backchannel_logout_supported` azt jelzi, hogy a provider signed logout tokent tud kuldeni a regisztralt RP back-channel vegpontokra
+- a `frontchannel_logout_session_supported` es `backchannel_logout_session_supported` csak azert `true`, mert a provider mar explicit `sid` adatuttal dolgozik: authorization code, id_token, RP participation, front-channel logout URL es back-channel logout token ugyanarra a session-korrelacios azonosítora epul
 
 Hibás válasz formátuma:
 
@@ -187,6 +192,7 @@ ID token claim szerződés:
 - az `id_token` minimalis marad
 - garantalt protokoll es identity baseline: `iss`, `sub`, `aud`, `iat`, `exp`
 - `nonce` csak akkor szerepel benne, ha a flow-ban volt nonce
+- `sid` akkor szerepel benne, ha az authorize/code flow-hoz sikerult stabil OIDC session identifiert kotni
 - `name`, `email`, `email_verified` claim-ek nem kerulnek automatikusan az `id_token`-ba
 - a reszletesebb identity claim-ek elsodleges helye tovabbra is a `userinfo`
 
@@ -228,12 +234,17 @@ Front-channel logout foundation:
 - a regisztracio csak sikeres authorization code kiadas utan tortenik meg
 - kliensenkent a tarolt minimum adatok:
   - `client_id`
+  - `client_public_id`
+  - `sid`
   - `frontchannel_logout_uri`
+  - `backchannel_logout_uri`
+  - `registered_at`
 - logoutkor a szerver a resztvevo RP-khez front-channel logout cel URL-eket epit
 - ha van ilyen cel, a provider egy relay oldalt ad vissza, amely betolti ezeket a front-channel logout URL-eket, majd tovabblep a vegso redirect vagy fallback oldal fele
 - a kliens fele a jelenlegi foundation ezeket a query parametereket kuldi:
   - `iss`
   - `client_id`
+  - `sid`
 
 Back-channel logout foundation:
 
@@ -249,15 +260,18 @@ Back-channel logout foundation:
   - `exp`
   - `jti`
   - `sub`
+  - `sid`
   - `events`
 - az `events` claim a szabvanykozeli back-channel logout eseményt hordozza: `http://schemas.openid.net/event/backchannel-logout`
-- a jelenlegi foundation `sub`-alapu korrelaciot hasznal; teljes `sid`-alapu session-correlation meg nincs
+- a jelenlegi foundation mar `sid`-alapu session korrelaciot is hordoz; a `sub` tovabbra is identity subject marad
 - a dispatch best effort: hibas vagy nem valaszolo RP nem akaszthatja meg a provider logout flow-t
 - guaranteed delivery, queue/retry orchestration es eros replay-vedelem tudatosan kesobbi fazis
 
 Tudatosan nincs benne meg:
 
 - global multi-client session kill
+- full OIDC session management iframe spec
+- multi-device/session graph vagy admin session dashboard
 - teljes garantalt distributed single logout
 
 ## 6. Self-service profile szerződés

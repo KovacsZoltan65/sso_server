@@ -263,6 +263,8 @@ it('skips consent for trusted first-party clients when bypass is allowed', funct
         ->firstOrFail();
 
     expect($authorizationCode->identityResponseNonce())->toBe('skip-consent-nonce')
+        ->and($authorizationCode->oidcSessionIdentifier())->toBeString()
+        ->and(strlen((string) $authorizationCode->oidcSessionIdentifier()))->toBeGreaterThanOrEqual(40)
         ->and($authorizationCode->hasIdentityResponseNonce())->toBeTrue()
         ->and($authorizationCode->requiresIdentityNonceValidation())->toBeTrue()
         ->and($authorizationCode->identityNonceContext())->toMatchArray([
@@ -270,6 +272,7 @@ it('skips consent for trusted first-party clients when bypass is allowed', funct
             'client_id' => $client->id,
             'user_id' => $user->id,
             'returned_nonce' => 'skip-consent-nonce',
+            'oidc_sid' => $authorizationCode->oidcSessionIdentifier(),
             'scope_contains_openid' => true,
         ]);
 
@@ -278,6 +281,7 @@ it('skips consent for trusted first-party clients when bypass is allowed', funct
     expect($participants[$client->client_id] ?? null)->toMatchArray([
         'client_id' => $client->id,
         'client_public_id' => $client->client_id,
+        'sid' => $authorizationCode->oidcSessionIdentifier(),
     ]);
 
     expect(session('oauth.consent_contexts', []))->toBe([]);
@@ -725,6 +729,7 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
         ->and($claims['aud'] ?? null)->toBe($client->client_id)
         ->and($claims['sub'] ?? null)->toBe((string) $user->id)
         ->and($claims['nonce'] ?? null)->toBe('oauth-nonce')
+        ->and($claims['sid'] ?? null)->toBeString()
         ->and($claims['iat'] ?? null)->toBeInt()
         ->and($claims['exp'] ?? null)->toBeInt()
         ->and(($claims['exp'] ?? 0) - ($claims['iat'] ?? 0))->toBe(300)

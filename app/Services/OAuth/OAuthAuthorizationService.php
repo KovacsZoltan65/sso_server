@@ -62,6 +62,7 @@ class OAuthAuthorizationService
         private readonly OAuthTrustDecisionService $trustDecisionService,
         private readonly OAuthRememberedConsentService $rememberedConsentService,
         private readonly OidcFrontChannelLogoutService $frontChannelLogoutService,
+        private readonly OidcSessionService $oidcSessionService,
     ) {
     }
 
@@ -433,8 +434,11 @@ class OAuthAuthorizationService
         string $codeChallengeMethod,
     ): array {
         $plainCode = Str::random(64);
+        $sid = in_array('openid', $requestedScopes, true)
+            ? $this->oidcSessionService->issueSidForClientSession($client, $user)
+            : null;
 
-        DB::transaction(function () use ($client, $user, $policy, $plainCode, $redirectUri, $requestedScopes, $nonce, $codeChallenge, $codeChallengeMethod): void {
+        DB::transaction(function () use ($client, $user, $policy, $plainCode, $redirectUri, $requestedScopes, $nonce, $sid, $codeChallenge, $codeChallengeMethod): void {
             AuthorizationCode::query()->create([
                 'sso_client_id' => $client->id,
                 'user_id' => $user->id,
@@ -443,6 +447,7 @@ class OAuthAuthorizationService
                 'redirect_uri' => $redirectUri,
                 'redirect_uri_hash' => hash('sha256', $redirectUri),
                 'nonce' => $nonce !== null && $nonce !== '' ? $nonce : null,
+                'oidc_sid' => $sid,
                 'code_challenge' => $codeChallenge !== '' ? $codeChallenge : null,
                 'code_challenge_method' => $codeChallengeMethod !== '' ? $codeChallengeMethod : null,
                 'scopes' => $requestedScopes,
@@ -483,7 +488,9 @@ class OAuthAuthorizationService
             }
         });
 
-        $this->frontChannelLogoutService->registerParticipatingClient($client);
+        if ($sid !== null) {
+            $this->frontChannelLogoutService->registerParticipatingClient($client, $sid, $user);
+        }
 
         $query = array_filter([
             'code' => $plainCode,

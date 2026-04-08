@@ -23,6 +23,7 @@ class OidcClaimPolicyService
     {
         return collect(self::SCOPE_TO_CLAIMS)
             ->flatten()
+            ->push('sid')
             ->unique()
             ->values()
             ->all();
