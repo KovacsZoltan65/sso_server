@@ -70,6 +70,21 @@ class OidcSessionService
 
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.sid.participation_registered',
+            description: 'OIDC sid participation registered for the provider session.',
+            subject: $client,
+            causer: $user,
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+                'target_user_id' => $user?->getKey(),
+                'has_sid' => true,
+                'status' => 'registered',
+            ],
+        );
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
             event: 'oauth.sid.bound_to_client_session',
             description: 'OIDC sid bound to the provider client session.',
             subject: $client,
@@ -82,6 +97,29 @@ class OidcSessionService
                 'status' => 'bound',
             ],
         );
+    }
+
+    public function clearSidParticipations(Session $session, ?User $user = null): int
+    {
+        $count = count($this->sids($session));
+
+        $session->forget(self::SESSION_KEY);
+
+        if ($count > 0) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_OAUTH,
+                event: 'oauth.sid.participation_cleanup_completed',
+                description: 'OIDC sid participation cleanup completed.',
+                causer: $user,
+                properties: [
+                    'affected_count' => $count,
+                    'has_sid' => true,
+                    'status' => 'completed',
+                ],
+            );
+        }
+
+        return $count;
     }
 
     /**

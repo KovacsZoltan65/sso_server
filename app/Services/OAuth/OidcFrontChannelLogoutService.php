@@ -115,9 +115,26 @@ class OidcFrontChannelLogoutService
             ->all();
     }
 
-    public function forgetParticipatingClients(Session $session): void
+    public function forgetParticipatingClients(Session $session, ?\App\Models\User $user = null): void
     {
+        $count = count($this->participatingClients($session));
+
         $session->forget(self::SESSION_KEY);
+        $this->oidcSessionService->clearSidParticipations($session, $user);
+
+        if ($count > 0) {
+            $this->auditLogService->logSuccess(
+                logName: AuditLogService::LOG_OAUTH,
+                event: 'oauth.sid.participation_cleared',
+                description: 'OIDC provider session participation cleared.',
+                causer: $user,
+                properties: [
+                    'affected_count' => $count,
+                    'has_sid' => true,
+                    'status' => 'cleared',
+                ],
+            );
+        }
     }
 
     /**

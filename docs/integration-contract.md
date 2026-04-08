@@ -442,3 +442,28 @@ Kliens:
 - `tests/Feature/ProfileTest.php`
 
 Ezek a tesztek adják ennek a szerződésnek a regressziós védelmét.
+
+## 11. Provider-side OIDC session participation cleanup
+
+Az OIDC `sid` participation adatok provider-session szintű, ideiglenes logout-korrelációs állapotok. Nem user-életciklus rekordok, és nem teljes session inventory.
+
+Aktuális lifecycle:
+
+- sikeres authorize/code issuance után az RP participation bekerül a provider sessionbe
+- a participation tartalmazza a `client_id`, `client_public_id`, `sid`, `frontchannel_logout_uri`, `backchannel_logout_uri`, `registered_at` mezőket
+- RP-initiated provider logoutkor a front-channel és back-channel targetek a session participation snapshotból épülnek
+- a dispatch targetek felépítése után a provider session participation és a hozzá tartozó `sid` map takarításra kerül
+- a session invalidation miatt ez idempotens cleanup: ha már nincs participation, nincs második mellékhatás
+
+Audit események:
+
+- `oauth.sid.participation_registered`
+- `oauth.sid.participation_cleared`
+- `oauth.sid.participation_cleanup_completed`
+
+Határok:
+
+- nincs full session dashboard
+- nincs multi-device/session inventory
+- nincs telemetry-driven cleanup
+- a provider továbbra is best-effort logout dispatch foundationt vállal, nem garantált distributed single logout platformot

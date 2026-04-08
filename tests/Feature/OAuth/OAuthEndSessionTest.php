@@ -141,6 +141,18 @@ it('renders a front-channel relay page and keeps the valid post logout redirect 
         'event' => 'oauth.frontchannel_logout.completed_provider_side',
         'description' => 'OIDC front-channel logout completed provider side.',
     ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.sid.participation_cleared',
+        'description' => 'OIDC provider session participation cleared.',
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.sid.participation_cleanup_completed',
+        'description' => 'OIDC sid participation cleanup completed.',
+    ]);
 });
 
 it('dispatches a signed back-channel logout token to registered participants', function (): void {

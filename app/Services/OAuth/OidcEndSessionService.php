@@ -35,6 +35,7 @@ class OidcEndSessionService
         $backChannelTargets = $request->user() !== null
             ? $this->backChannelLogoutService->buildDispatchTargets($request->session(), $request->user()->getAuthIdentifier())
             : [];
+        $providerUser = $request->user();
         $finalRedirectUrl = $redirectUri !== null
             ? $this->appendState($redirectUri, $state)
             : route('login');
@@ -54,7 +55,7 @@ class OidcEndSessionService
         );
 
         Auth::guard('web')->logout();
-        $this->frontChannelLogoutService->forgetParticipatingClients($request->session());
+        $this->frontChannelLogoutService->forgetParticipatingClients($request->session(), $providerUser);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
