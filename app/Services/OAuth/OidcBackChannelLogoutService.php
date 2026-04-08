@@ -139,6 +139,24 @@ class OidcBackChannelLogoutService
                 'client_public_id' => $audience,
                 'kid' => $signingKey['kid'],
                 'has_sid' => trim((string) ($sid ?? '')) !== '',
+                'has_jti' => true,
+                'has_exp' => true,
+                'ttl_seconds' => $this->ttlSeconds(),
+                'status' => 'issued',
+            ],
+        );
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.backchannel_logout.token_issued_with_exp',
+            description: 'OIDC back-channel logout token issued with expiration.',
+            properties: [
+                'client_public_id' => $audience,
+                'kid' => $signingKey['kid'],
+                'has_sid' => trim((string) ($sid ?? '')) !== '',
+                'has_jti' => true,
+                'has_exp' => true,
+                'ttl_seconds' => $this->ttlSeconds(),
                 'status' => 'issued',
             ],
         );
@@ -152,14 +170,14 @@ class OidcBackChannelLogoutService
     public function logoutTokenClaims(string $audience, string $subject, ?string $sid = null, ?Carbon $issuedAt = null): array
     {
         $issuedAt ??= now();
-        $expiresAt = $issuedAt->copy()->addSeconds(max(60, (int) config('oidc.backchannel_logout_ttl_seconds', 300)));
+        $expiresAt = $issuedAt->copy()->addSeconds($this->ttlSeconds());
 
         $claims = [
             'iss' => $this->issuer(),
             'aud' => trim($audience),
             'iat' => $issuedAt->getTimestamp(),
             'exp' => $expiresAt->getTimestamp(),
-            'jti' => (string) Str::uuid(),
+            'jti' => Str::random(64),
             'sub' => $subject,
             'events' => [
                 self::LOGOUT_EVENT_CLAIM => new \stdClass(),
@@ -199,6 +217,11 @@ class OidcBackChannelLogoutService
         }
 
         return rtrim($issuer, '/');
+    }
+
+    private function ttlSeconds(): int
+    {
+        return max(60, (int) config('oidc.backchannel_logout_token_ttl_seconds', 300));
     }
 
     private function base64UrlEncode(string $value): string

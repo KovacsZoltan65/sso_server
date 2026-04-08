@@ -2,38 +2,77 @@
 
 namespace App\Services\OAuth;
 
+use Illuminate\Support\Carbon;
 use OpenSSLAsymmetricKey;
 use RuntimeException;
 
 class OidcSigningKeyService
 {
+    public const STATUS_ACTIVE = 'active';
+    public const STATUS_PUBLISHED = 'published';
+    public const STATUS_RETIRING = 'retiring';
+    public const STATUS_DISABLED = 'disabled';
+
+    /**
+     * @return array<int, string>
+     */
+    public static function lifecycleStatuses(): array
+    {
+        return [
+            self::STATUS_ACTIVE,
+            self::STATUS_PUBLISHED,
+            self::STATUS_RETIRING,
+            self::STATUS_DISABLED,
+        ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function verificationStatuses(): array
+    {
+        return [
+            self::STATUS_ACTIVE,
+            self::STATUS_PUBLISHED,
+            self::STATUS_RETIRING,
+        ];
+    }
+
     /**
      * @return array{
      *     kid: string,
      *     alg: string,
      *     private_key_path: string|null,
      *     public_key_path: string,
-     *     published: bool
+     *     published: bool,
+     *     status: string,
+     *     activated_at: string|null,
+     *     retiring_since: string|null,
+     *     disabled_at: string|null
      * }
      */
     public function getActiveSigningKey(): array
     {
         $configuredKeys = $this->configuredKeys();
+
+        $activeKeys = array_values(array_filter(
+            $configuredKeys,
+            static fn (array $key): bool => $key['status'] === self::STATUS_ACTIVE,
+        ));
+
+        if (count($activeKeys) !== 1) {
+            throw new RuntimeException('OIDC signing key configuration must define exactly one active key.');
+        }
+
+        $activeKey = $activeKeys[0];
         $activeKid = $this->configuredActiveKid($configuredKeys);
 
-        if ($activeKid !== '') {
-            $activeKey = $this->findKeyByKid($activeKid);
-        } else {
-            $activeKeys = array_values(array_filter(
-                $configuredKeys,
-                static fn (array $key): bool => (bool) ($key['active'] ?? false),
+        if ($activeKid !== '' && $activeKid !== $activeKey['kid']) {
+            throw new RuntimeException(sprintf(
+                'OIDC signing active_kid [%s] does not match lifecycle active key [%s].',
+                $activeKid,
+                $activeKey['kid'],
             ));
-
-            if (count($activeKeys) !== 1) {
-                throw new RuntimeException('OIDC signing key configuration must define exactly one active key.');
-            }
-
-            $activeKey = $activeKeys[0];
         }
 
         if (! $activeKey['published']) {
@@ -49,15 +88,161 @@ class OidcSigningKeyService
      *     alg: string,
      *     private_key_path: string|null,
      *     public_key_path: string,
-     *     published: bool
+     *     published: bool,
+     *     status: string,
+     *     activated_at: string|null,
+     *     retiring_since: string|null,
+     *     disabled_at: string|null
      * }>
      */
     public function getPublishedVerificationKeys(): array
     {
         return array_values(array_filter(
             $this->configuredKeys(),
-            static fn (array $key): bool => $key['published'],
+            static fn (array $key): bool => in_array($key['status'], self::verificationStatuses(), true),
         ));
+    }
+
+    /**
+     * @return array<int, array{
+     *     kid: string,
+     *     alg: string,
+     *     private_key_path: string|null,
+     *     public_key_path: string,
+     *     published: bool,
+     *     status: string,
+     *     activated_at: string|null,
+     *     retiring_since: string|null,
+     *     disabled_at: string|null
+     * }>
+     */
+    public function getRetiringKeys(): array
+    {
+        return array_values(array_filter(
+            $this->configuredKeys(),
+            static fn (array $key): bool => $key['status'] === self::STATUS_RETIRING,
+        ));
+    }
+
+    public function validateKeyConfiguration(): void
+    {
+        $this->configuredKeys();
+        $this->getActiveSigningKey();
+    }
+
+    /**
+     * @return array<int, array{
+     *     kid: string,
+     *     alg: string,
+     *     private_key_path: string|null,
+     *     public_key_path: string,
+     *     published: bool,
+     *     status: string,
+     *     activated_at: string|null,
+     *     retiring_since: string|null,
+     *     disabled_at: string|null
+     * }>
+     */
+    public function getConfiguredKeys(): array
+    {
+        return $this->configuredKeys();
+    }
+
+    public function canDisableKey(string $kid): bool
+    {
+        return (bool) $this->getDisableEligibility($kid)['eligible'];
+    }
+
+    /**
+     * @return array{
+     *     kid: string,
+     *     status: string|null,
+     *     eligible: bool,
+     *     reason: string,
+     *     retiring_since: string|null,
+     *     grace_period_seconds: int,
+     *     eligible_at: string|null
+     * }
+     */
+    public function getDisableEligibility(string $kid): array
+    {
+        $normalizedKid = trim($kid);
+        $gracePeriod = $this->retiringGracePeriodSeconds();
+
+        if ($normalizedKid === '') {
+            return $this->disableEligibility($normalizedKid, null, false, 'unknown_key', null, $gracePeriod, null);
+        }
+
+        $key = null;
+
+        foreach ($this->configuredKeys() as $configuredKey) {
+            if ($configuredKey['kid'] === $normalizedKid) {
+                $key = $configuredKey;
+                break;
+            }
+        }
+
+        if ($key === null) {
+            return $this->disableEligibility($normalizedKid, null, false, 'unknown_key', null, $gracePeriod, null);
+        }
+
+        $status = (string) $key['status'];
+        $retiringSince = $this->getRetiringSince($normalizedKid);
+        $eligibleAt = $retiringSince?->copy()->addSeconds($gracePeriod);
+
+        if ($status === self::STATUS_ACTIVE) {
+            return $this->disableEligibility($normalizedKid, $status, false, 'active_key_cannot_be_disabled', $retiringSince, $gracePeriod, $eligibleAt);
+        }
+
+        if ($status === self::STATUS_PUBLISHED) {
+            return $this->disableEligibility($normalizedKid, $status, false, 'published_key_must_be_retired_first', $retiringSince, $gracePeriod, $eligibleAt);
+        }
+
+        if ($status === self::STATUS_DISABLED) {
+            return $this->disableEligibility($normalizedKid, $status, true, 'key_already_disabled', $retiringSince, $gracePeriod, $eligibleAt);
+        }
+
+        if ($retiringSince === null || ! $this->isGracePeriodElapsed($normalizedKid)) {
+            return $this->disableEligibility($normalizedKid, $status, false, 'grace_period_not_elapsed', $retiringSince, $gracePeriod, $eligibleAt);
+        }
+
+        return $this->disableEligibility($normalizedKid, $status, true, 'retiring_key_can_be_disabled', $retiringSince, $gracePeriod, $eligibleAt);
+    }
+
+    public function getRetiringSince(string $kid): ?Carbon
+    {
+        $normalizedKid = trim($kid);
+
+        foreach ($this->configuredKeys() as $key) {
+            if ($key['kid'] !== $normalizedKid) {
+                continue;
+            }
+
+            $retiringSince = $key['retiring_since'] ?? null;
+
+            if (! is_string($retiringSince) || trim($retiringSince) === '') {
+                return null;
+            }
+
+            try {
+                return Carbon::parse($retiringSince);
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+
+        return null;
+    }
+
+    public function isGracePeriodElapsed(string $kid): bool
+    {
+        $retiringSince = $this->getRetiringSince($kid);
+
+        if ($retiringSince === null) {
+            return false;
+        }
+
+        return $retiringSince->copy()->addSeconds($this->retiringGracePeriodSeconds())->lessThanOrEqualTo(now());
     }
 
     /**
@@ -66,7 +251,11 @@ class OidcSigningKeyService
      *     alg: string,
      *     private_key_path: string|null,
      *     public_key_path: string,
-     *     published: bool
+     *     published: bool,
+     *     status: string,
+     *     activated_at: string|null,
+     *     retiring_since: string|null,
+     *     disabled_at: string|null
      * }
      */
     public function findKeyByKid(string $kid): array
@@ -77,7 +266,7 @@ class OidcSigningKeyService
             throw new RuntimeException('OIDC signing kid is missing.');
         }
 
-        foreach ($this->configuredKeys() as $key) {
+        foreach ($this->getPublishedVerificationKeys() as $key) {
             if ($key['kid'] === $normalizedKid) {
                 return $key;
             }
@@ -140,6 +329,11 @@ class OidcSigningKeyService
     public function sign(string $input, ?array $key = null): string
     {
         $signingKey = $key ?? $this->getActiveSigningKey();
+
+        if (($signingKey['status'] ?? self::STATUS_ACTIVE) !== self::STATUS_ACTIVE) {
+            throw new RuntimeException('OIDC signing can only use the active lifecycle key.');
+        }
+
         $privateKey = openssl_pkey_get_private($this->privateKeyPem($signingKey));
 
         if ($privateKey === false) {
@@ -196,7 +390,7 @@ class OidcSigningKeyService
      */
     private function configuredKeys(): array
     {
-        $configured = config('oidc.signing.keys', []);
+        $configured = $this->configuredRegistryKeys();
 
         if ((! is_array($configured) || $configured === [])
             && (config('oidc.signing.kid') !== null || config('oidc.signing.public_key_path') !== null)
@@ -207,6 +401,7 @@ class OidcSigningKeyService
                 'private_key_path' => config('oidc.signing.private_key_path'),
                 'public_key_path' => config('oidc.signing.public_key_path'),
                 'published' => true,
+                'status' => self::STATUS_ACTIVE,
             ]];
         }
 
@@ -226,6 +421,7 @@ class OidcSigningKeyService
             $alg = trim((string) ($key['alg'] ?? 'RS256'));
             $publicKeyPath = $this->normalizePath($key['public_key_path'] ?? null);
             $privateKeyPath = $this->normalizePath($key['private_key_path'] ?? null);
+            $status = $this->normalizeStatus($key, $kid);
 
             if ($kid === '') {
                 throw new RuntimeException(sprintf('OIDC signing key definition at index [%d] is missing kid.', $index));
@@ -248,13 +444,135 @@ class OidcSigningKeyService
                 'alg' => $alg,
                 'private_key_path' => $privateKeyPath,
                 'public_key_path' => $publicKeyPath,
-                'published' => (bool) ($key['published'] ?? true),
+                'published' => in_array($status, self::verificationStatuses(), true),
                 'active' => (bool) ($key['active'] ?? false),
+                'status' => $status,
+                'activated_at' => $this->normalizeTimestamp($key['activated_at'] ?? null),
+                'retiring_since' => $this->normalizeTimestamp($key['retiring_since'] ?? null),
+                'disabled_at' => $this->normalizeTimestamp($key['disabled_at'] ?? null),
             ];
             $seenKids[$kid] = true;
         }
 
+        $activeKeys = array_values(array_filter(
+            $keys,
+            static fn (array $key): bool => $key['status'] === self::STATUS_ACTIVE,
+        ));
+
+        if (count($activeKeys) !== 1) {
+            throw new RuntimeException('OIDC signing key configuration must define exactly one active key.');
+        }
+
+        $activeKid = $this->configuredActiveKid($keys);
+
+        if ($activeKid !== '' && $activeKid !== $activeKeys[0]['kid']) {
+            throw new RuntimeException(sprintf(
+                'OIDC signing active_kid [%s] does not match lifecycle active key [%s].',
+                $activeKid,
+                $activeKeys[0]['kid'],
+            ));
+        }
+
         return $keys;
+    }
+
+    private function configuredRegistryKeys(): array
+    {
+        $registryPath = $this->normalizePath(config('oidc.signing.registry_path'));
+
+        if ($this->usesExternalRegistry()) {
+            $json = file_get_contents($registryPath);
+
+            if (! is_string($json) || trim($json) === '') {
+                throw new RuntimeException('OIDC signing key registry file is unreadable.');
+            }
+
+            $decoded = json_decode($json, true);
+
+            if (! is_array($decoded)) {
+                throw new RuntimeException('OIDC signing key registry file is invalid JSON.');
+            }
+
+            $keys = $decoded['keys'] ?? $decoded;
+
+            if (! is_array($keys)) {
+                throw new RuntimeException('OIDC signing key registry file does not contain a keys array.');
+            }
+
+            return $keys;
+        }
+
+        $configured = config('oidc.signing.keys', []);
+
+        return is_array($configured) ? $configured : [];
+    }
+
+    private function normalizeStatus(array $key, string $kid): string
+    {
+        $status = trim((string) ($key['status'] ?? ''));
+
+        if ($status === '') {
+            $activeKid = trim((string) config('oidc.signing.active_kid', ''));
+            $published = (bool) ($key['published'] ?? true);
+
+            if ((bool) ($key['active'] ?? false) || ($activeKid !== '' && $activeKid === $kid)) {
+                $status = self::STATUS_ACTIVE;
+            } elseif (! $published) {
+                $status = self::STATUS_DISABLED;
+            } else {
+                $status = self::STATUS_PUBLISHED;
+            }
+        }
+
+        if (! in_array($status, self::lifecycleStatuses(), true)) {
+            throw new RuntimeException(sprintf('OIDC signing key [%s] has invalid lifecycle status [%s].', $kid, $status));
+        }
+
+        return $status;
+    }
+
+    private function retiringGracePeriodSeconds(): int
+    {
+        return max(60, (int) config('oidc.signing.retiring_grace_period_seconds', 86400));
+    }
+
+    private function normalizeTimestamp(mixed $value): ?string
+    {
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $value = trim($value);
+
+        if ($value === '') {
+            return null;
+        }
+
+        try {
+            return Carbon::parse($value)->toIso8601String();
+        } catch (\Throwable) {
+            throw new RuntimeException(sprintf('OIDC signing key lifecycle timestamp [%s] is invalid.', $value));
+        }
+    }
+
+    private function disableEligibility(
+        string $kid,
+        ?string $status,
+        bool $eligible,
+        string $reason,
+        ?Carbon $retiringSince,
+        int $gracePeriodSeconds,
+        ?Carbon $eligibleAt,
+    ): array {
+        return [
+            'kid' => $kid,
+            'status' => $status,
+            'eligible' => $eligible,
+            'reason' => $reason,
+            'retiring_since' => $retiringSince?->toIso8601String(),
+            'grace_period_seconds' => $gracePeriodSeconds,
+            'eligible_at' => $eligibleAt?->toIso8601String(),
+        ];
     }
 
     private function privateKeyPem(array $key): string
@@ -337,6 +655,10 @@ class OidcSigningKeyService
      */
     private function configuredActiveKid(array $configuredKeys): string
     {
+        if ($this->usesExternalRegistry()) {
+            return '';
+        }
+
         $configuredRegistry = config('oidc.signing.keys', []);
         $activeKid = trim((string) config('oidc.signing.active_kid', ''));
 
@@ -355,6 +677,13 @@ class OidcSigningKeyService
         }
 
         return $activeKid;
+    }
+
+    private function usesExternalRegistry(): bool
+    {
+        $registryPath = $this->normalizePath(config('oidc.signing.registry_path'));
+
+        return is_string($registryPath) && is_file($registryPath);
     }
 
     private function base64UrlEncode(string $value): string

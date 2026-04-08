@@ -19,6 +19,7 @@ beforeEach(function (): void {
     config()->set('oidc.signing.kid', 'logout-test-key-1');
     config()->set('oidc.signing.private_key_path', base_path('tests/Fixtures/oidc/private.pem'));
     config()->set('oidc.signing.public_key_path', base_path('tests/Fixtures/oidc/public.pem'));
+    config()->set('oidc.backchannel_logout_token_ttl_seconds', 120);
 
     Scope::factory()->create(['name' => 'OpenID', 'code' => 'openid', 'is_active' => true]);
     Scope::factory()->create(['name' => 'Profile', 'code' => 'profile', 'is_active' => true]);
@@ -190,6 +191,7 @@ it('dispatches a signed back-channel logout token to registered participants', f
             && ($claims['sub'] ?? null) === (string) $user->id
             && ($claims['sid'] ?? null) === $sid
             && isset($claims['jti'], $claims['iat'], $claims['exp'])
+            && (($claims['exp'] ?? 0) - ($claims['iat'] ?? 0)) === 120
             && isset($claims['events']['http://schemas.openid.net/event/backchannel-logout'])
             && $verified === true;
     });
@@ -200,6 +202,12 @@ it('dispatches a signed back-channel logout token to registered participants', f
         'log_name' => 'oauth',
         'event' => 'oauth.backchannel_logout.token_issued',
         'description' => 'OIDC back-channel logout token issued.',
+    ]);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.backchannel_logout.token_issued_with_exp',
+        'description' => 'OIDC back-channel logout token issued with expiration.',
     ]);
 
     $this->assertDatabaseHas('activity_log', [

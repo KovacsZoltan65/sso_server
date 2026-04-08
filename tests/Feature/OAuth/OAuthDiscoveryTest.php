@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Models\Scope;
+use App\Services\OAuth\OidcClaimPolicyService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
 use function Pest\Laravel\getJson;
@@ -72,6 +73,58 @@ it('serves openid provider discovery metadata', function (): void {
         'event' => 'oauth.discovery.served',
         'description' => 'OIDC discovery metadata served.',
     ]);
+});
+
+it('contains only the mandatory and implemented provider metadata capabilities', function (): void {
+    $payload = getJson('/.well-known/openid-configuration')
+        ->assertOk()
+        ->json();
+
+    foreach ([
+        'issuer',
+        'authorization_endpoint',
+        'token_endpoint',
+        'jwks_uri',
+        'response_types_supported',
+        'subject_types_supported',
+        'id_token_signing_alg_values_supported',
+    ] as $requiredKey) {
+        expect($payload)->toHaveKey($requiredKey);
+    }
+
+    foreach ([
+        'userinfo_endpoint',
+        'end_session_endpoint',
+        'frontchannel_logout_supported',
+        'frontchannel_logout_session_supported',
+        'backchannel_logout_supported',
+        'backchannel_logout_session_supported',
+    ] as $implementedKey) {
+        expect($payload)->toHaveKey($implementedKey);
+    }
+
+    foreach ([
+        'registration_endpoint',
+        'check_session_iframe',
+        'revocation_endpoint',
+        'introspection_endpoint',
+    ] as $unimplementedKey) {
+        expect($payload)->not->toHaveKey($unimplementedKey);
+    }
+
+    expect($payload['frontchannel_logout_supported'])->toBeTrue()
+        ->and($payload['frontchannel_logout_session_supported'])->toBeTrue()
+        ->and($payload['backchannel_logout_supported'])->toBeTrue()
+        ->and($payload['backchannel_logout_session_supported'])->toBeTrue();
+});
+
+it('builds claims supported from the explicit claim policy', function (): void {
+    $payload = getJson('/.well-known/openid-configuration')
+        ->assertOk()
+        ->json();
+
+    expect($payload['claims_supported'] ?? null)
+        ->toBe(app(OidcClaimPolicyService::class)->supportedClaims());
 });
 
 it('keeps discovery metadata urls consistent with the configured issuer and jwks route', function (): void {

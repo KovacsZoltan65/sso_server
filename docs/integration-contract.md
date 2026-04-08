@@ -102,11 +102,22 @@ JWKS endpoint:
 - szabvanyos JWK Set valaszt ad: `{"keys":[...]}`
 - a JWKS immar tobb kulcsot is publikálhat ugyanabban a `keys` tombben
 - minden publikalt verify kulcs legalabb ezeket tartalmazza: `kty`, `kid`, `use`, `alg`, `n`, `e`
-- a szerver pontosan egy aktiv signing kulcsot tart fenn, az uj `id_token`-ek mindig ezzel irodnak ala
-- a korabbi kulcsok legacy verify kulcskent tovabbra is benne maradhatnak a JWKS-ben, ameddig a szerver ezt vallalja
+- a szerver explicit signing key lifecycle allapotokat kezel: `active`, `published`, `retiring`, `disabled`
+- pontosan egy `active` kulcs lehet; az uj `id_token`-ek es logout tokenek mindig ezzel irodnak ala
+- a `published` kulcs JWKS-ben szerepel, verify-ra hasznalhato, de signingra meg nem
+- a `retiring` kulcs mar nem signing kulcs, de grace period alatt JWKS-ben marad, hogy a korabbi tokenek verify-ja ne torjon el
+- a `disabled` kulcs nem jelenik meg JWKS-ben es verify-ra sem hasznalhato
+- a lifecycle metadata legalabb: `activated_at`, `retiring_since`, `disabled_at`
 - a `kid` stabil szerzodeses azonosito: az `id_token` header `kid` erteke mindig ugyanarra a JWKS kulcsra mutat
 - private key anyag soha nem jelenhet meg a valaszban
-- tudatosan nincs meg admin key management UI, automatizalt rotacios scheduler vagy KMS/HSM integracio
+- a kontrollalt rotacio alapelve: uj kulcs letrehozasa `published` allapotban, aktivalas, elozo aktiv kulcs `retiring` allapotban tartasa, majd csak grace period utan `disabled`
+- CLI foundation: `php artisan oidc:keys:list`, `php artisan oidc:keys:rotate`, valamint `php artisan oidc:keys:rotate --activate=<kid>` es `--disable=<kid>`
+- a `retiring` grace period configbol jon: `oidc.signing.retiring_grace_period_seconds`
+- a `retiring` -> `disabled` atmenet service szinten guardolt: active kulcs nem disable-elheto, published kulcsot elobb retire-olni kell, retiring kulcsot pedig csak a `retiring_since + grace period` utan lehet disable-elni
+- a JWKS depublication kizarolag a `disabled` allapothoz kotott, nem az active valtashoz; a `retiring` kulcs addig benne marad a JWKS-ben, amig nincs explicit, guardolt disable
+- a `php artisan oidc:keys:list` megjeleniti a disable eligibility adatokat is: `disable_eligible`, `disable_reason`, `retiring_since`
+- nincs teljes token issuance inventory, ezert a grace period uzemeltetesi guard; legalabb a kiadott ID/logout tokenek es JWKS cache-ek kifutasat le kell fednie
+- tudatosan nincs meg admin key management UI, automatizalt rotacios scheduler, issuance inventory, usage telemetry alapu disable, distributed key orchestration vagy KMS/HSM integracio
 
 OpenID Provider discovery endpoint:
 
@@ -130,17 +141,23 @@ OpenID Provider discovery endpoint:
 - `backchannel_logout_supported`
 - `backchannel_logout_session_supported`
 - `end_session_endpoint`
-- a `claims_supported` jelenleg pontosan ezeket a claim-eket publikalja: `sub`, `name`, `email`, `email_verified`, `sid`
+- minden publikalt mező mögött ténylegesen implementált adatút áll; a discovery runtime contract, nem roadmap
+- a `claims_supported` a kozponti `OidcClaimPolicyService` eredmenyebol epul, es jelenleg pontosan ezeket a claim-eket publikalja: `sub`, `name`, `email`, `email_verified`, `sid`
+- a `scopes_supported` repositorybol jon, es csak aktiv scope kodokat tartalmaz
 - tudatosan nincs benne peldaul:
   - `registration_endpoint`
+  - `check_session_iframe`
+  - `revocation_endpoint`
+  - `introspection_endpoint`
 - a metadata URL-jei az `issuer` baseline-hoz igazodnak
 - a `jwks_uri` a mar mukodo `/.well-known/jwks.json` vegpontra mutat
 - a `userinfo_endpoint` a mar mukodo bearer tokennel vedett `/api/oauth/userinfo` vegpontra mutat
 - az `end_session_endpoint` a mar mukodo `GET /oidc/logout` provider logout vegpontra mutat
-- a discovery `claims_supported` mar a kozponti OIDC claim policybol epul
+- az `id_token_signing_alg_values_supported` a signing service altal publikalt verification kulcsok algoritmusaibol epul, igy a JWKS `alg` es a signing baseline osszhangban marad
 - a `frontchannel_logout_supported` azt jelzi, hogy a provider oldalon elerheto a front-channel logout foundation
 - a `backchannel_logout_supported` azt jelzi, hogy a provider signed logout tokent tud kuldeni a regisztralt RP back-channel vegpontokra
 - a `frontchannel_logout_session_supported` es `backchannel_logout_session_supported` csak azert `true`, mert a provider mar explicit `sid` adatuttal dolgozik: authorization code, id_token, RP participation, front-channel logout URL es back-channel logout token ugyanarra a session-korrelacios azonosítora epul
+- ha egy capability mögött nincs végig működő adatút, nem kerülhet `true` értékkel a discovery dokumentumba
 
 Hibás válasz formátuma:
 
@@ -263,9 +280,13 @@ Back-channel logout foundation:
   - `sid`
   - `events`
 - az `events` claim a szabvanykozeli back-channel logout eseményt hordozza: `http://schemas.openid.net/event/backchannel-logout`
+- a logout token rovid eletu: az `exp` claim az `oidc.backchannel_logout_token_ttl_seconds` configbol epul, alapertelmezetten perc nagysagrendu TTL-lel
+- a `jti` minden kiadott logout tokennel nagy entropiaju, egyedi azonosito; a provider nem varja el, hogy ez onmagaban globalis replay platform legyen
+- a token `exp` nelkul nem tekintheto a jelenlegi contract szerint teljes back-channel logout tokennek
 - a jelenlegi foundation mar `sid`-alapu session korrelaciot is hordoz; a `sub` tovabbra is identity subject marad
 - a dispatch best effort: hibas vagy nem valaszolo RP nem akaszthatja meg a provider logout flow-t
-- guaranteed delivery, queue/retry orchestration es eros replay-vedelem tudatosan kesobbi fazis
+- a provider audit esemenyt ir a token kiadasarol es az exp-alapu TTL jelenleterol, raw logout token vagy raw `jti` logolasa nelkul
+- guaranteed delivery, queue/retry orchestration, distributed replay-store koordinacio es teljes deduplikacios platform tudatosan kesobbi fazis
 
 Tudatosan nincs benne meg:
 
