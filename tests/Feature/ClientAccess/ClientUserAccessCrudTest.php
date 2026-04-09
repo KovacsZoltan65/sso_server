@@ -62,6 +62,94 @@ it('loads the client access admin index with expected props', function () {
             ->where('canManageClientAccess', false));
 });
 
+it('loads the client access create page with form options', function () {
+    SsoClient::factory()->create([
+        'name' => 'Portal',
+        'client_id' => 'client_portal',
+    ]);
+    User::factory()->create([
+        'name' => 'Jane Doe',
+        'email' => 'jane@example.com',
+    ]);
+    $manager = clientAccessManager(['client-access.create']);
+
+    $this->actingAs($manager)
+        ->get(route('admin.client-user-access.create'))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('ClientUserAccess/Create')
+            ->has('clientOptions')
+            ->has('userOptions'));
+});
+
+it('loads the client access edit page with the selected access payload', function () {
+    $access = ClientUserAccess::factory()->create();
+    $manager = clientAccessManager(['client-access.update']);
+
+    $this->actingAs($manager)
+        ->get(route('admin.client-user-access.edit', $access))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('ClientUserAccess/Edit')
+            ->where('access.id', $access->id)
+            ->where('access.clientId', $access->client_id)
+            ->where('access.userId', $access->user_id)
+            ->has('clientOptions')
+            ->has('userOptions'));
+});
+
+it('stores a client user access record through the admin page flow', function () {
+    $client = SsoClient::factory()->create();
+    $targetUser = User::factory()->create();
+    $manager = clientAccessManager(['client-access.create']);
+
+    $this->actingAs($manager)
+        ->post(route('admin.client-user-access.store'), [
+            'client_id' => $client->id,
+            'user_id' => $targetUser->id,
+            'is_active' => true,
+            'allowed_from' => now()->subHour()->toDateTimeString(),
+            'allowed_until' => now()->addHour()->toDateTimeString(),
+            'notes' => 'Temporary rollout access',
+        ])
+        ->assertRedirect(route('admin.client-user-access.index'))
+        ->assertSessionHas('success', 'Client user access created successfully.');
+
+    $this->assertDatabaseHas('client_user_access', [
+        'client_id' => $client->id,
+        'user_id' => $targetUser->id,
+        'is_active' => true,
+    ]);
+});
+
+it('updates a client user access record through the admin page flow', function () {
+    $client = SsoClient::factory()->create();
+    $targetUser = User::factory()->create();
+    $access = ClientUserAccess::factory()->create([
+        'client_id' => $client->id,
+        'user_id' => $targetUser->id,
+        'is_active' => true,
+    ]);
+    $manager = clientAccessManager(['client-access.update']);
+
+    $this->actingAs($manager)
+        ->put(route('admin.client-user-access.update', $access), [
+            'client_id' => $client->id,
+            'user_id' => $targetUser->id,
+            'is_active' => false,
+            'allowed_from' => now()->subDays(2)->toDateTimeString(),
+            'allowed_until' => now()->addDays(2)->toDateTimeString(),
+            'notes' => 'Disabled after audit review',
+        ])
+        ->assertRedirect(route('admin.client-user-access.index'))
+        ->assertSessionHas('success', 'Client user access updated successfully.');
+
+    $access->refresh();
+
+    expect($access->is_active)->toBeFalse()
+        ->and($access->notes)->toBe('Disabled after audit review');
+});
+
 it('stores a client user access record and audits it', function () {
     $client = SsoClient::factory()->create();
     $targetUser = User::factory()->create();

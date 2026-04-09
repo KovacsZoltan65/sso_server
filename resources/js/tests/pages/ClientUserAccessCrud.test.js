@@ -1,11 +1,12 @@
 import { mount } from '@vue/test-utils';
 import { nextTick } from 'vue';
 import { describe, expect, it } from 'vitest';
+import Create from '@/Pages/ClientUserAccess/Create.vue';
+import Edit from '@/Pages/ClientUserAccess/Edit.vue';
 import Index from '@/Pages/ClientUserAccess/Index.vue';
-import CreateDialog from '@/Pages/ClientUserAccess/components/CreateDialog.vue';
-import EditDialog from '@/Pages/ClientUserAccess/components/EditDialog.vue';
 import ClientUserAccessFormFields from '@/Pages/ClientUserAccess/components/ClientUserAccessFormFields.vue';
-import { axiosDelete, axiosPost, axiosPut } from '@/tests/mocks/axios';
+import { axiosDelete } from '@/tests/mocks/axios';
+import { getForms, getLastForm, router } from '@/tests/mocks/inertia';
 import { confirmRequire } from '@/tests/mocks/primevue';
 import { mountPage } from '@/tests/testUtils';
 
@@ -38,7 +39,7 @@ const rows = [
 ];
 
 describe('Client user access CRUD frontend', () => {
-    it('renders the list and opens the create dialog', async () => {
+    it('renders the list and navigates to the create page', async () => {
         const wrapper = mountPage(Index, {
             props: {
                 rows,
@@ -58,80 +59,93 @@ describe('Client user access CRUD frontend', () => {
         expect(wrapper.text()).toContain('If a client has no active client access records, it behaves as an open client');
 
         await wrapper.find('[data-toolbar-action="create"]').trigger('click');
-        expect(wrapper.find('[data-dialog="Create Client Access"]').exists()).toBe(true);
+        expect(router.get).toHaveBeenCalledWith(route('admin.client-user-access.create'));
     });
 
-    it('submits the create dialog through the service layer', async () => {
-        const wrapper = mount(CreateDialog, {
+    it('navigates to the edit page from the index', async () => {
+        const wrapper = mountPage(Index, {
             props: {
-                visible: true,
+                rows,
                 clientOptions,
                 userOptions,
+                filters: { global: null, client_id: null, user_id: null, status: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'createdAt', order: -1 },
+                canManageClientAccess: true,
             },
         });
 
-        const selects = wrapper.findAll('select');
-        await selects[0].setValue('1');
-        await selects[1].setValue('11');
-        await wrapper.find('form').trigger('submit.prevent');
+        await nextTick();
 
-        expect(axiosPost).toHaveBeenCalledWith(
-            route('api.client-user-access.store'),
-            expect.objectContaining({
-                client_id: 1,
-                user_id: 11,
-                is_active: true,
-            }),
-        );
+        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        expect(router.get).toHaveBeenCalledWith(route('admin.client-user-access.edit', 7));
     });
 
-    it('shows validation errors in the create dialog on 422 responses', async () => {
-        axiosPost.mockRejectedValueOnce({
-            response: {
-                data: {
-                    errors: {
-                        user_id: ['This user already has an access record for the selected client.'],
+    it('submits the create page form through inertia useForm', async () => {
+        const wrapper = mount(Create, {
+            props: {
+                clientOptions,
+                userOptions,
+            },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: {
+                        template: '<div><slot /></div>',
+                    },
+                    PageHeader: {
+                        template: '<div />',
                     },
                 },
             },
         });
 
-        const wrapper = mount(CreateDialog, {
-            props: {
-                visible: true,
-                clientOptions,
-                userOptions,
-            },
-        });
+        const form = getLastForm();
 
-        const selects = wrapper.findAll('select');
-        await selects[0].setValue('1');
-        await selects[1].setValue('11');
+        expect(wrapper.text()).toContain('Restriction behavior');
+        form.client_id = 1;
+        form.user_id = 11;
+        form.notes = 'Rollout access';
+
         await wrapper.find('form').trigger('submit.prevent');
-        await nextTick();
 
-        expect(wrapper.text()).toContain('This user already has an access record for the selected client.');
+        expect(form.post).toHaveBeenCalledWith(route('admin.client-user-access.store'), {
+            preserveScroll: true,
+        });
     });
 
-    it('prefills and submits the edit dialog through the service layer', async () => {
-        const wrapper = mount(EditDialog, {
+    it('prefills and submits the edit page form through inertia useForm', async () => {
+        const wrapper = mount(Edit, {
             props: {
-                visible: true,
                 access: rows[0],
                 clientOptions,
                 userOptions,
             },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: {
+                        template: '<div><slot /></div>',
+                    },
+                    PageHeader: {
+                        template: '<div />',
+                    },
+                },
+            },
         });
 
-        await wrapper.find('textarea').setValue('Updated notes');
+        const [form] = getForms();
+
+        expect(form.client_id).toBe(1);
+        expect(form.user_id).toBe(11);
+        expect(form.allowed_from).toBe('2026-04-01T08:00');
+        expect(form.allowed_until).toBe('2026-04-01T18:00');
+        expect(form.notes).toBe('Primary rollout');
+
+        form.notes = 'Updated notes';
         await wrapper.find('form').trigger('submit.prevent');
 
-        expect(axiosPut).toHaveBeenCalledWith(
-            route('api.client-user-access.update', 7),
-            expect.objectContaining({
-                notes: 'Updated notes',
-            }),
-        );
+        expect(form.put).toHaveBeenCalledWith(route('admin.client-user-access.update', 7), {
+            preserveScroll: true,
+        });
     });
 
     it('confirms delete and bulk delete flows from the index', async () => {
@@ -186,8 +200,9 @@ describe('Client user access CRUD frontend', () => {
             },
         });
 
+        expect(wrapper.text()).toContain('Portal (client_portal)');
+        expect(wrapper.text()).toContain('Jane Doe (jane@example.com)');
         expect(wrapper.text()).toContain('The client field is required.');
         expect(wrapper.text()).toContain('The allowed until field must be a date after or equal to allowed from.');
     });
-
 });

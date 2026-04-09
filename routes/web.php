@@ -80,8 +80,13 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // Client - User Access routes
-        Route::get('/client-user-access', ClientUserAccessPageController::class)
-            ->name('client-user-access.index');
+        Route::controller(ClientUserAccessPageController::class)->name('client-user-access.')->group(function () {
+            Route::get('/client-user-access', 'index')->name('index');
+            Route::get('/client-user-access/create', 'create')->name('create');
+            Route::post('/client-user-access', 'store')->name('store');
+            Route::get('/client-user-access/{clientUserAccess}/edit', 'edit')->name('edit');
+            Route::put('/client-user-access/{clientUserAccess}', 'update')->name('update');
+        });
 
         // Scopes routes
         Route::controller(ScopeController::class)->name('scopes.')->group(function () {

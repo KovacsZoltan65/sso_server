@@ -85,6 +85,29 @@ class ClientUserAccessService
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function getCreatePayload(): array
+    {
+        return [
+            'clientOptions' => $this->accesses->clientOptions(),
+            'userOptions' => $this->accesses->userOptions(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getEditPayload(ClientUserAccess $access): array
+    {
+        return [
+            'access' => ClientUserAccessSummaryData::fromModel($access),
+            'clientOptions' => $this->accesses->clientOptions(),
+            'userOptions' => $this->accesses->userOptions(),
+        ];
+    }
+
+    /**
      * @param array<string, mixed> $payload
      */
     public function createAccess(array $payload): ClientUserAccess

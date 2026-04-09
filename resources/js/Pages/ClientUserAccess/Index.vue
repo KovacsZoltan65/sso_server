@@ -11,9 +11,7 @@ import {
 } from '@/Constants/adminTablePagination';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
-import CreateDialog from '@/Pages/ClientUserAccess/components/CreateDialog.vue';
-import EditDialog from '@/Pages/ClientUserAccess/components/EditDialog.vue';
-import { Head } from '@inertiajs/vue3';
+import { Head, router } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
 import Checkbox from 'primevue/checkbox';
 import Column from 'primevue/column';
@@ -75,9 +73,6 @@ const props = defineProps({
 });
 
 const rows = computed(() => props.rows);
-const createVisible = ref(false);
-const editVisible = ref(false);
-const selectedAccess = ref(null);
 
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
@@ -94,10 +89,26 @@ const tableState = reactive({
 });
 
 const statusOptions = [
-    { label: 'All', value: null },
+    { label: 'All statuses', value: null },
     { label: 'Active', value: 'active' },
     { label: 'Inactive', value: 'inactive' },
 ];
+
+const clientSelectOptions = computed(() => [
+    { label: 'All clients', value: null },
+    ...props.clientOptions.map((client) => ({
+        label: `${client.name} (${client.clientId})`,
+        value: client.id,
+    })),
+]);
+
+const userSelectOptions = computed(() => [
+    { label: 'All users', value: null },
+    ...props.userOptions.map((user) => ({
+        label: `${user.name} (${user.email})`,
+        value: user.id,
+    })),
+]);
 
 const {
     selectedIds,
@@ -124,7 +135,6 @@ const buildParams = (overrides = {}) => ({
 
 const {
     busy,
-    showSuccess,
     reload,
     refresh,
     confirmDelete,
@@ -182,33 +192,19 @@ const onSelectFilterChange = () => {
     }, { resetSelection: true });
 };
 
-const openCreateDialog = () => {
-    createVisible.value = true;
+const goToCreatePage = () => {
+    router.get(route('admin.client-user-access.create'));
 };
 
-const openEditDialog = (access) => {
-    selectedAccess.value = access;
-    editVisible.value = true;
-};
-
-const closeEditDialog = () => {
-    editVisible.value = false;
-    selectedAccess.value = null;
-};
-
-const handleSaved = ({ message }) => {
-    showSuccess(message);
-    clearSelection();
-    createVisible.value = false;
-    closeEditDialog();
-    reload({}, { resetSelection: true });
+const goToEditPage = (access) => {
+    router.get(route('admin.client-user-access.edit', access.id));
 };
 
 const actionItems = (access) => [
     {
         label: 'Edit',
         icon: 'pi pi-pencil',
-        command: () => openEditDialog(access),
+        command: () => goToEditPage(access),
     },
     {
         label: 'Delete',
@@ -247,6 +243,36 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                         </div>
                     </div>
 
+                    <div class="grid gap-3 px-6 md:grid-cols-3 xl:grid-cols-4">
+                        <Select
+                            v-model="tableFilters.client_id.value"
+                            :options="clientSelectOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Client"
+                            class="w-full"
+                            @change="onSelectFilterChange"
+                        />
+                        <Select
+                            v-model="tableFilters.user_id.value"
+                            :options="userSelectOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="User"
+                            class="w-full"
+                            @change="onSelectFilterChange"
+                        />
+                        <Select
+                            v-model="tableFilters.status.value"
+                            :options="statusOptions"
+                            optionLabel="label"
+                            optionValue="value"
+                            placeholder="Status"
+                            class="w-full"
+                            @change="onSelectFilterChange"
+                        />
+                    </div>
+
                     <DataTable
                         :value="rows"
                         v-model:filters="tableFilters"
@@ -278,49 +304,20 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                                 :selectedCount="selectedRows.length"
                                 :selectableCount="selectableRows.length"
                                 :busy="busy"
-                                @create="openCreateDialog"
+                                @create="goToCreatePage"
                                 @bulk-delete="confirmBulkDelete"
                                 @refresh="refresh"
                             >
                                 <template #search>
-                                    <div class="grid gap-3 md:grid-cols-4">
-                                        <IconField class="w-full md:col-span-1">
-                                            <InputIcon class="pi pi-search text-slate-400" />
-                                            <InputText
-                                                v-model="tableFilters.global.value"
-                                                placeholder="Search access"
-                                                class="w-full"
-                                                @update:modelValue="onGlobalFilterInput"
-                                            />
-                                        </IconField>
-                                        <Select
-                                            v-model="tableFilters.client_id.value"
-                                            :options="clientOptions"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="All clients"
+                                    <IconField class="w-full">
+                                        <InputIcon class="pi pi-search text-slate-400" />
+                                        <InputText
+                                            v-model="tableFilters.global.value"
+                                            placeholder="Search access"
                                             class="w-full"
-                                            @change="onSelectFilterChange"
+                                            @update:modelValue="onGlobalFilterInput"
                                         />
-                                        <Select
-                                            v-model="tableFilters.user_id.value"
-                                            :options="userOptions"
-                                            optionLabel="name"
-                                            optionValue="id"
-                                            placeholder="All users"
-                                            class="w-full"
-                                            @change="onSelectFilterChange"
-                                        />
-                                        <Select
-                                            v-model="tableFilters.status.value"
-                                            :options="statusOptions"
-                                            optionLabel="label"
-                                            optionValue="value"
-                                            placeholder="All statuses"
-                                            class="w-full"
-                                            @change="onSelectFilterChange"
-                                        />
-                                    </div>
+                                    </IconField>
                                 </template>
                             </AdminTableToolbar>
                         </template>
@@ -404,6 +401,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             </template>
                         </Column>
                     </DataTable>
+
                 </div>
 
                 <template #footer>
@@ -416,21 +414,5 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                 </template>
             </AdminTableCard>
         </div>
-
-        <CreateDialog
-            v-model:visible="createVisible"
-            :clientOptions="clientOptions"
-            :userOptions="userOptions"
-            @saved="handleSaved"
-        />
-
-        <EditDialog
-            v-model:visible="editVisible"
-            :access="selectedAccess"
-            :clientOptions="clientOptions"
-            :userOptions="userOptions"
-            @saved="handleSaved"
-            @update:visible="(value) => !value && closeEditDialog()"
-        />
     </AuthenticatedLayout>
 </template>
