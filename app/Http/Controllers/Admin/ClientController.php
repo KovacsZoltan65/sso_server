@@ -21,10 +21,11 @@ class ClientController extends Controller
     public function __construct(
             private readonly ClientService $clientService
     ) {}
+
     /**
      * Rendereld a kliens indexoldalát az aktuális szűrő-, rendezési és tördelési hasznos adattartalommal.
-     *
-     * @return Response
+     * @param ClientIndexRequest $request
+     * @return \Inertia\Response
      */
     public function index(ClientIndexRequest $request): Response
     {
@@ -59,7 +60,7 @@ class ClientController extends Controller
 
     /**
      * Tárolj egy újonnan létrehozott OAuth klienst, és flasheld az egyszer látható titkát.
-     *
+     * @param ClientStoreRequest $request
      * @return RedirectResponse
      */
     public function store(ClientStoreRequest $request): RedirectResponse
@@ -79,8 +80,8 @@ class ClientController extends Controller
 
     /**
      * Rendereld az ügyfél szerkesztési oldalát és a titkoskezelési metaadatait.
-     *
-     * @return Response
+     * @param SsoClient $ssoClient
+     * @return \Inertia\Response
      */
     public function edit(SsoClient $ssoClient): Response
     {
@@ -91,7 +92,8 @@ class ClientController extends Controller
 
     /**
      * Meglévő OAuth-kliens frissítése egy érvényesített adminisztrátori adatcsomagból.
-     *
+     * @param ClientUpdateRequest $request
+     * @param SsoClient $ssoClient
      * @return RedirectResponse
      */
     public function update(
@@ -109,7 +111,8 @@ class ClientController extends Controller
 
     /**
      * Változtasd meg az aktív kliens titkos kódot, és villogtasd egyszer az új sima titkos kódot.
-     *
+     * @param ClientRotateSecretRequest $request
+     * @param SsoClient $ssoClient
      * @return RedirectResponse
      */
     public function rotateSecret(
@@ -131,8 +134,10 @@ class ClientController extends Controller
 
     /**
      * Visszavon egy adott ügyféltitkot, és JSON-t vagy átirányítást ad vissza a kérés típusa alapján.
-     *
-     * @return RedirectResponse|JsonResponse
+     * @param ClientRevokeSecretRequest $request
+     * @param SsoClient $ssoClient
+     * @param ClientSecret $clientSecret
+     * @return JsonResponse|RedirectResponse
      */
     public function revokeSecret(
         ClientRevokeSecretRequest $request,
@@ -157,8 +162,8 @@ class ClientController extends Controller
 
     /**
      * Töröljön egy OAuth klienst, és adja vissza a hívó által várt válaszformátumot.
-     *
-     * @return RedirectResponse|JsonResponse
+     * @param SsoClient $ssoClient
+     * @return JsonResponse|RedirectResponse
      */
     public function destroy(SsoClient $ssoClient): RedirectResponse|JsonResponse
     {

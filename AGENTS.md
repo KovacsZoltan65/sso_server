@@ -589,10 +589,18 @@ Execution rule
 - Run the relevant backend tests after backend changes
 - Run the relevant frontend Vitest suite after frontend changes
 - After cross-cutting or CRUD work, run both backend and frontend tests
+- For repo-wide test hardening, shared infrastructure changes, auth changes, or cross-cutting contract work, run the full backend suite and the full frontend Vitest suite before closing the task when feasible
 - Report the commands used and whether the suites passed
 - Do not claim completion while known relevant tests are failing
 - If a full affected suite is too expensive to run, run the narrowest relevant suite first, then the broader project suite before closing the task when feasible
 - Failing tests must be investigated and fixed at the root cause; they must not be skipped or ignored without explicit approval
+- If backend and frontend contracts interact, add or update tests on both sides in the same task so the contract is enforced end to end
+
+Required maintenance behavior
+
+- Treat missing test tooling as a blocking issue: install or repair the required backend or frontend test dependencies before feature work continues
+- Do not merge or declare completion on behavior that changed without the corresponding backend or frontend tests being updated
+- When adding a new interactive page, modal flow, or security-sensitive endpoint, add the initial tests in the same task instead of leaving testing as follow-up work
 
 Test principles
 

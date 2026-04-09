@@ -19,6 +19,10 @@ class ClientUserAccessPageController extends Controller
     ) {
     }
 
+    /**
+     * @param ClientUserAccessIndexRequest $request
+     * @return \Inertia\Response
+     */
     public function index(ClientUserAccessIndexRequest $request): Response
     {
         $this->authorize('viewAny', ClientUserAccess::class);
@@ -39,6 +43,9 @@ class ClientUserAccessPageController extends Controller
         ));
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function create(): Response
     {
         $this->authorize('create', ClientUserAccess::class);
@@ -46,6 +53,10 @@ class ClientUserAccessPageController extends Controller
         return Inertia::render('ClientUserAccess/Create', $this->accessService->getCreatePayload());
     }
 
+    /**
+     * @param StoreClientUserAccessRequest $request
+     * @return RedirectResponse
+     */
     public function store(StoreClientUserAccessRequest $request): RedirectResponse
     {
         $this->authorize('create', ClientUserAccess::class);
@@ -57,6 +68,10 @@ class ClientUserAccessPageController extends Controller
             ->with('success', 'Client user access created successfully.');
     }
 
+    /**
+     * @param ClientUserAccess $clientUserAccess
+     * @return \Inertia\Response
+     */
     public function edit(ClientUserAccess $clientUserAccess): Response
     {
         $this->authorize('update', $clientUserAccess);
@@ -64,6 +79,11 @@ class ClientUserAccessPageController extends Controller
         return Inertia::render('ClientUserAccess/Edit', $this->accessService->getEditPayload($clientUserAccess));
     }
 
+    /**
+     * @param UpdateClientUserAccessRequest $request
+     * @param ClientUserAccess $clientUserAccess
+     * @return RedirectResponse
+     */
     public function update(
         UpdateClientUserAccessRequest $request,
         ClientUserAccess $clientUserAccess,

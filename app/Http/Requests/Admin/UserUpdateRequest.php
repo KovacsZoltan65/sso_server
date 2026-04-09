@@ -3,6 +3,8 @@
 namespace App\Http\Requests\Admin;
 
 use App\Models\User;
+use App\Services\Audit\AuditLogService;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +12,31 @@ class UserUpdateRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        /** @var User|null $user */
+        $user = $this->route('user');
+
+        return $user instanceof User
+            ? (bool) $this->user()?->can('update', $user)
+            : false;
+    }
+
+    /**
+     * @throws AuthorizationException
+     */
+    protected function failedAuthorization(): void
+    {
+        app(AuditLogService::class)->logSecurityEvent(
+            event: 'security.authorization.denied',
+            description: 'Authorization denied.',
+            causer: $this->user(),
+            properties: [
+                'route' => $this->route()?->getName(),
+                'ip_address' => $this->ip(),
+                'user_agent' => $this->userAgent(),
+            ],
+        );
+
+        throw new AuthorizationException('This action is unauthorized.');
     }
 
     /**
