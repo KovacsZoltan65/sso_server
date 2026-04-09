@@ -50,10 +50,18 @@ class SelfServiceProfileService
      */
     public function updateProfile(User $user, array $attributes, Request $request): array
     {
-        $updatedUser = $this->users->updateProfile(
-            $user,
-            Arr::only($attributes, $this->editableFields),
-        );
+        $editableAttributes = Arr::only($attributes, $this->editableFields);
+        $updatedFields = array_values(array_keys(array_filter(
+            $editableAttributes,
+            fn (mixed $value, string $field): bool => $user->getAttribute($field) !== $value,
+            ARRAY_FILTER_USE_BOTH,
+        )));
+
+        if ($updatedFields === []) {
+            return SelfServiceProfileData::fromUser($this->users->refreshUser($user))->toArray();
+        }
+
+        $updatedUser = $this->users->updateProfile($user, $editableAttributes);
 
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_ACCOUNT,
@@ -62,7 +70,7 @@ class SelfServiceProfileService
             subject: $updatedUser,
             causer: $updatedUser,
             properties: [
-                'updated_fields' => array_values(array_keys(Arr::only($attributes, $this->editableFields))),
+                'updated_fields' => $updatedFields,
                 ...$this->auditLogService->requestContext($request),
             ],
         );

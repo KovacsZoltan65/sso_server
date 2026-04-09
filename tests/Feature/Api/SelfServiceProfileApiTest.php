@@ -35,7 +35,44 @@ it('rejects guest access to the self-service profile api', function (): void {
         ->assertExactJson([
             'message' => 'Authentication failed.',
             'data' => [],
-            'meta' => [],
+            'meta' => [
+                'redirect_to' => route('login'),
+                'reauth_to' => route('login'),
+            ],
+            'errors' => [],
+        ]);
+});
+
+it('returns the self-service reauth contract for guest profile update requests', function (): void {
+    $this->patchJson('/api/profile', [
+        'name' => 'Guest User',
+    ])
+        ->assertUnauthorized()
+        ->assertExactJson([
+            'message' => 'Authentication failed.',
+            'data' => [],
+            'meta' => [
+                'redirect_to' => route('login'),
+                'reauth_to' => route('login'),
+            ],
+            'errors' => [],
+        ]);
+});
+
+it('returns the self-service reauth contract for guest profile password requests', function (): void {
+    $this->patchJson('/api/profile/password', [
+        'current_password' => 'password',
+        'password' => 'a-stronger-password',
+        'password_confirmation' => 'a-stronger-password',
+    ])
+        ->assertUnauthorized()
+        ->assertExactJson([
+            'message' => 'Authentication failed.',
+            'data' => [],
+            'meta' => [
+                'redirect_to' => route('login'),
+                'reauth_to' => route('login'),
+            ],
             'errors' => [],
         ]);
 });
@@ -68,6 +105,32 @@ it('updates only whitelisted self-service profile fields', function (): void {
         'causer_id' => $user->id,
         'causer_type' => User::class,
     ]);
+});
+
+it('does not write a success audit event when the self-service profile update is a no-op', function (): void {
+    $user = User::factory()->create([
+        'name' => 'Original Name',
+        'email' => 'original@example.test',
+    ]);
+
+    $existingUpdateCount = \Spatie\Activitylog\Models\Activity::query()
+        ->where('log_name', 'account')
+        ->where('event', 'account.profile.updated')
+        ->count();
+
+    $this->actingAs($user)
+        ->patchJson('/api/profile', [
+            'name' => 'Original Name',
+        ])
+        ->assertOk()
+        ->assertJsonPath('message', 'Profile updated successfully.')
+        ->assertJsonPath('data.name', 'Original Name')
+        ->assertJsonPath('errors', []);
+
+    expect(\Spatie\Activitylog\Models\Activity::query()
+        ->where('log_name', 'account')
+        ->where('event', 'account.profile.updated')
+        ->count())->toBe($existingUpdateCount);
 });
 
 it('rejects forbidden self-service mutation fields instead of silently accepting them', function (): void {

@@ -51,10 +51,21 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
+            $meta = [];
+
+            if ($request->routeIs('profile.*') && $request->is('api/profile*')) {
+                $loginUrl = route('login');
+
+                $meta = [
+                    'redirect_to' => $loginUrl,
+                    'reauth_to' => $loginUrl,
+                ];
+            }
+
             return response()->json([
                 'message' => 'Authentication failed.',
                 'data' => [],
-                'meta' => [],
+                'meta' => $meta,
                 'errors' => [],
             ], 401);
         });
