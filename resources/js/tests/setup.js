@@ -399,6 +399,52 @@ const passthroughStub = defineComponent({
     },
 });
 
+const MenuStub = defineComponent({
+    inheritAttrs: false,
+    props: {
+        model: {
+            type: Array,
+            default: () => [],
+        },
+        popup: {
+            type: Boolean,
+            default: false,
+        },
+        appendTo: {
+            type: String,
+            default: null,
+        },
+        pt: {
+            type: Object,
+            default: () => ({}),
+        },
+    },
+    setup(props, { attrs, expose }) {
+        const open = ref(false);
+
+        expose({
+            toggle: () => {
+                open.value = !open.value;
+            },
+            hide: () => {
+                open.value = false;
+            },
+        });
+
+        return () => open.value
+            ? h('div', {
+                ...attrs,
+                'data-menu-popup': props.popup ? 'true' : 'false',
+                'data-menu-append-to': props.appendTo ?? '',
+            }, props.model.map((item) => h('button', {
+                type: 'button',
+                disabled: Boolean(item.disabled),
+                onClick: () => item.command?.({ item }),
+            }, item.label)))
+            : null;
+    },
+});
+
 vi.mock('@inertiajs/vue3', async () => {
     const vue = await import('vue');
 
@@ -452,7 +498,7 @@ vi.mock('primevue/inputicon', () => ({ default: passthroughStub }));
 vi.mock('primevue/inputnumber', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/inputtext', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/multiselect', () => ({ default: MultiSelectStub }));
-vi.mock('primevue/menu', () => ({ default: passthroughStub }));
+vi.mock('primevue/menu', () => ({ default: MenuStub }));
 vi.mock('primevue/password', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/paginator', () => ({ default: PaginatorStub }));
 vi.mock('primevue/select', () => ({ default: SelectStub }));
