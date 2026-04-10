@@ -10,6 +10,10 @@ use Illuminate\Validation\Rule;
 
 class UserUpdateRequest extends FormRequest
 {
+    /**
+     * Authorization happens here, before validation, so admin abuse attempts
+     * cannot be masked by payload validation errors.
+     */
     public function authorize(): bool
     {
         /** @var User|null $user */
@@ -21,6 +25,9 @@ class UserUpdateRequest extends FormRequest
     }
 
     /**
+     * Keep the authorization denial audit trail intact even though the request
+     * is rejected before the controller action is reached.
+     *
      * @throws AuthorizationException
      */
     protected function failedAuthorization(): void

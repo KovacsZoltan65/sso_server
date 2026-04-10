@@ -101,6 +101,28 @@ describe('Permissions modal CRUD frontend', () => {
         expect(confirmClose).toHaveBeenCalled();
     });
 
+    it('clears selection when the shared refresh action reloads the table', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 1, name: 'reports.view', guardName: 'web', rolesCount: 0, usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManagePermissions: true,
+            },
+        });
+
+        await nextTick();
+
+        await wrapper.find('input[type="checkbox"]').setValue(true);
+        expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeUndefined();
+
+        await wrapper.find('[data-toolbar-action="refresh"]').trigger('click');
+        await nextTick();
+
+        expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeDefined();
+    });
+
     it('wires the shared paginator props into the permissions table', async () => {
         const wrapper = mountPage(Index, {
             props: {

@@ -1,29 +1,23 @@
 <script setup>
 import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
+import BaseDataTable from '@/Components/Admin/BaseDataTable.vue';
+import AdminTableSummary from '@/Components/Admin/AdminTableSummary.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import {
-    adminCurrentPageReportTemplate,
-    adminPaginatorTemplate,
-    adminRowsPerPageOptions,
-} from '@/Constants/adminTablePagination';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
+import { useAdminTableState } from '@/Composables/useAdminTableState';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
 import { Head, router } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
 import Checkbox from 'primevue/checkbox';
 import Column from 'primevue/column';
 import ConfirmDialog from 'primevue/confirmdialog';
-import DataTable from 'primevue/datatable';
-import IconField from 'primevue/iconfield';
-import InputIcon from 'primevue/inputicon';
-import InputText from 'primevue/inputtext';
 import Select from 'primevue/select';
 import Tag from 'primevue/tag';
 import Toast from 'primevue/toast';
-import { computed, reactive, ref } from 'vue';
+import { computed } from 'vue';
 
 const props = defineProps({
     rows: {
@@ -74,18 +68,28 @@ const props = defineProps({
 
 const rows = computed(() => props.rows);
 
-const tableFilters = ref({
-    global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
-    client_id: { value: props.filters.client_id ?? null, matchMode: FilterMatchMode.EQUALS },
-    user_id: { value: props.filters.user_id ?? null, matchMode: FilterMatchMode.EQUALS },
-    status: { value: props.filters.status ?? null, matchMode: FilterMatchMode.EQUALS },
-});
-
-const tableState = reactive({
-    page: props.pagination.currentPage,
-    perPage: props.pagination.perPage ?? 10,
-    sortField: props.sorting.field ?? 'createdAt',
-    sortOrder: props.sorting.order ?? -1,
+const {
+    state: tableState,
+    filters: tableFilters,
+    first,
+    lastPage,
+    resetPagination,
+    setPageFromEvent,
+    setSortFromEvent,
+    buildFetchParams,
+} = useAdminTableState({
+    initialPage: props.pagination.currentPage,
+    initialPerPage: props.pagination.perPage ?? 10,
+    initialSortField: props.sorting.field ?? 'createdAt',
+    initialSortOrder: props.sorting.order ?? -1,
+    initialTotalRecords: props.pagination.total ?? 0,
+    initialFilters: {
+        global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
+        client_id: { value: props.filters.client_id ?? null, matchMode: FilterMatchMode.EQUALS },
+        user_id: { value: props.filters.user_id ?? null, matchMode: FilterMatchMode.EQUALS },
+        status: { value: props.filters.status ?? null, matchMode: FilterMatchMode.EQUALS },
+    },
+    serializeSortOrder: (value) => value,
 });
 
 const statusOptions = [
@@ -112,8 +116,8 @@ const userSelectOptions = computed(() => [
 
 const {
     selectedIds,
-    selectedRows,
-    selectableRows,
+    selectedCount,
+    selectableCount,
     allSelected,
     partiallySelected,
     clearSelection,
@@ -121,16 +125,14 @@ const {
     toggleAllSelection,
 } = useAdminTableSelection(rows);
 
-const buildParams = (overrides = {}) => ({
-    global: tableFilters.value.global.value || undefined,
-    client_id: tableFilters.value.client_id.value || undefined,
-    user_id: tableFilters.value.user_id.value || undefined,
-    status: tableFilters.value.status.value || undefined,
-    page: tableState.page,
-    perPage: tableState.perPage,
-    sortField: tableState.sortField || undefined,
-    sortOrder: tableState.sortOrder || undefined,
-    ...overrides,
+const buildParams = (overrides = {}) => buildFetchParams({
+    filters: {
+        global: tableFilters.global.value || undefined,
+        client_id: tableFilters.client_id.value || undefined,
+        user_id: tableFilters.user_id.value || undefined,
+        status: tableFilters.status.value || undefined,
+    },
+    extra: overrides,
 });
 
 const {
@@ -153,43 +155,34 @@ const {
 });
 
 const onGlobalFilterInput = (value) => {
-    tableFilters.value.global.value = value ?? null;
-    tableState.page = 1;
-    reload({
+    tableFilters.global.value = value ?? null;
+    resetPagination();
+
+    reload(buildParams({
         page: 1,
         global: value || undefined,
-    }, { resetSelection: true });
+    }), { resetSelection: true });
 };
 
 const onSort = (event) => {
-    tableState.sortField = event.sortField;
-    tableState.sortOrder = event.sortOrder;
-
-    reload({
-        sortField: event.sortField,
-        sortOrder: event.sortOrder,
-    }, { resetSelection: true });
+    setSortFromEvent(event, 'createdAt');
+    reload(buildParams(), { resetSelection: true });
 };
 
 const onPage = (event) => {
-    tableState.page = event.page + 1;
-    tableState.perPage = event.rows;
-
-    reload({
-        page: event.page + 1,
-        perPage: event.rows,
-    }, { resetSelection: true });
+    setPageFromEvent(event);
+    reload(buildParams(), { resetSelection: true });
 };
 
 const onSelectFilterChange = () => {
-    tableState.page = 1;
+    resetPagination();
 
-    reload({
+    reload(buildParams({
         page: 1,
-        client_id: tableFilters.value.client_id.value || undefined,
-        user_id: tableFilters.value.user_id.value || undefined,
-        status: tableFilters.value.status.value || undefined,
-    }, { resetSelection: true });
+        client_id: tableFilters.client_id.value || undefined,
+        user_id: tableFilters.user_id.value || undefined,
+        status: tableFilters.status.value || undefined,
+    }), { resetSelection: true });
 };
 
 const goToCreatePage = () => {
@@ -273,69 +266,50 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                         />
                     </div>
 
-                    <DataTable
+                    <BaseDataTable
                         :value="rows"
                         v-model:filters="tableFilters"
                         :rows="tableState.perPage"
-                        :first="pagination.first"
-                        :totalRecords="pagination.total"
-                        :rowsPerPageOptions="adminRowsPerPageOptions"
-                        :sortField="tableState.sortField"
-                        :sortOrder="tableState.sortOrder"
+                        :first="first"
+                        :total-records="pagination.total"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        :alwaysShowPaginator="true"
-                        :paginatorTemplate="adminPaginatorTemplate"
-                        :currentPageReportTemplate="adminCurrentPageReportTemplate"
-                        class="admin-datatable h-full"
+                        empty-message="No client access records found for the current filters."
+                        loading-message="Loading client access records..."
                         data-key="id"
-                        paginator
                         lazy
-                        striped-rows
                         responsive-layout="scroll"
                         @sort="onSort"
                         @page="onPage"
                     >
                         <template #header>
                             <AdminTableToolbar
+                                searchable
+                                :search-value="tableFilters.global.value ?? ''"
+                                search-placeholder="Search access"
                                 :canCreate="canManageClientAccess"
                                 createLabel="Create Access"
                                 :canBulkDelete="canManageClientAccess"
                                 bulkDeleteLabel="Delete Selected"
-                                :selectedCount="selectedRows.length"
-                                :selectableCount="selectableRows.length"
+                                :selectedCount="selectedCount"
+                                :selectableCount="selectableCount"
                                 :busy="busy"
+                                @update:searchValue="onGlobalFilterInput"
                                 @create="goToCreatePage"
                                 @bulk-delete="confirmBulkDelete"
                                 @refresh="refresh"
-                            >
-                                <template #search>
-                                    <IconField class="w-full">
-                                        <InputIcon class="pi pi-search text-slate-400" />
-                                        <InputText
-                                            v-model="tableFilters.global.value"
-                                            placeholder="Search access"
-                                            class="w-full"
-                                            @update:modelValue="onGlobalFilterInput"
-                                        />
-                                    </IconField>
-                                </template>
-                            </AdminTableToolbar>
-                        </template>
-
-                        <template #empty>
-                            <div class="py-8 text-center text-sm text-slate-500">
-                                No client access records found for the current filters.
-                            </div>
+                            />
                         </template>
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
                             <template #header>
-                                <div :title="selectableRows.length === 0 ? 'No deletable access records on this page.' : ''">
+                                <div :title="selectableCount === 0 ? 'No deletable access records on this page.' : ''">
                                     <Checkbox
                                         :binary="true"
                                         :modelValue="allSelected"
                                         :indeterminate="partiallySelected"
-                                        :disabled="selectableRows.length === 0"
+                                        :disabled="selectableCount === 0"
                                         @update:modelValue="toggleAllSelection"
                                     />
                                 </div>
@@ -400,17 +374,21 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                                 <RowActionMenu :items="actionItems(data)" />
                             </template>
                         </Column>
-                    </DataTable>
+                    </BaseDataTable>
 
                 </div>
 
                 <template #footer>
-                    <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} access records
-                        </div>
-                        <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
-                    </div>
+                    <AdminTableSummary
+                        :page="tableState.page"
+                        :per-page="tableState.perPage"
+                        :total="pagination.total"
+                        :from="pagination.from"
+                        :to="pagination.to"
+                        :current-page="pagination.currentPage"
+                        :last-page="pagination.lastPage || lastPage"
+                        item-label="access records"
+                    />
                 </template>
             </AdminTableCard>
         </div>

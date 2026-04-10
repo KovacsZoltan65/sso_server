@@ -1,7 +1,29 @@
 <script setup>
+import { computed } from 'vue';
+import InputText from 'primevue/inputtext';
 import Button from "primevue/button";
 
-defineProps({
+const props = defineProps({
+    title: {
+        type: String,
+        default: '',
+    },
+    description: {
+        type: String,
+        default: '',
+    },
+    searchable: {
+        type: Boolean,
+        default: false,
+    },
+    searchValue: {
+        type: String,
+        default: '',
+    },
+    searchPlaceholder: {
+        type: String,
+        default: 'Search',
+    },
     canCreate: {
         type: Boolean,
         default: false,
@@ -30,59 +52,117 @@ defineProps({
         type: Boolean,
         default: false,
     },
+    titleClass: {
+        type: String,
+        default: 'text-base font-semibold text-slate-950',
+    },
+    descriptionClass: {
+        type: String,
+        default: 'text-sm text-slate-500',
+    },
+    actionsClass: {
+        type: String,
+        default: '',
+    },
 });
 
-defineEmits(["create", "bulk-delete", "refresh"]);
+defineEmits(["create", "bulk-delete", "refresh", "update:searchValue"]);
+
+const bulkStatusText = computed(() => {
+    if (!props.canBulkDelete) {
+        return '';
+    }
+
+    if (props.selectedCount > 0) {
+        return props.selectableCount > 0
+            ? `${props.selectedCount} of ${props.selectableCount} selectable selected`
+            : `${props.selectedCount} selected`;
+    }
+
+    if (props.selectableCount === 0) {
+        return 'No deletable records on this page';
+    }
+
+    return 'Select rows to enable bulk actions';
+});
 </script>
 
 <template>
-    <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div class="w-full sm:max-w-sm">
-            <slot name="search" />
-        </div>
+    <div class="flex flex-col gap-4">
+        <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+            <div class="min-w-0 flex-1 space-y-3">
+                <div v-if="title || description" class="space-y-1">
+                    <h3 v-if="title" :class="titleClass">
+                        {{ title }}
+                    </h3>
+                    <p v-if="description" :class="descriptionClass">
+                        {{ description }}
+                    </p>
+                </div>
 
-        <div class="flex flex-wrap items-center justify-end gap-3">
-            <span v-if="selectedCount" class="text-sm text-slate-500">
-                {{ selectedCount }} selected
-            </span>
-            <span
-                v-else-if="canBulkDelete && selectableCount === 0"
-                class="text-sm text-slate-500"
-            >
-                No deletable records on this page
-            </span>
+                <div v-if="$slots.search || searchable" class="w-full sm:max-w-sm">
+                    <slot name="search">
+                        <div class="relative">
+                            <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400" />
+                            <InputText
+                                :modelValue="searchValue"
+                                :placeholder="searchPlaceholder"
+                                class="w-full pl-10"
+                                @update:modelValue="$emit('update:searchValue', $event)"
+                            />
+                        </div>
+                    </slot>
+                </div>
 
-            <!-- Refresh -->
-            <Button
-                label="Refresh"
-                icon="pi pi-refresh"
-                severity="secondary"
-                outlined
-                :loading="busy"
-                :disabled="busy"
-                @click="$emit('refresh')"
-            />
+                <div v-if="$slots.filters" class="flex flex-col gap-3 lg:flex-row lg:flex-wrap">
+                    <slot name="filters" />
+                </div>
+            </div>
 
-            <!-- Bulk Delete -->
-            <Button
-                v-if="canBulkDelete"
-                :label="bulkDeleteLabel"
-                icon="pi pi-trash"
-                severity="danger"
-                outlined
-                :disabled="busy || selectedCount === 0"
-                @click="$emit('bulk-delete')"
-            />
+            <div :class="actionsClass" class="flex flex-wrap items-center justify-end gap-3 xl:flex-none">
+                <span v-if="bulkStatusText" class="text-sm text-slate-500">
+                    {{ bulkStatusText }}
+                </span>
 
-            <!-- Create -->
-            <Button
-                v-if="canCreate"
-                :label="createLabel"
-                icon="pi pi-plus"
-                severity="info"
-                :disabled="busy"
-                @click="$emit('create')"
-            />
+                <slot name="bulk" />
+                <slot name="actions" />
+                <slot name="primary" />
+
+                <!-- Refresh -->
+                <Button
+                    label="Refresh"
+                    icon="pi pi-refresh"
+                    severity="secondary"
+                    outlined
+                    :loading="busy"
+                    :disabled="busy"
+                    data-toolbar-action="refresh"
+                    @click="$emit('refresh')"
+                />
+
+                <!-- Bulk Delete -->
+                <Button
+                    v-if="canBulkDelete"
+                    :label="bulkDeleteLabel"
+                    icon="pi pi-trash"
+                    severity="danger"
+                    outlined
+                    :disabled="busy || selectedCount === 0"
+                    data-toolbar-action="bulk-delete"
+                    @click="$emit('bulk-delete')"
+                />
+
+                <!-- Create -->
+                <Button
+                    v-if="canCreate"
+                    :label="createLabel"
+                    icon="pi pi-plus"
+                    severity="info"
+                    :disabled="busy"
+                    data-toolbar-action="create"
+                    @click="$emit('create')"
+                />
+            </div>
         </div>
     </div>
 </template>

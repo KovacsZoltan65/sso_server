@@ -53,6 +53,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
             $meta = [];
 
+            // The self-service client expects explicit reauthentication metadata
+            // for remote profile calls so it can restart the login flow without
+            // guessing a redirect target on its own.
             if ($request->routeIs('profile.*') && $request->is('api/profile*')) {
                 $loginUrl = route('login');
 

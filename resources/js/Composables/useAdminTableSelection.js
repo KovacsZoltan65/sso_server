@@ -1,61 +1,100 @@
 import { computed, ref, watch } from 'vue';
 
-export function useAdminTableSelection(rows) {
-    const selectedIds = ref([]);
+export function useAdminTableSelection(rows, options = {}) {
+    const {
+        getRowId = (row) => row?.id,
+        isRowSelectable: isRowSelectableOption = (row) => row?.canDelete !== false,
+        autoPrune = true,
+    } = options;
 
-    const selectableRows = computed(() => rows.value.filter((row) => row.canDelete !== false));
+    const selectedRows = ref([]);
 
-    const selectedRows = computed(() => rows.value.filter((row) => selectedIds.value.includes(row.id)));
+    const isRowSelectable = (row) => Boolean(row) && isRowSelectableOption(row);
+
+    const selectedIds = computed(() => selectedRows.value
+        .map((row) => getRowId(row))
+        .filter((id) => id !== undefined && id !== null));
+
+    const selectableRows = computed(() => (rows.value ?? []).filter((row) => isRowSelectable(row)));
+    const selectableCount = computed(() => selectableRows.value.length);
+    const selectedCount = computed(() => selectedRows.value.length);
+    const hasSelection = computed(() => selectedCount.value > 0);
 
     const allSelected = computed(() => (
         selectableRows.value.length > 0
-        && selectableRows.value.every((row) => selectedIds.value.includes(row.id))
+        && selectableRows.value.every((row) => selectedIds.value.includes(getRowId(row)))
     ));
 
-    const partiallySelected = computed(() => (
-        selectedIds.value.length > 0
-        && !allSelected.value
-    ));
+    const partiallySelected = computed(() => hasSelection.value && !allSelected.value);
 
     const clearSelection = () => {
-        selectedIds.value = [];
+        selectedRows.value = [];
+    };
+
+    const setSelectedRows = (value) => {
+        const nextRows = Array.isArray(value) ? value.filter((row) => isRowSelectable(row)) : [];
+        const seen = new Set();
+
+        selectedRows.value = nextRows.filter((row) => {
+            const id = getRowId(row);
+
+            if (id === undefined || id === null || seen.has(id)) {
+                return false;
+            }
+
+            seen.add(id);
+
+            return true;
+        });
     };
 
     const toggleRowSelection = (row) => {
-        if (row.canDelete === false) {
+        if (!isRowSelectable(row)) {
             return;
         }
 
-        if (selectedIds.value.includes(row.id)) {
-            selectedIds.value = selectedIds.value.filter((id) => id !== row.id);
+        const rowId = getRowId(row);
 
+        if (selectedIds.value.includes(rowId)) {
+            selectedRows.value = selectedRows.value.filter((selectedRow) => getRowId(selectedRow) !== rowId);
             return;
         }
 
-        selectedIds.value = [...selectedIds.value, row.id];
+        selectedRows.value = [...selectedRows.value, row];
     };
 
     const toggleAllSelection = () => {
         if (allSelected.value) {
             clearSelection();
-
             return;
         }
 
-        selectedIds.value = selectableRows.value.map((row) => row.id);
+        selectedRows.value = [...selectableRows.value];
     };
 
     watch(rows, (nextRows) => {
-        const currentRowIds = new Set(nextRows.map((row) => row.id));
-        selectedIds.value = selectedIds.value.filter((id) => currentRowIds.has(id));
-    });
+        if (!autoPrune) {
+            return;
+        }
+
+        const nextRowMap = new Map((nextRows ?? []).map((row) => [getRowId(row), row]));
+
+        selectedRows.value = selectedRows.value
+            .map((row) => nextRowMap.get(getRowId(row)))
+            .filter((row) => row && isRowSelectable(row));
+    }, { deep: true });
 
     return {
-        selectedIds,
         selectedRows,
+        selectedIds,
         selectableRows,
+        selectableCount,
+        selectedCount,
+        hasSelection,
         allSelected,
         partiallySelected,
+        isRowSelectable,
+        setSelectedRows,
         clearSelection,
         toggleRowSelection,
         toggleAllSelection,

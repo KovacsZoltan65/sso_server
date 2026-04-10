@@ -1,14 +1,10 @@
 <script setup>
 import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
+import BaseDataTable from '@/Components/Admin/BaseDataTable.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import {
-    adminCurrentPageReportTemplate,
-    adminPaginatorTemplate,
-    adminRowsPerPageOptions,
-} from '@/Constants/adminTablePagination';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
 import { Head, router } from '@inertiajs/vue3';
@@ -16,7 +12,6 @@ import { FilterMatchMode } from '@primevue/core/api';
 import Checkbox from 'primevue/checkbox';
 import Column from 'primevue/column';
 import ConfirmDialog from 'primevue/confirmdialog';
-import DataTable from 'primevue/datatable';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import InputText from 'primevue/inputtext';
@@ -182,24 +177,19 @@ const scopeActionItems = (scope) => [
 
             <AdminTableCard>
                 <div class="admin-table-shell">
-                    <DataTable
+                    <BaseDataTable
                         :value="rows"
                         v-model:filters="tableFilters"
                         :rows="tableState.perPage"
                         :first="pagination.first"
-                        :totalRecords="pagination.total"
-                        :rowsPerPageOptions="adminRowsPerPageOptions"
-                        :sortField="tableState.sortField"
-                        :sortOrder="tableState.sortOrder"
+                        :total-records="pagination.total"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        :alwaysShowPaginator="true"
-                        :paginatorTemplate="adminPaginatorTemplate"
-                        :currentPageReportTemplate="adminCurrentPageReportTemplate"
-                        class="admin-datatable h-full"
+                        empty-message="No scopes found for the current filters."
+                        loading-message="Loading scopes..."
                         data-key="id"
-                        paginator
                         lazy
-                        striped-rows
                         filterDisplay="menu"
                         removableSort
                         responsive-layout="scroll"
@@ -231,12 +221,6 @@ const scopeActionItems = (scope) => [
                                     </IconField>
                                 </template>
                             </AdminTableToolbar>
-                        </template>
-
-                        <template #empty>
-                            <div class="py-8 text-center text-sm text-slate-500">
-                                No scopes found for the current filters.
-                            </div>
                         </template>
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
@@ -292,7 +276,7 @@ const scopeActionItems = (scope) => [
                                 <RowActionMenu :items="scopeActionItems(data)" />
                             </template>
                         </Column>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
                 <template #footer>

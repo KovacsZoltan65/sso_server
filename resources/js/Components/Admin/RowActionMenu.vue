@@ -14,6 +14,7 @@ const props = defineProps({
 });
 
 const root = ref(null);
+const panel = ref(null);
 const isOpen = ref(false);
 const panelStyle = ref({});
 
@@ -25,16 +26,28 @@ const close = () => {
 };
 
 const updatePanelPosition = () => {
-    if (!root.value) {
+    if (!root.value || !panel.value) {
         return;
     }
 
     const rect = root.value.getBoundingClientRect();
+    const panelWidth = panel.value.offsetWidth || 176;
+    const panelHeight = panel.value.offsetHeight || 0;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const fitsBelow = rect.bottom + 8 + panelHeight <= viewportHeight - 12;
+    const top = fitsBelow
+        ? rect.bottom + 8
+        : Math.max(12, rect.top - panelHeight - 8);
+    const left = Math.min(
+        viewportWidth - panelWidth - 12,
+        Math.max(12, rect.right - panelWidth),
+    );
 
     panelStyle.value = {
         position: 'fixed',
-        top: `${rect.bottom + 8}px`,
-        left: `${Math.max(12, rect.right - 176)}px`,
+        top: `${top}px`,
+        left: `${left}px`,
         zIndex: '1200',
     };
 };
@@ -118,6 +131,7 @@ onBeforeUnmount(() => {
     <Teleport to="body">
         <div
             v-if="isOpen"
+            ref="panel"
             class="flex min-w-40 flex-col items-stretch rounded-xl border border-slate-200 bg-white p-1 shadow-lg"
             :style="panelStyle"
         >

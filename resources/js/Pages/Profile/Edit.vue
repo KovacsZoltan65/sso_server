@@ -5,6 +5,9 @@ import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
 import { Head } from '@inertiajs/vue3';
 
+// These props come from the Breeze/Laravel profile controller contract. The
+// page stays intentionally thin and delegates the actual self-service actions
+// to focused partial forms.
 defineProps({
     mustVerifyEmail: {
         type: Boolean,

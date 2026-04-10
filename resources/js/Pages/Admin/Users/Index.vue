@@ -1,9 +1,12 @@
 <script setup>
 import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
+import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
+import { useAdminTableState } from "@/Composables/useAdminTableState";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
@@ -14,14 +17,11 @@ import { FilterMatchMode } from "@primevue/core/api";
 import Checkbox from "primevue/checkbox";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
-import DataTable from "primevue/datatable";
-import IconField from "primevue/iconfield";
-import InputIcon from "primevue/inputicon";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
 import Toast from "primevue/toast";
-import { computed, reactive, ref } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps({
     rows: {
@@ -56,25 +56,35 @@ const isCreateModalOpen = ref(false);
 const isEditModalOpen = ref(false);
 const selectedUser = ref(null);
 
-const tableFilters = ref({
-    global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
-    name: { value: props.filters.name ?? null, matchMode: FilterMatchMode.CONTAINS },
-    email: { value: props.filters.email ?? null, matchMode: FilterMatchMode.CONTAINS },
-    isActive: {
-        value: props.filters.status ?? null,
-        matchMode: FilterMatchMode.EQUALS,
+const {
+    state: tableState,
+    filters: tableFilters,
+    first,
+    lastPage,
+    resetPagination,
+    setPageFromEvent,
+    setSortFromEvent,
+    buildFetchParams,
+} = useAdminTableState({
+    initialPage: props.pagination.currentPage,
+    initialPerPage: props.pagination.perPage ?? 10,
+    initialSortField: props.sorting.field ?? "name",
+    initialSortOrder: props.sorting.order ?? 1,
+    initialTotalRecords: props.pagination.total ?? 0,
+    initialFilters: {
+        global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
+        name: { value: props.filters.name ?? null, matchMode: FilterMatchMode.CONTAINS },
+        email: { value: props.filters.email ?? null, matchMode: FilterMatchMode.CONTAINS },
+        isActive: {
+            value: props.filters.status ?? null,
+            matchMode: FilterMatchMode.EQUALS,
+        },
+        emailVerifiedAt: {
+            value: props.filters.verified ?? null,
+            matchMode: FilterMatchMode.EQUALS,
+        },
     },
-    emailVerifiedAt: {
-        value: props.filters.verified ?? null,
-        matchMode: FilterMatchMode.EQUALS,
-    },
-});
-
-const tableState = reactive({
-    page: props.pagination.currentPage,
-    perPage: props.pagination.perPage ?? 10,
-    sortField: props.sorting.field ?? "name",
-    sortOrder: props.sorting.order ?? 1,
+    serializeSortOrder: (value) => value,
 });
 
 const perPageOptions = [5, 10, 15, 25];
@@ -93,26 +103,28 @@ const statusOptions = [
 
 const {
     selectedIds,
-    selectedRows,
-    selectableRows,
+    selectedCount,
+    selectableCount,
     allSelected,
     partiallySelected,
-    clearSelection,
+    clearSelection: clearSelectionRows,
     toggleRowSelection,
     toggleAllSelection,
 } = useAdminTableSelection(rows);
 
-const buildParams = (overrides = {}) => ({
-    global: tableFilters.value.global.value || undefined,
-    name: tableFilters.value.name.value || undefined,
-    email: tableFilters.value.email.value || undefined,
-    status: tableFilters.value.isActive.value || undefined,
-    verified: tableFilters.value.emailVerifiedAt.value || undefined,
-    page: tableState.page,
-    perPage: tableState.perPage,
-    sortField: tableState.sortField || undefined,
-    sortOrder: tableState.sortOrder || undefined,
-    ...overrides,
+const clearTableSelection = () => {
+    clearSelectionRows();
+};
+
+const buildParams = (overrides = {}) => buildFetchParams({
+    filters: {
+        global: tableFilters.global.value || undefined,
+        name: tableFilters.name.value || undefined,
+        email: tableFilters.email.value || undefined,
+        status: tableFilters.isActive.value || undefined,
+        verified: tableFilters.emailVerifiedAt.value || undefined,
+    },
+    extra: overrides,
 });
 
 const {
@@ -129,64 +141,39 @@ const {
     entityLabel: "User",
     entityLabelPlural: "users",
     buildParams,
-    clearSelection,
+    clearSelection: clearTableSelection,
     selectedIds,
     pageState: tableState,
     getCurrentRowCount: () => rows.value.length,
 });
 
 const onGlobalFilterInput = (value) => {
-    tableFilters.value.global.value = value ?? null;
-    tableState.page = 1;
-    reload(
-        {
-            page: 1,
-            global: value || undefined,
-        },
-        { resetSelection: true }
-    );
+    tableFilters.global.value = value ?? null;
+    resetPagination();
+    reload(buildParams({ page: 1, global: value || undefined }), { resetSelection: true });
 };
 
 const onFilter = (event) => {
-    tableState.page = 1;
+    resetPagination();
 
-    reload(
-        {
-            page: 1,
-            global: event.filters.global?.value || undefined,
-            name: event.filters.name?.value || undefined,
-            email: event.filters.email?.value || undefined,
-            status: event.filters.isActive?.value || undefined,
-            verified: event.filters.emailVerifiedAt?.value || undefined,
-        },
-        { resetSelection: true }
-    );
+    reload(buildParams({
+        page: 1,
+        global: event.filters.global?.value || undefined,
+        name: event.filters.name?.value || undefined,
+        email: event.filters.email?.value || undefined,
+        status: event.filters.isActive?.value || undefined,
+        verified: event.filters.emailVerifiedAt?.value || undefined,
+    }), { resetSelection: true });
 };
 
 const onSort = (event) => {
-    tableState.sortField = event.sortField;
-    tableState.sortOrder = event.sortOrder;
-
-    reload(
-        {
-            sortField: event.sortField,
-            sortOrder: event.sortOrder,
-        },
-        { resetSelection: true }
-    );
+    setSortFromEvent(event, "name");
+    reload(buildParams(), { resetSelection: true });
 };
 
 const onPage = (event) => {
-    tableState.page = event.page + 1;
-    tableState.perPage = event.rows;
-
-    reload(
-        {
-            page: event.page + 1,
-            perPage: event.rows,
-        },
-        { resetSelection: true }
-    );
+    setPageFromEvent(event);
+    reload(buildParams(), { resetSelection: true });
 };
 
 const openCreateModal = () => {
@@ -221,7 +208,7 @@ const handleEditVisibilityChange = (value) => {
 
 const handleSaved = ({ message }) => {
     showSuccess(message);
-    clearSelection();
+    clearTableSelection();
     closeAllOverlays();
     reload({}, { resetSelection: true });
 };
@@ -256,21 +243,20 @@ const userActionItems = (user) => [
 
             <AdminTableCard>
                 <div class="admin-table-shell">
-                    <DataTable
+                    <BaseDataTable
                         :value="rows"
                         v-model:filters="tableFilters"
                         :rows="tableState.perPage"
-                        :first="pagination.first"
-                        :totalRecords="pagination.total"
-                        :rowsPerPageOptions="perPageOptions"
-                        :sortField="tableState.sortField"
-                        :sortOrder="tableState.sortOrder"
+                        :first="first"
+                        :total-records="pagination.total"
+                        :rows-per-page-options="perPageOptions"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        class="admin-datatable h-full"
+                        empty-message="No users found for the current filters."
+                        loading-message="Loading users..."
                         data-key="id"
-                        paginator
                         lazy
-                        striped-rows
                         filterDisplay="menu"
                         removableSort
                         responsive-layout="scroll"
@@ -280,42 +266,28 @@ const userActionItems = (user) => [
                     >
                         <template #header>
                             <AdminTableToolbar
+                                searchable
+                                :search-value="tableFilters.global.value ?? ''"
+                                search-placeholder="Global search"
                                 :canCreate="canManageUsers"
                                 createLabel="Create User"
                                 :canBulkDelete="canManageUsers"
                                 bulkDeleteLabel="Delete Selected"
-                                :selectedCount="selectedRows.length"
-                                :selectableCount="selectableRows.length"
+                                :selectedCount="selectedCount"
+                                :selectableCount="selectableCount"
                                 :busy="busy"
+                                @update:searchValue="onGlobalFilterInput"
                                 @create="openCreateModal"
                                 @bulk-delete="confirmBulkDelete"
                                 @refresh="refresh"
-                            >
-                                <template #search>
-                                    <IconField class="w-full">
-                                        <InputIcon class="pi pi-search text-slate-400" />
-                                        <InputText
-                                            v-model="tableFilters.global.value"
-                                            placeholder="Global search"
-                                            class="w-full"
-                                            @update:modelValue="onGlobalFilterInput"
-                                        />
-                                    </IconField>
-                                </template>
-                            </AdminTableToolbar>
-                        </template>
-
-                        <template #empty>
-                            <div class="py-8 text-center text-sm text-slate-500">
-                                No users found for the current filters.
-                            </div>
+                            />
                         </template>
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
                             <template #header>
                                 <div
                                     :title="
-                                        selectableRows.length === 0
+                                        selectableCount === 0
                                             ? 'No deletable users on this page.'
                                             : ''
                                     "
@@ -324,7 +296,7 @@ const userActionItems = (user) => [
                                         :binary="true"
                                         :modelValue="allSelected"
                                         :indeterminate="partiallySelected"
-                                        :disabled="selectableRows.length === 0"
+                                        :disabled="selectableCount === 0"
                                         @update:modelValue="toggleAllSelection"
                                     />
                                 </div>
@@ -475,21 +447,20 @@ const userActionItems = (user) => [
                                 <RowActionMenu :items="userActionItems(data)" />
                             </template>
                         </Column>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
                 <template #footer>
-                    <div
-                        class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                        <div>
-                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of
-                            {{ pagination.total }} users
-                        </div>
-                        <div>
-                            Page {{ pagination.currentPage }} / {{ pagination.lastPage }}
-                        </div>
-                    </div>
+                    <AdminTableSummary
+                        :page="tableState.page"
+                        :per-page="tableState.perPage"
+                        :total="pagination.total"
+                        :from="pagination.from"
+                        :to="pagination.to"
+                        :current-page="pagination.currentPage"
+                        :last-page="pagination.lastPage || lastPage"
+                        item-label="users"
+                    />
                 </template>
             </AdminTableCard>
         </div>

@@ -10,6 +10,13 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Hash;
 
+/**
+ * Server-side authority for self-service profile reads and mutations.
+ *
+ * The client renders the profile UX, but this service decides which fields are
+ * editable, when an audit event should be emitted, and how no-op updates are
+ * handled so the account audit trail stays trustworthy.
+ */
 class SelfServiceProfileService
 {
     /**
@@ -24,6 +31,8 @@ class SelfServiceProfileService
     }
 
     /**
+     * Builds the canonical self-service payload for the authenticated user.
+     *
      * @return array<string, mixed>
      */
     public function profilePayload(User $user, Request $request, bool $logView = true): array
@@ -45,6 +54,12 @@ class SelfServiceProfileService
     }
 
     /**
+     * Updates only whitelisted self-service profile fields.
+     *
+     * No-op submissions intentionally return a fresh payload without writing an
+     * "updated" audit success event. That keeps the API UX stable while
+     * avoiding misleading account activity entries.
+     *
      * @param array<string, mixed> $attributes
      * @return array<string, mixed>
      */
@@ -140,5 +155,4 @@ class SelfServiceProfileService
     {
         return ['email', 'emailVerifiedAt'];
     }
-
 }

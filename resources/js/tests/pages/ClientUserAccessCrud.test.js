@@ -180,6 +180,31 @@ describe('Client user access CRUD frontend', () => {
         );
     });
 
+    it('clears selection when filters trigger a reload', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows,
+                clientOptions,
+                userOptions,
+                filters: { global: null, client_id: null, user_id: null, status: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'createdAt', order: -1 },
+                canManageClientAccess: true,
+            },
+        });
+
+        await nextTick();
+
+        await wrapper.find('input[type="checkbox"]').setValue(true);
+        expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeUndefined();
+
+        const selects = wrapper.findAll('select');
+        await selects[0].setValue('1');
+        await nextTick();
+
+        expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeDefined();
+    });
+
     it('renders field-level errors in the shared form fields component', () => {
         const wrapper = mount(ClientUserAccessFormFields, {
             props: {
