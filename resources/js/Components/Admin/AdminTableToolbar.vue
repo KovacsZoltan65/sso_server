@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import InputText from 'primevue/inputtext';
 import Button from "primevue/button";
+import { IconField, InputIcon } from "primevue";
 
 const props = defineProps({
     title: {
@@ -52,6 +53,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
+    searchContainerClass: {
+        type: String,
+        default: "w-full sm:max-w-sm",
+    },
     titleClass: {
         type: String,
         default: 'text-base font-semibold text-slate-950',
@@ -100,17 +105,21 @@ const bulkStatusText = computed(() => {
                     </p>
                 </div>
 
-                <div v-if="$slots.search || searchable" class="w-full sm:max-w-sm">
+                <div
+                    v-if="$slots.search || searchable"
+                    :class="searchContainerClass"
+                    class="min-w-0"
+                >
                     <slot name="search">
-                        <div class="relative">
-                            <i class="pi pi-search pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-slate-400" />
+                        <IconField class="w-full">
+                            <InputIcon class="pi pi-search" />
                             <InputText
                                 :modelValue="searchValue"
                                 :placeholder="searchPlaceholder"
-                                class="w-full pl-10"
+                                class="h-11 w-full"
                                 @update:modelValue="$emit('update:searchValue', $event)"
                             />
-                        </div>
+                        </IconField>
                     </slot>
                 </div>
 
