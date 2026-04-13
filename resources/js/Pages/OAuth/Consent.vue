@@ -22,6 +22,15 @@ const props = defineProps({
     },
 });
 
+const outcomeCopy = {
+    approve: props.client.originHost
+        ? `Approve to continue back to ${props.client.originHost}${props.client.returnPath || ''}.`
+        : 'Approve to continue back to the requesting application.',
+    deny: props.client.originHost
+        ? `Deny to return safely to ${props.client.originHost} without sharing these permissions.`
+        : 'Deny to stop this request without sharing these permissions.',
+};
+
 const approveForm = useForm({
     consent_token: props.consentToken,
 });
@@ -52,9 +61,34 @@ const submitDeny = () => {
             </p>
 
             <section class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Application</p>
-                <h3 class="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{{ client.name }}</h3>
+                <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Application</p>
+                        <h3 class="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{{ client.name }}</h3>
+                    </div>
+                    <span
+                        class="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                    >
+                        {{ client.trustLabel }}
+                    </span>
+                </div>
                 <p class="mt-3 text-sm leading-7 text-slate-600">{{ client.description }}</p>
+                <p class="mt-3 text-sm leading-7 text-slate-600">{{ client.trustDescription }}</p>
+
+                <div class="mt-4 grid gap-3 md:grid-cols-2">
+                    <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Registered origin</p>
+                        <p class="mt-2 text-sm font-semibold text-slate-900">
+                            {{ client.originHost || 'Registered application' }}
+                        </p>
+                    </div>
+                    <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+                        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Return destination</p>
+                        <p class="mt-2 text-sm font-semibold text-slate-900">
+                            {{ client.originHost || 'Application callback' }}{{ client.returnPath || '' }}
+                        </p>
+                    </div>
+                </div>
             </section>
 
             <section class="space-y-3">
@@ -86,6 +120,7 @@ const submitDeny = () => {
 
             <div class="grid gap-3 sm:grid-cols-2">
                 <form @submit.prevent="submitApprove">
+                    <p class="mb-2 text-xs leading-5 text-slate-500">{{ outcomeCopy.approve }}</p>
                     <Button
                         type="submit"
                         label="Approve"
@@ -95,6 +130,7 @@ const submitDeny = () => {
                     />
                 </form>
                 <form @submit.prevent="submitDeny">
+                    <p class="mb-2 text-xs leading-5 text-slate-500">{{ outcomeCopy.deny }}</p>
                     <Button
                         type="submit"
                         label="Deny"

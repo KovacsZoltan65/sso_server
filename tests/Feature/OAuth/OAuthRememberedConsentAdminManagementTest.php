@@ -103,6 +103,12 @@ it('authorized admin can view remembered consent index with the required fields'
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('RememberedConsents/Index')
+            ->has('navigation', fn (Assert $navigation) => $navigation
+                ->where('0.key', 'dashboard')
+                ->where('1.key', 'remembered-consents')
+                ->where('1.route', 'admin.remembered-consents.index')
+                ->where('1.permission', 'remembered-consents.viewAny')
+            )
             ->has('rows', 1)
             ->where('rows.0.userName', 'Consent Owner')
             ->where('rows.0.userEmail', 'owner@example.com')

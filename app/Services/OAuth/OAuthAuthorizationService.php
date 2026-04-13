@@ -40,7 +40,14 @@ use Illuminate\Validation\ValidationException;
  * @phpstan-type ConsentPreparationResult array{
  *     type: 'consent',
  *     consentToken: string,
- *     client: array{name: string, description: string},
+ *     client: array{
+ *         name: string,
+ *         description: string,
+ *         originHost: string|null,
+ *         returnPath: string|null,
+ *         trustLabel: string,
+ *         trustDescription: string
+ *     },
  *     scopes: array<int, ConsentScopeView>,
  *     summary: array{title: string, description: string}
  * }
@@ -193,10 +200,7 @@ class OAuthAuthorizationService
         return [
             'type' => 'consent',
             'consentToken' => $context->consentToken,
-            'client' => [
-                'name' => $this->resolveClientDisplayName($client),
-                'description' => $this->resolveClientDescription($client),
-            ],
+            'client' => $this->buildConsentClientView($client, $redirectUri),
             'scopes' => $this->buildConsentScopeView($client, $requestedScopes),
             'summary' => [
                 'title' => sprintf('%s is requesting access to your account.', $this->resolveClientDisplayName($client)),
@@ -673,11 +677,57 @@ class OAuthAuthorizationService
             ->all();
     }
 
+    /**
+     * @return array{
+     *     name: string,
+     *     description: string,
+     *     originHost: string|null,
+     *     returnPath: string|null,
+     *     trustLabel: string,
+     *     trustDescription: string
+     * }
+     */
+    private function buildConsentClientView(SsoClient $client, string $redirectUri): array
+    {
+        $parsedRedirectUri = parse_url($redirectUri);
+        $originHost = is_array($parsedRedirectUri) ? ($parsedRedirectUri['host'] ?? null) : null;
+        $returnPath = is_array($parsedRedirectUri) ? ($parsedRedirectUri['path'] ?? null) : null;
+
+        return [
+            'name' => $this->resolveClientDisplayName($client),
+            'description' => $this->resolveClientDescription($client),
+            'originHost' => is_string($originHost) && trim($originHost) !== '' ? strtolower(trim($originHost)) : null,
+            'returnPath' => is_string($returnPath) && trim($returnPath) !== '' ? trim($returnPath) : null,
+            'trustLabel' => $this->resolveConsentTrustLabel($client),
+            'trustDescription' => $this->resolveConsentTrustDescription($client),
+        ];
+    }
+
     private function resolveClientDisplayName(SsoClient $client): string
     {
         $name = $this->normalizeNullableString($client->name);
 
         return $name ?? $client->client_id;
+    }
+
+    private function resolveConsentTrustLabel(SsoClient $client): string
+    {
+        return match ($client->trust_tier) {
+            SsoClient::TRUST_TIER_FIRST_PARTY_TRUSTED => 'Trusted first-party application',
+            SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED => 'First-party application',
+            SsoClient::TRUST_TIER_MACHINE_TO_MACHINE => 'System-managed client',
+            default => 'Third-party application',
+        };
+    }
+
+    private function resolveConsentTrustDescription(SsoClient $client): string
+    {
+        return match ($client->trust_tier) {
+            SsoClient::TRUST_TIER_FIRST_PARTY_TRUSTED => 'Managed inside this identity environment with a trusted first-party policy.',
+            SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED => 'Managed inside this identity environment, but it still requires your explicit approval.',
+            SsoClient::TRUST_TIER_MACHINE_TO_MACHINE => 'Registered for system integrations. Interactive access stays subject to explicit policy checks.',
+            default => 'Registered outside the core first-party trust tier, so review the requested access carefully.',
+        };
     }
 
     private function resolveClientDescription(SsoClient $client): string

@@ -117,6 +117,9 @@ it('documents the authorize consent render contract', function (): void {
         ->assertInertia(fn (Assert $page) => $page
             ->component('OAuth/Consent')
             ->where('client.name', 'Portal Client')
+            ->where('client.originHost', 'portal.example.com')
+            ->where('client.returnPath', '/auth/sso/callback')
+            ->where('client.trustLabel', 'Third-party application')
             ->where('scopes.0.name', 'OpenID')
             ->where('scopes.1.name', 'Profile')
             ->where('scopes.2.name', 'Email')

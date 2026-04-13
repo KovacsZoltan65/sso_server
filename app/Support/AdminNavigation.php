@@ -78,6 +78,14 @@ class AdminNavigation
                 'description' => 'TTL, rotation, signing, and revocation policy management.',
             ],
             [
+                'key' => 'remembered-consents',
+                'label' => 'Remembered Consents',
+                'route' => 'admin.remembered-consents.index',
+                'icon' => 'pi pi-verified',
+                'permission' => 'remembered-consents.viewAny',
+                'description' => 'Stored consent grants, reuse visibility, and security revocation controls.',
+            ],
+            [
                 'key' => 'tokens',
                 'label' => 'Tokens',
                 'route' => 'admin.tokens.index',

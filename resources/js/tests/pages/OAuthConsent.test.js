@@ -11,6 +11,10 @@ describe('OAuth/Consent', () => {
                 client: {
                     name: 'Portal Client',
                     description: 'Portal access for company users.',
+                    originHost: 'portal.example.com',
+                    returnPath: '/auth/sso/callback',
+                    trustLabel: 'Third-party application',
+                    trustDescription: 'Registered outside the core first-party trust tier, so review the requested access carefully.',
                 },
                 scopes: [
                     {
@@ -41,12 +45,16 @@ describe('OAuth/Consent', () => {
 
         expect(wrapper.find('[data-layout="public-auth"]').exists()).toBe(true);
         expect(wrapper.text()).toContain('Portal Client');
+        expect(wrapper.text()).toContain('Third-party application');
+        expect(wrapper.text()).toContain('portal.example.com');
+        expect(wrapper.text()).toContain('/auth/sso/callback');
         expect(wrapper.text()).toContain('OpenID');
         expect(wrapper.text()).toContain('Profile');
         expect(wrapper.text()).toContain('Approve');
         expect(wrapper.text()).toContain('Deny');
+        expect(wrapper.text()).toContain('Approve to continue back to portal.example.com/auth/sso/callback.');
+        expect(wrapper.text()).toContain('Deny to return safely to portal.example.com without sharing these permissions.');
         expect(wrapper.text()).not.toContain('secret-server-side-token');
-        expect(wrapper.text()).not.toContain('redirect_uri');
         expect(wrapper.text()).not.toContain('code_challenge');
     });
 
@@ -57,6 +65,10 @@ describe('OAuth/Consent', () => {
                 client: {
                     name: 'Portal Client',
                     description: 'Portal access for company users.',
+                    originHost: 'portal.example.com',
+                    returnPath: '/auth/sso/callback',
+                    trustLabel: 'Third-party application',
+                    trustDescription: 'Registered outside the core first-party trust tier, so review the requested access carefully.',
                 },
                 scopes: [
                     {
@@ -102,6 +114,10 @@ describe('OAuth/Consent', () => {
                 client: {
                     name: 'Portal Client',
                     description: 'Portal access for company users.',
+                    originHost: 'portal.example.com',
+                    returnPath: '/auth/sso/callback',
+                    trustLabel: 'Third-party application',
+                    trustDescription: 'Registered outside the core first-party trust tier, so review the requested access carefully.',
                 },
                 scopes: [
                     {
