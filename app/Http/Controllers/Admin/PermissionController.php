@@ -21,6 +21,10 @@ class PermissionController extends Controller
             private readonly PermissionService $permissionService
     ) {}
     
+    /**
+     * @param PermissionIndexRequest $request
+     * @return \Inertia\Response
+     */
     public function index(PermissionIndexRequest $request): Response
     {
         $this->authorize('viewAny', Permission::class);
@@ -39,6 +43,9 @@ class PermissionController extends Controller
         ));
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function create(): Response
     {
         $this->authorize('create', Permission::class);
@@ -46,6 +53,10 @@ class PermissionController extends Controller
         return Inertia::render('Permissions/Create', $this->permissionService->getCreatePayload());
     }
 
+    /**
+     * @param PermissionStoreRequest $request
+     * @return RedirectResponse
+     */
     public function store(PermissionStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', Permission::class);
@@ -57,6 +68,10 @@ class PermissionController extends Controller
             ->with('success', 'Permission created successfully.');
     }
 
+    /**
+     * @param Permission $permission
+     * @return \Inertia\Response
+     */
     public function edit(Permission $permission): Response
     {
         $this->authorize('update', $permission);
@@ -64,6 +79,11 @@ class PermissionController extends Controller
         return Inertia::render('Permissions/Edit', $this->permissionService->getEditPayload($permission));
     }
 
+    /**
+     * @param PermissionUpdateRequest $request
+     * @param Permission $permission
+     * @return RedirectResponse
+     */
     public function update(
         PermissionUpdateRequest $request,
         Permission $permission
@@ -77,6 +97,10 @@ class PermissionController extends Controller
             ->with('success', 'Permission updated successfully.');
     }
 
+    /**
+     * @param Permission $permission
+     * @return JsonResponse|RedirectResponse
+     */
     public function destroy(Permission $permission): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $permission);
@@ -108,6 +132,10 @@ class PermissionController extends Controller
             ->with('success', 'Permission deleted successfully.');
     }
 
+    /**
+     * @param PermissionBulkDestroyRequest $request
+     * @return JsonResponse
+     */
     public function bulkDestroy(
         PermissionBulkDestroyRequest $request
     ): JsonResponse {

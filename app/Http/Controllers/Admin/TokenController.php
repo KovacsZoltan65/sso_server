@@ -19,6 +19,10 @@ class TokenController extends Controller
             private readonly TokenManagementService $tokenService
     ) {}
     
+    /**
+     * @param TokenIndexRequest $request
+     * @return \Inertia\Response
+     */
     public function index(TokenIndexRequest $request): Response
     {
         $this->authorize('viewAny', Token::class);
@@ -40,6 +44,11 @@ class TokenController extends Controller
         ));
     }
 
+    /**
+     * @param RevokeTokenRequest $request
+     * @param Token $token
+     * @return JsonResponse
+     */
     public function revoke(RevokeTokenRequest $request, Token $token): JsonResponse
     {
         $this->authorize('revoke', $token);
@@ -57,6 +66,10 @@ class TokenController extends Controller
         );
     }
 
+    /**
+     * @param RevokeTokenFamilyRequest $request
+     * @return JsonResponse
+     */
     public function revokeFamily(RevokeTokenFamilyRequest $request): JsonResponse
     {
         $this->authorize('revokeFamily', Token::class);

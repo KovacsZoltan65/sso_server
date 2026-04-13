@@ -42,6 +42,14 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return ClientUserAccess::class;
     }
 
+    /**
+     * @param array $filters
+     * @param mixed $sortField
+     * @param mixed $sortOrder
+     * @param int $perPage
+     * @param int $page
+     * @return LengthAwarePaginator
+     */
     public function paginateForAdmin(
         array $filters,
         ?string $sortField,
@@ -81,6 +89,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
             ->withQueryString();
     }
 
+    /**
+     * @param int $id
+     * @return ClientUserAccess|null
+     */
     public function findById(int $id): ?ClientUserAccess
     {
         /** @var ClientUserAccess|null $access */
@@ -92,6 +104,11 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $access;
     }
 
+    /**
+     * @param int $clientId
+     * @param int $userId
+     * @return ClientUserAccess|null
+     */
     public function findAccessForClientAndUser(int $clientId, int $userId): ?ClientUserAccess
     {
         /** @var ClientUserAccess|null $access */
@@ -105,6 +122,11 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $access;
     }
 
+    /**
+     * @param int $clientId
+     * @param int $userId
+     * @return ClientUserAccess|null
+     */
     public function findActiveAccessForClientAndUser(int $clientId, int $userId): ?ClientUserAccess
     {
         /** @var ClientUserAccess|null $access */
@@ -119,6 +141,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $access;
     }
 
+    /**
+     * @param int $clientId
+     * @return bool
+     */
     public function clientHasAnyActiveRestrictions(int $clientId): bool
     {
         return $this->getModel()
@@ -128,6 +154,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
             ->exists();
     }
 
+    /**
+     * @param array $attributes
+     * @return ClientUserAccess
+     */
     public function createAccess(array $attributes): ClientUserAccess
     {
         /** @var ClientUserAccess $access */
@@ -136,6 +166,11 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $access->load(['client', 'user']);
     }
 
+    /**
+     * @param ClientUserAccess $access
+     * @param array $attributes
+     * @return ClientUserAccess
+     */
     public function updateAccess(ClientUserAccess $access, array $attributes): ClientUserAccess
     {
         $access->fill($attributes);
@@ -144,11 +179,19 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $access->refresh()->load(['client', 'user']);
     }
 
+    /**
+     * @param ClientUserAccess $access
+     * @return void
+     */
     public function deleteAccess(ClientUserAccess $access): void
     {
         $access->delete();
     }
 
+    /**
+     * @param array $ids
+     * @return Collection<int, ClientUserAccess>
+     */
     public function getByIds(array $ids): Collection
     {
         /** @var Collection<int, ClientUserAccess> $accesses */
@@ -161,6 +204,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $accesses;
     }
 
+    /**
+     * @param array $ids
+     * @return void
+     */
     public function deleteByIds(array $ids): void
     {
         $this->getModel()
@@ -169,6 +216,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
             ->delete();
     }
 
+    /**
+     * @param int $clientId
+     * @return Collection<int, ClientUserAccess>
+     */
     public function listUsersForClient(int $clientId): Collection
     {
         /** @var Collection<int, ClientUserAccess> $accesses */
@@ -182,6 +233,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $accesses;
     }
 
+    /**
+     * @param int $userId
+     * @return Collection<int, ClientUserAccess>
+     */
     public function listClientsForUser(int $userId): Collection
     {
         /** @var Collection<int, ClientUserAccess> $accesses */
@@ -195,6 +250,9 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $accesses;
     }
 
+    /**
+     * @return array<int, string, int>
+     */
     public function clientOptions(): array
     {
         return SsoClient::query()
@@ -209,6 +267,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
             ->all();
     }
 
+    /**
+     * Summary of userOptions
+     * @return array<int, string, string, bool>
+     */
     public function userOptions(): array
     {
         return User::query()

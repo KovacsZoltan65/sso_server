@@ -5,6 +5,19 @@ namespace App\Data;
 use Spatie\LaravelData\Data;
 use Spatie\Permission\Models\Permission;
 
+/**
+ * @phpstan-type PermissionSummaryPayload array{
+ *     id: int,
+ *     name: string,
+ *     guardName: string,
+ *     rolesCount: int,
+ *     usersCount: int,
+ *     createAt: string,
+ *     canDelete: bool,
+ *     deleteBlockCode: string,
+ *     deleteBlockReason: string
+ * }
+ */
 class PermissionSummaryData extends Data
 {
     public function __construct(
@@ -20,6 +33,14 @@ class PermissionSummaryData extends Data
     ) {
     }
 
+    /**
+     * Summary of fromModel
+     * @param Permission $permission
+     * @param bool $canDelete
+     * @param mixed $deleteBlockCode
+     * @param mixed $deleteBlockReason
+     * @return self
+     */
     public static function fromModel(
         Permission $permission,
         bool $canDelete = true,

@@ -21,6 +21,10 @@ class ScopeController extends Controller
             private readonly ScopeService $scopeService
     ) {}
     
+    /**
+     * @param ScopeIndexRequest $request
+     * @return \Inertia\Response
+     */
     public function index(ScopeIndexRequest $request): Response
     {
         $this->authorize('viewAny', Scope::class);
@@ -41,6 +45,9 @@ class ScopeController extends Controller
         ));
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function create(): Response
     {
         $this->authorize('create', Scope::class);
@@ -48,6 +55,10 @@ class ScopeController extends Controller
         return Inertia::render('Scopes/Create', $this->scopeService->getCreatePayload());
     }
 
+    /**
+     * @param ScopeStoreRequest $request
+     * @return RedirectResponse
+     */
     public function store(ScopeStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', Scope::class);
@@ -59,6 +70,10 @@ class ScopeController extends Controller
             ->with('success', 'Scope created successfully.');
     }
 
+    /**
+     * @param Scope $scope
+     * @return \Inertia\Response
+     */
     public function edit(Scope $scope): Response
     {
         $this->authorize('update', $scope);
@@ -66,6 +81,11 @@ class ScopeController extends Controller
         return Inertia::render('Scopes/Edit', $this->scopeService->getEditPayload($scope));
     }
 
+    /**
+     * @param ScopeUpdateRequest $request
+     * @param Scope $scope
+     * @return RedirectResponse
+     */
     public function update(ScopeUpdateRequest $request, Scope $scope): RedirectResponse {
         $this->authorize('update', $scope);
 
@@ -82,6 +102,10 @@ class ScopeController extends Controller
             ->with('success', 'Scope updated successfully.');
     }
 
+    /**
+     * @param Scope $scope
+     * @return JsonResponse|RedirectResponse
+     */
     public function destroy(Scope $scope): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $scope);
@@ -113,6 +137,10 @@ class ScopeController extends Controller
             ->with('success', 'Scope deleted successfully.');
     }
 
+    /**
+     * @param ScopeBulkDestroyRequest $request
+     * @return JsonResponse
+     */
     public function bulkDestroy(ScopeBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', Scope::class);

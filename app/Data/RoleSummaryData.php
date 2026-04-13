@@ -8,7 +8,18 @@ use Spatie\Permission\Models\Role;
 class RoleSummaryData extends Data
 {
     /**
-     * @param array<int, string> $permissions
+     * @phpstan-type RoleSummaryPayload array{
+     *     id: int,
+     *     name: string,
+     *     guardName: string,
+     *     permissions: array<int, string>,
+     *     permissionCount: int,
+     *     usersCount: int,
+     *     createAt: string,
+     *     canDelete: bool,
+     *     deleteBlockCode: string,
+     *     deleteBlockReason: string
+     * }
      */
     public function __construct(
         public int $id,

@@ -59,7 +59,13 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
     }
 
     /**
-     * @param AdminClientFilters $filters
+     * Summary of paginateForAdminIndex
+     * @param array $filters
+     * @param mixed $sortField
+     * @param mixed $sortOrder
+     * @param int $perPage
+     * @param int $page
+     * @return \Illuminate\Pagination\LengthAwarePaginator
      */
     public function paginateForAdminIndex(
         array $filters,
@@ -95,7 +101,9 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
     }
 
     /**
-     * @param ClientAttributes $attributes
+     * Summary of createClient
+     * @param array $attributes
+     * @return SsoClient
      */
     public function createClient(array $attributes): SsoClient
     {
@@ -106,7 +114,10 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
     }
 
     /**
-     * @param ClientAttributes $attributes
+     * Summary of updateClient
+     * @param SsoClient $client
+     * @param array $attributes
+     * @return SsoClient
      */
     public function updateClient(SsoClient $client, array $attributes): SsoClient
     {
@@ -116,11 +127,20 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
         return $client->refresh();
     }
 
+    /**
+     * @param SsoClient $client
+     * @return void
+     */
     public function deleteClient(SsoClient $client): void
     {
         $client->delete();
     }
 
+    /**
+     * @param SsoClient $client
+     * @param array $redirectUris
+     * @return void
+     */
     public function syncRedirectUris(SsoClient $client, array $redirectUris): void
     {
         $normalized = collect($redirectUris)
@@ -147,6 +167,11 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
         }
     }
 
+    /**
+     * @param SsoClient $client
+     * @param array $scopeCodes
+     * @return void
+     */
     public function syncScopes(SsoClient $client, array $scopeCodes): void
     {
         $scopeIds = Scope::query()
@@ -158,13 +183,20 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
     }
 
     /**
-     * @param ClientSecretAttributes $attributes
+     * Summary of createSecret
+     * @param SsoClient $client
+     * @param array $attributes
+     * @return void
      */
     public function createSecret(SsoClient $client, array $attributes): void
     {
         $client->secrets()->create($attributes);
     }
 
+    /**
+     * @param SsoClient $client
+     * @return void
+     */
     public function deactivateActiveSecrets(SsoClient $client): void
     {
         $client->secrets()
@@ -176,6 +208,11 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
             ]);
     }
 
+    /**
+     * @param SsoClient $client
+     * @param int $secretId
+     * @return void
+     */
     public function revokeSecret(SsoClient $client, int $secretId): void
     {
         $client->secrets()
@@ -186,6 +223,10 @@ class ClientRepository extends Repository implements ClientRepositoryInterface
             ]);
     }
 
+    /**
+     * @param SsoClient $client
+     * @return int
+     */
     public function countUsableSecrets(SsoClient $client): int
     {
         return $client->secrets()

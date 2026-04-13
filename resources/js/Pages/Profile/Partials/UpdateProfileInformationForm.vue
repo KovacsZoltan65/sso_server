@@ -1,9 +1,9 @@
 <script setup>
 import InputError from '@/Components/InputError.vue';
-import InputLabel from '@/Components/InputLabel.vue';
-import PrimaryButton from '@/Components/PrimaryButton.vue';
-import TextInput from '@/Components/TextInput.vue';
 import { Link, useForm, usePage } from '@inertiajs/vue3';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import { useToast } from 'primevue/usetoast';
 
 defineProps({
     mustVerifyEmail: {
@@ -15,100 +15,109 @@ defineProps({
 });
 
 const user = usePage().props.auth.user;
+const toast = useToast();
 
 const form = useForm({
     name: user.name,
 });
+
+const submit = () => {
+    form.patch(route('profile.update'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            toast.add({
+                severity: 'success',
+                summary: 'Profil mentve',
+                detail: 'A profiladataid sikeresen frissultek.',
+                life: 3000,
+            });
+        },
+        onError: () => {
+            toast.add({
+                severity: 'error',
+                summary: 'Sikertelen mentes',
+                detail: 'Ellenorizd a megadott adatokat, majd probald ujra.',
+                life: 4000,
+            });
+        },
+    });
+};
+
+const notifyVerificationSent = () => {
+    toast.add({
+        severity: 'success',
+        summary: 'Ellenorzo email elkuldve',
+        detail: 'Uj ellenorzo linket kuldtunk az email-cimedre.',
+        life: 3000,
+    });
+};
 </script>
 
 <template>
-    <section>
-        <header>
-            <h2 class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                Profile Information
-            </h2>
-
-            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
-                Update your display name. Email changes stay outside the self-service flow.
-            </p>
-        </header>
-
-        <form
-            @submit.prevent="form.patch(route('profile.update'))"
-            class="mt-6 space-y-6"
-        >
-            <div>
-                <InputLabel for="name" value="Name" />
-
-                <TextInput
-                    id="name"
-                    type="text"
-                    class="mt-1 block w-full"
+    <section class="space-y-5">
+        <div class="grid gap-4">
+            <div class="grid gap-2">
+                <label for="profile-name" class="text-sm font-medium text-slate-700">Nev</label>
+                <InputText
+                    id="profile-name"
                     v-model="form.name"
-                    required
-                    autofocus
                     autocomplete="name"
+                    autofocus
+                    class="w-full"
                 />
-
-                <InputError class="mt-2" :message="form.errors.name" />
+                <InputError :message="form.errors.name" />
             </div>
 
-            <div>
-                <InputLabel for="email" value="Email" />
-
-                <TextInput
-                    id="email"
-                    type="email"
-                    class="mt-1 block w-full"
+            <div class="grid gap-2">
+                <label for="profile-email" class="text-sm font-medium text-slate-700">Email</label>
+                <InputText
+                    id="profile-email"
                     :model-value="user.email"
+                    autocomplete="username"
+                    class="w-full"
                     disabled
                     readonly
-                    autocomplete="username"
                 />
-
-                <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Email remains read-only in self-service to keep the shared SSO identity mapping stable.
+                <p class="text-sm leading-6 text-slate-500">
+                    Az email cim itt csak olvashato, hogy a kozos SSO identitas-terkep stabil maradjon.
                 </p>
             </div>
 
-            <div v-if="mustVerifyEmail && user.email_verified_at === null">
-                <p class="mt-2 text-sm text-gray-800 dark:text-gray-200">
-                    Your email address is unverified.
-                    <Link
-                        :href="route('verification.send')"
-                        method="post"
-                        as="button"
-                        class="rounded-md text-sm text-gray-600 underline hover:text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-400 dark:hover:text-gray-100 dark:focus:ring-offset-gray-800"
-                    >
-                        Click here to re-send the verification email.
-                    </Link>
+            <div
+                v-if="mustVerifyEmail && user.email_verified_at === null"
+                class="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4"
+            >
+                <div class="text-sm font-semibold text-amber-950">Email megerosites szukseges</div>
+                <p class="mt-1 text-sm leading-6 text-amber-900">
+                    Az email-cimed meg nincs megerositve.
                 </p>
-
-                <div
-                    v-show="status === 'verification-link-sent'"
-                    class="mt-2 text-sm font-medium text-green-600 dark:text-green-400"
+                <Link
+                    :href="route('verification.send')"
+                    method="post"
+                    as="button"
+                    class="mt-3 inline-flex items-center rounded-xl border border-amber-300 px-3 py-2 text-sm font-medium text-amber-950 transition hover:bg-amber-100"
+                    @click="notifyVerificationSent"
                 >
-                    A new verification link has been sent to your email address.
-                </div>
-            </div>
+                    Uj ellenorzo email kuldese
+                </Link>
 
-            <div class="flex items-center gap-4">
-                <PrimaryButton :disabled="form.processing">Save</PrimaryButton>
-
-                <Transition
-                    enter-active-class="transition ease-in-out"
-                    enter-from-class="opacity-0"
-                    leave-active-class="transition ease-in-out"
-                    leave-to-class="opacity-0"
+                <p
+                    v-if="status === 'verification-link-sent'"
+                    class="mt-3 text-sm font-medium text-emerald-700"
                 >
-                    <p
-                        v-if="form.recentlySuccessful"
-                        class="text-sm text-gray-600 dark:text-gray-400"
-                    >
-                        Saved.
-                    </p>
-                </Transition>
+                    Uj ellenorzo linket kuldtunk az email-cimedre.
+                </p>
             </div>
-        </form>
+        </div>
+
+        <div class="flex justify-end">
+            <Button
+                label="Mentes"
+                icon="pi pi-save"
+                :loading="form.processing"
+                :disabled="form.processing"
+                @click="submit"
+            />
+        </div>
     </section>
 </template>

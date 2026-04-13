@@ -23,6 +23,10 @@ class RoleController extends Controller
         ;
     }
     
+    /**
+     * @param RoleIndexRequest $request
+     * @return \Inertia\Response
+     */
     public function index(RoleIndexRequest $request): Response
     {
         $this->authorize('viewAny', Role::class);
@@ -41,6 +45,9 @@ class RoleController extends Controller
         ));
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function create(): Response
     {
         $this->authorize('create', Role::class);
@@ -48,6 +55,10 @@ class RoleController extends Controller
         return Inertia::render('Roles/Create', $this->roleService->getCreatePayload());
     }
 
+    /**
+     * @param RoleStoreRequest $request
+     * @return RedirectResponse
+     */
     public function store(RoleStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', Role::class);
@@ -59,6 +70,10 @@ class RoleController extends Controller
             ->with('success', 'Role created successfully.');
     }
 
+    /**
+     * @param Role $role
+     * @return \Inertia\Response
+     */
     public function edit(Role $role): Response
     {
         $this->authorize('update', $role);
@@ -66,6 +81,11 @@ class RoleController extends Controller
         return Inertia::render('Roles/Edit', $this->roleService->getEditPayload($role));
     }
 
+    /**
+     * @param RoleUpdateRequest $request
+     * @param Role $role
+     * @return RedirectResponse
+     */
     public function update(RoleUpdateRequest $request, Role $role): RedirectResponse
     {
         $this->authorize('update', $role);
@@ -77,6 +97,10 @@ class RoleController extends Controller
             ->with('success', 'Role updated successfully.');
     }
 
+    /**
+     * @param Role $role
+     * @return JsonResponse|RedirectResponse
+     */
     public function destroy(Role $role): RedirectResponse|JsonResponse
     {
         $this->authorize('delete', $role);
@@ -108,6 +132,10 @@ class RoleController extends Controller
             ->with('success', 'Role deleted successfully.');
     }
 
+    /**
+     * @param RoleBulkDestroyRequest $request
+     * @return JsonResponse
+     */
     public function bulkDestroy(RoleBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', Role::class);

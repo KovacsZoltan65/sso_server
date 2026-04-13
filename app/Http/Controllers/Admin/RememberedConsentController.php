@@ -13,6 +13,11 @@ use Inertia\Response;
 
 class RememberedConsentController extends Controller
 {
+    /**
+     * @param RememberedConsentIndexRequest $request
+     * @param RememberedConsentManagementService $service
+     * @return \Inertia\Response
+     */
     public function index(
         RememberedConsentIndexRequest $request,
         RememberedConsentManagementService $service,
@@ -35,6 +40,12 @@ class RememberedConsentController extends Controller
         ));
     }
 
+    /**
+     * @param RevokeUserClientConsentRequest $request
+     * @param UserClientConsent $consent
+     * @param RememberedConsentManagementService $service
+     * @return JsonResponse
+     */
     public function revoke(
         RevokeUserClientConsentRequest $request,
         UserClientConsent $consent,

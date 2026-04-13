@@ -20,6 +20,10 @@ class ClientUserAccessController extends Controller
         private readonly ClientUserAccessService $accessService
     ) {}
     
+    /**
+     * @param ClientUserAccessIndexRequest $request
+     * @return JsonResponse
+     */
     public function index(ClientUserAccessIndexRequest $request): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);
@@ -51,6 +55,10 @@ class ClientUserAccessController extends Controller
         );
     }
 
+    /**
+     * @param StoreClientUserAccessRequest $request
+     * @return JsonResponse
+     */
     public function store(StoreClientUserAccessRequest $request): JsonResponse
     {
         $this->authorize('create', ClientUserAccess::class);
@@ -64,6 +72,11 @@ class ClientUserAccessController extends Controller
         );
     }
 
+    /**
+     * @param UpdateClientUserAccessRequest $request
+     * @param ClientUserAccess $clientUserAccess
+     * @return JsonResponse
+     */
     public function update(UpdateClientUserAccessRequest $request, ClientUserAccess $clientUserAccess): JsonResponse
     {
         $this->authorize('update', $clientUserAccess);
@@ -76,6 +89,10 @@ class ClientUserAccessController extends Controller
         );
     }
 
+    /**
+     * @param ClientUserAccess $clientUserAccess
+     * @return JsonResponse
+     */
     public function destroy(ClientUserAccess $clientUserAccess): JsonResponse
     {
         $this->authorize('delete', $clientUserAccess);
@@ -88,6 +105,10 @@ class ClientUserAccessController extends Controller
         );
     }
 
+    /**
+     * @param ClientUserAccessBulkDestroyRequest $request
+     * @return JsonResponse
+     */
     public function bulkDestroy(ClientUserAccessBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', ClientUserAccess::class);
@@ -101,6 +122,10 @@ class ClientUserAccessController extends Controller
         );
     }
 
+    /**
+     * @param SsoClient $ssoClient
+     * @return JsonResponse
+     */
     public function clientAccesses(SsoClient $ssoClient): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);
@@ -123,6 +148,10 @@ class ClientUserAccessController extends Controller
         );
     }
 
+    /**
+     * @param User $user
+     * @return JsonResponse
+     */
     public function userAccesses(User $user): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);

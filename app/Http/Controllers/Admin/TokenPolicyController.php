@@ -21,6 +21,10 @@ class TokenPolicyController extends Controller
             private readonly TokenPolicyService $tokenPolicyService
     ) {}
     
+    /**
+     * @param TokenPolicyIndexRequest $request
+     * @return \Inertia\Response
+     */
     public function index(TokenPolicyIndexRequest $request): Response
     {
         $this->authorize('viewAny', TokenPolicy::class);
@@ -39,6 +43,9 @@ class TokenPolicyController extends Controller
         ));
     }
 
+    /**
+     * @return \Inertia\Response
+     */
     public function create(): Response
     {
         $this->authorize('create', TokenPolicy::class);
@@ -46,6 +53,10 @@ class TokenPolicyController extends Controller
         return Inertia::render('TokenPolicies/Create', $this->tokenPolicyService->getCreatePayload());
     }
 
+    /**
+     * @param TokenPolicyStoreRequest $request
+     * @return RedirectResponse
+     */
     public function store(TokenPolicyStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', TokenPolicy::class);
@@ -57,6 +68,10 @@ class TokenPolicyController extends Controller
             ->with('success', 'Token policy created successfully.');
     }
 
+    /**
+     * @param TokenPolicy $tokenPolicy
+     * @return \Inertia\Response
+     */
     public function edit(TokenPolicy $tokenPolicy): Response
     {
         $this->authorize('update', $tokenPolicy);
@@ -64,6 +79,11 @@ class TokenPolicyController extends Controller
         return Inertia::render('TokenPolicies/Edit', $this->tokenPolicyService->getEditPayload($tokenPolicy));
     }
 
+    /**
+     * @param TokenPolicyUpdateRequest $request
+     * @param TokenPolicy $tokenPolicy
+     * @return RedirectResponse
+     */
     public function update(TokenPolicyUpdateRequest $request, TokenPolicy $tokenPolicy): RedirectResponse
     {
         $this->authorize('update', $tokenPolicy);
@@ -75,6 +95,10 @@ class TokenPolicyController extends Controller
             ->with('success', 'Token policy updated successfully.');
     }
 
+    /**
+     * @param TokenPolicy $tokenPolicy
+     * @return JsonResponse|RedirectResponse
+     */
     public function destroy(TokenPolicy $tokenPolicy): JsonResponse|RedirectResponse
     {
         $this->authorize('delete', $tokenPolicy);
@@ -100,6 +124,10 @@ class TokenPolicyController extends Controller
             ->with('success', 'Token policy deleted successfully.');
     }
 
+    /**
+     * @param TokenPolicyBulkDestroyRequest $request
+     * @return JsonResponse
+     */
     public function bulkDestroy(TokenPolicyBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', TokenPolicy::class);

@@ -6,15 +6,19 @@ defineProps({
         type: String,
         default: '',
     },
+    grow: {
+        type: Boolean,
+        default: true,
+    },
 });
 </script>
 
 <template>
     <Card
         :pt="{
-            root: { class: 'admin-form-card surface-card flex min-h-0 flex-1 flex-col overflow-hidden' },
-            body: { class: 'admin-form-card__body flex min-h-0 flex-1 flex-col overflow-hidden' },
-            content: { class: 'admin-form-card__content flex min-h-0 flex-1 flex-col overflow-hidden p-0' },
+            root: { class: ['admin-form-card surface-card flex min-h-0 flex-col overflow-hidden', grow ? 'flex-1' : 'flex-none'] },
+            body: { class: ['admin-form-card__body flex min-h-0 flex-col overflow-hidden', grow ? 'flex-1' : 'flex-none'] },
+            content: { class: ['admin-form-card__content flex min-h-0 flex-col overflow-hidden p-0', grow ? 'flex-1' : 'flex-none'] },
         }"
     >
         <template #content>

@@ -16,6 +16,10 @@ class SelfServiceProfileController extends Controller
     ) {
     }
 
+    /**
+     * @param Request $request
+     * @return JsonResponse
+     */
     public function show(Request $request): JsonResponse
     {
         $this->authorize('viewSelf', $request->user());
@@ -27,6 +31,10 @@ class SelfServiceProfileController extends Controller
         );
     }
 
+    /**
+     * @param UpdateSelfProfileRequest $request
+     * @return JsonResponse
+     */
     public function update(UpdateSelfProfileRequest $request): JsonResponse
     {
         return $this->successResponse(
@@ -36,6 +44,10 @@ class SelfServiceProfileController extends Controller
         );
     }
 
+    /**
+     * @param UpdateSelfPasswordRequest $request
+     * @return JsonResponse
+     */
     public function updatePassword(UpdateSelfPasswordRequest $request): JsonResponse
     {
         $this->profileService->updatePassword($request->user(), $request->validated('password'), $request);
@@ -48,7 +60,8 @@ class SelfServiceProfileController extends Controller
     }
 
     /**
-     * @return array<string, mixed>
+     * @param Request $request
+     * @return array{csrf_token: string, editable_fields: string[], read_only_fields: string[]}
      */
     private function responseMeta(Request $request): array
     {

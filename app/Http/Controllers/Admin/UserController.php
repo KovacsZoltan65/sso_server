@@ -21,6 +21,10 @@ class UserController extends Controller
             private readonly UserService $userService
     ) {}
     
+    /**
+     * @param UserIndexRequest $request
+     * @return \Inertia\Response
+     */
     public function index(UserIndexRequest $request): Response
     {
         $this->authorize('viewAny', User::class);
@@ -42,6 +46,10 @@ class UserController extends Controller
         ));
     }
 
+    /**
+     * @param UserStoreRequest $request
+     * @return RedirectResponse
+     */
     public function store(UserStoreRequest $request): RedirectResponse
     {
         $this->authorize('create', User::class);
@@ -51,6 +59,11 @@ class UserController extends Controller
         return back()->with('success', 'User created successfully.');
     }
 
+    /**
+     * @param UserUpdateRequest $request
+     * @param User $user
+     * @return RedirectResponse
+     */
     public function update(UserUpdateRequest $request, User $user): RedirectResponse
     {
         $this->authorize('update', $user);
@@ -60,6 +73,10 @@ class UserController extends Controller
         return back()->with('success', 'User updated successfully.');
     }
 
+    /**
+     * @param User $user
+     * @return JsonResponse
+     */
     public function destroy(User $user): JsonResponse
     {
         $this->authorize('delete', $user);
@@ -79,6 +96,10 @@ class UserController extends Controller
         );
     }
 
+    /**
+     * @param UserBulkDestroyRequest $request
+     * @return JsonResponse
+     */
     public function bulkDestroy(UserBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', User::class);
