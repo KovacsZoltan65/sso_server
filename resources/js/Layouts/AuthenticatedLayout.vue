@@ -4,7 +4,7 @@ import AppTopbar from '@/Components/AppTopbar.vue';
 import { useNavigation } from '@/Composables/useNavigation';
 import { router, usePage } from '@inertiajs/vue3';
 import Button from 'primevue/button';
-import { ref, watch } from 'vue';
+import { onMounted, onUnmounted, ref, watch } from 'vue';
 
 const showMobileNav = ref(false);
 const page = usePage();
@@ -14,12 +14,34 @@ const logout = () => {
     router.post(route('logout'));
 };
 
+const closeMobileNav = () => {
+    showMobileNav.value = false;
+};
+
+const toggleMobileNav = () => {
+    showMobileNav.value = !showMobileNav.value;
+};
+
+const handleEscape = (event) => {
+    if (event.key === 'Escape' && showMobileNav.value) {
+        closeMobileNav();
+    }
+};
+
 watch(
     () => page.url,
     () => {
-        showMobileNav.value = false;
+        closeMobileNav();
     },
 );
+
+onMounted(() => {
+    window.addEventListener('keydown', handleEscape);
+});
+
+onUnmounted(() => {
+    window.removeEventListener('keydown', handleEscape);
+});
 </script>
 
 <template>
@@ -32,16 +54,17 @@ watch(
             <div
                 v-if="showMobileNav"
                 class="fixed inset-0 z-40 bg-slate-950/50 lg:hidden"
-                @click="showMobileNav = false"
+                @click="closeMobileNav"
             />
 
             <div
                 v-if="showMobileNav"
+                id="app-mobile-navigation"
                 class="fixed inset-y-0 left-0 z-50 w-[18rem] border-r border-white/20 bg-slate-950 px-4 py-6 text-white lg:hidden"
             >
                 <div class="mb-6 flex items-center justify-between">
                     <div class="text-sm font-semibold uppercase tracking-[0.24em] text-slate-300">Navigation</div>
-                    <Button icon="pi pi-times" severity="secondary" text rounded @click="showMobileNav = false" />
+                    <Button icon="pi pi-times" severity="secondary" text rounded aria-label="Close navigation" @click="closeMobileNav" />
                 </div>
                 <AppSidebar :items="items" />
             </div>
@@ -49,8 +72,9 @@ watch(
             <AppTopbar
                 class="flex-none"
                 :user="user"
+                :navigation-open="showMobileNav"
                 @logout="logout"
-                @toggle-navigation="showMobileNav = !showMobileNav"
+                @toggle-navigation="toggleMobileNav"
             />
 
             <main class="flex min-h-0 flex-1 flex-col">

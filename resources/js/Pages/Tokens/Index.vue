@@ -199,11 +199,14 @@ const resolveRowActions = (row) => {
         ...(props.canManageTokens && row.canRevoke ? [{
             label: "Revoke",
             icon: "pi pi-ban",
+            isPrimary: true,
+            isDangerous: true,
             command: () => confirmRevoke(row),
         }] : []),
         ...(props.canManageTokenFamilies && row.canRevokeFamily ? [{
             label: "Revoke Family",
             icon: "pi pi-shield",
+            isDangerous: true,
             command: () => openFamilyDialog(row),
         }] : []),
     ];
@@ -480,7 +483,7 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column header="Actions">
+                            <Column header="Actions" :style="{ width: '12rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="resolveRowActions(data)" :disabled="resolveRowActions(data).length === 0 || busy" />
                                 </template>

@@ -71,7 +71,7 @@ const props = defineProps({
     },
 });
 
-defineEmits(["create", "bulk-delete", "refresh", "update:searchValue"]);
+defineEmits(["create", "bulk-delete", "refresh", "submit-search", "update:searchValue"]);
 
 const bulkStatusText = computed(() => {
     if (!props.canBulkDelete) {
@@ -118,6 +118,7 @@ const bulkStatusText = computed(() => {
                                 :placeholder="searchPlaceholder"
                                 class="h-11 w-full"
                                 @update:modelValue="$emit('update:searchValue', $event)"
+                                @keyup.enter="$emit('submit-search')"
                             />
                         </IconField>
                     </slot>

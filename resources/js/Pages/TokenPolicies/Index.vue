@@ -116,8 +116,8 @@ const goToCreatePage = () => router.get(route('admin.token-policies.create'));
 const goToEditPage = (tokenPolicy) => router.get(route('admin.token-policies.edit', tokenPolicy.id));
 
 const tokenPolicyActionItems = (tokenPolicy) => [
-    { label: 'Edit', icon: 'pi pi-pencil', command: () => goToEditPage(tokenPolicy) },
-    { label: 'Delete', icon: 'pi pi-trash', disabled: !tokenPolicy.canDelete, command: () => confirmDelete(tokenPolicy) },
+    { label: 'Edit', icon: 'pi pi-pencil', isPrimary: true, command: () => goToEditPage(tokenPolicy) },
+    { label: 'Delete', icon: 'pi pi-trash', isDangerous: true, disabled: !tokenPolicy.canDelete, command: () => confirmDelete(tokenPolicy) },
 ];
 
 const formatMinutes = (minutes) => {
@@ -264,7 +264,7 @@ const formatMinutes = (minutes) => {
                         </Column>
                         <Column field="createdAt" header="Created At" sortable />
 
-                        <Column v-if="canManageTokenPolicies" header="Actions" :exportable="false" style="width: 5rem">
+                        <Column v-if="canManageTokenPolicies" header="Actions" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="tokenPolicyActionItems(data)" />
                             </template>

@@ -151,11 +151,13 @@ const scopeActionItems = (scope) => [
     {
         label: 'Edit',
         icon: 'pi pi-pencil',
+        isPrimary: true,
         command: () => goToEditPage(scope),
     },
     {
         label: 'Delete',
         icon: 'pi pi-trash',
+        isDangerous: true,
         disabled: !scope.canDelete,
         command: () => confirmDelete(scope),
     },
@@ -271,7 +273,7 @@ const scopeActionItems = (scope) => [
                         </Column>
                         <Column field="createdAt" header="Created At" sortable />
 
-                        <Column v-if="canManageScopes" header="Actions" :exportable="false" style="width: 5rem">
+                        <Column v-if="canManageScopes" header="Actions" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="scopeActionItems(data)" />
                             </template>

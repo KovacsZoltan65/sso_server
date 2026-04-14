@@ -200,11 +200,13 @@ const permissionActionItems = (permission) => [
     {
         label: "Edit",
         icon: "pi pi-pencil",
+        isPrimary: true,
         command: () => openEditModal(permission),
     },
     {
         label: "Delete",
         icon: "pi pi-trash",
+        isDangerous: true,
         disabled: !permission.canDelete,
         command: () => confirmDelete(permission),
     },
@@ -335,7 +337,7 @@ const permissionActionItems = (permission) => [
                             v-if="canManagePermissions"
                             header="Actions"
                             :exportable="false"
-                            style="width: 5rem"
+                            style="width: 12rem"
                         >
                             <template #body="{ data }">
                                 <RowActionMenu :items="permissionActionItems(data)" />

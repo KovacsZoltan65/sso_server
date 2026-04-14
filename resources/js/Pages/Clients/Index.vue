@@ -205,11 +205,13 @@ const clientActionItems = (client) => [
     {
         label: 'Edit',
         icon: 'pi pi-pencil',
+        isPrimary: true,
         command: () => goToEditPage(client),
     },
     {
         label: 'Delete',
         icon: 'pi pi-trash',
+        isDangerous: true,
         command: () => confirmDelete(client),
     },
 ];
@@ -334,7 +336,7 @@ const clientActionItems = (client) => [
                         </Column>
                         <Column field="createdAt" header="Created At" sortable />
 
-                        <Column v-if="canManageClients" header="Actions" :exportable="false" style="width: 5rem">
+                        <Column v-if="canManageClients" header="Actions" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="clientActionItems(data)" />
                             </template>

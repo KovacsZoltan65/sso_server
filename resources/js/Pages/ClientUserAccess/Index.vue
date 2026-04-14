@@ -197,11 +197,13 @@ const actionItems = (access) => [
     {
         label: 'Edit',
         icon: 'pi pi-pencil',
+        isPrimary: true,
         command: () => goToEditPage(access),
     },
     {
         label: 'Delete',
         icon: 'pi pi-trash',
+        isDangerous: true,
         disabled: !access.canDelete,
         command: () => confirmDelete({
             id: access.id,
@@ -369,7 +371,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             </template>
                         </Column>
 
-                        <Column v-if="canManageClientAccess" header="Actions" :exportable="false" style="width: 5rem">
+                        <Column v-if="canManageClientAccess" header="Actions" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="actionItems(data)" />
                             </template>

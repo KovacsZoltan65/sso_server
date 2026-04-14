@@ -246,6 +246,8 @@ const resolveRowActions = (row) => {
     return [{
         label: "Revoke",
         icon: "pi pi-ban",
+        isPrimary: true,
+        isDangerous: true,
         command: () => openRevokeDialog(row),
     }];
 };
@@ -428,7 +430,7 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column header="Actions">
+                            <Column header="Actions" :style="{ width: '12rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="resolveRowActions(data)" :disabled="resolveRowActions(data).length === 0 || busy" />
                                 </template>

@@ -8,6 +8,10 @@ defineProps({
         type: Object,
         default: null,
     },
+    navigationOpen: {
+        type: Boolean,
+        default: false,
+    },
 });
 
 const emit = defineEmits(['logout', 'toggle-navigation']);
@@ -26,6 +30,9 @@ const goToProfile = () => {
                 severity="contrast"
                 rounded
                 text
+                aria-label="Open navigation"
+                aria-controls="app-mobile-navigation"
+                :aria-expanded="String(navigationOpen)"
                 @click="emit('toggle-navigation')"
             />
             <div>
@@ -48,7 +55,7 @@ const goToProfile = () => {
                 aria-label="Profile"
                 @click="goToProfile"
             />
-            <Button icon="pi pi-sign-out" severity="secondary" text rounded @click="emit('logout')" />
+            <Button icon="pi pi-sign-out" severity="secondary" text rounded aria-label="Logout" @click="emit('logout')" />
         </div>
     </div>
 </template>

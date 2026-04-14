@@ -16,18 +16,52 @@ const props = defineProps({
 
 const menu = ref(null);
 
-const menuItems = computed(() => props.items
-    .filter(Boolean)
-    .map((item) => ({
-        ...item,
-        command: (event) => {
-            if (item.disabled) {
-                return;
-            }
+const normalizedItems = computed(() => props.items.filter(Boolean));
+const dangerousActionPattern = /(delete|remove|destroy|revoke|torles|torol|force)/i;
 
-            item.command?.(event);
-        },
-    })));
+const isDangerousAction = (item) => {
+    if (!item) {
+        return false;
+    }
+
+    return item.isDangerous === true
+        || item.severity === 'danger'
+        || item.severity === 'warn'
+        || dangerousActionPattern.test(`${item.key ?? ''} ${item.label ?? ''}`);
+};
+
+const wrapCommand = (item) => (event) => {
+    if (item.disabled) {
+        return;
+    }
+
+    item.command?.(event);
+};
+
+const primaryItem = computed(() => {
+    const explicitPrimary = normalizedItems.value.find((item) => item.isPrimary);
+
+    if (explicitPrimary) {
+        return explicitPrimary;
+    }
+
+    return normalizedItems.value.find((item) => !isDangerousAction(item)) ?? null;
+});
+
+const overflowItems = computed(() => normalizedItems.value.filter((item) => item !== primaryItem.value));
+
+const menuItems = computed(() => overflowItems.value.map((item) => ({
+    ...item,
+    command: wrapCommand(item),
+})));
+
+const primarySeverity = computed(() => {
+    if (!primaryItem.value) {
+        return 'secondary';
+    }
+
+    return primaryItem.value.severity ?? (isDangerousAction(primaryItem.value) ? 'warn' : 'secondary');
+});
 
 const toggle = (event) => {
     if (props.disabled || menuItems.value.length === 0) {
@@ -36,11 +70,34 @@ const toggle = (event) => {
 
     menu.value?.toggle(event);
 };
+
+const runPrimaryAction = (event) => {
+    if (!primaryItem.value || props.disabled || primaryItem.value.disabled) {
+        return;
+    }
+
+    wrapCommand(primaryItem.value)(event);
+};
 </script>
 
 <template>
-    <div class="relative flex justify-end">
+    <div class="relative flex items-center justify-end gap-1">
         <Button
+            v-if="primaryItem"
+            :label="primaryItem.label"
+            :icon="primaryItem.icon"
+            :severity="primarySeverity"
+            outlined
+            size="small"
+            class="max-w-full whitespace-nowrap"
+            :aria-label="primaryItem.ariaLabel ?? primaryItem.label"
+            :disabled="disabled || primaryItem.disabled"
+            :data-primary-row-action="primaryItem.label"
+            @click="runPrimaryAction"
+        />
+
+        <Button
+            v-if="menuItems.length > 0"
             icon="pi pi-ellipsis-v"
             severity="secondary"
             text
