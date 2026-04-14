@@ -106,7 +106,8 @@ describe('Admin Users index', () => {
         expect(router.get).toHaveBeenCalledTimes(1);
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'users refreshed successfully.',
+            summary: 'Sikeres művelet',
+            detail: 'Frissítés',
         }));
         expect(confirmClose).toHaveBeenCalled();
     });

@@ -146,7 +146,8 @@ describe('Remembered consents index', () => {
 
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'Remembered consent revoked successfully.',
+            summary: 'Consent visszavonva',
+            detail: 'A consent visszavonása sikeres volt.',
         }));
     });
 

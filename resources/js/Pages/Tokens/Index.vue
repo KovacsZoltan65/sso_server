@@ -3,6 +3,7 @@ import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from 'laravel-vue-i18n';
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TokenStatusTag from "@/Pages/Tokens/components/TokenStatusTag.vue";
@@ -131,10 +132,10 @@ const reload = (overrides = {}) => {
     });
 };
 
-const showError = (fallbackMessage = "Token action failed.") => {
+const showError = (fallbackMessage = trans('tokens.error_fallback')) => {
     toast.add({
         severity: "error",
-        summary: "Error",
+        summary: trans('common.error'),
         detail: fallbackMessage,
         life: 4000,
     });
@@ -145,8 +146,8 @@ const refresh = () => {
 
     toast.add({
         severity: "success",
-        summary: "Refreshed",
-        detail: "tokens refreshed successfully.",
+        summary: trans('common.success'),
+        detail: trans('tokens.refresh_detail'),
         life: 2500,
     });
 };
@@ -184,7 +185,7 @@ const onSort = (event) => {
 
 const familyLabel = (row) => {
     if (!row.familyId) {
-        return "No family";
+        return trans('tokens.family.none');
     }
 
     return row.familyId.length > 12 ? `${row.familyId.slice(0, 12)}...` : row.familyId;
@@ -214,10 +215,10 @@ const resolveRowActions = (row) => {
 
 const confirmRevoke = (row) => {
     confirm.require({
-        message: "Revoke this token?",
-        header: "Confirm revoke",
-        acceptLabel: "Revoke",
-        rejectLabel: "Cancel",
+        message: trans('tokens.revoke.confirm_message'),
+        header: trans('tokens.revoke.confirm_title'),
+        acceptLabel: trans('tokens.revoke.accept'),
+        rejectLabel: trans('common.cancel'),
         accept: async () => {
             busy.value = true;
 
@@ -229,8 +230,8 @@ const confirmRevoke = (row) => {
 
                 toast.add({
                     severity: "success",
-                    summary: "Revoked",
-                    detail: "Token revoked successfully.",
+                    summary: trans('tokens.revoke.summary'),
+                    detail: trans('tokens.revoke.detail'),
                     life: 3000,
                 });
 
@@ -238,7 +239,7 @@ const confirmRevoke = (row) => {
             } catch (error) {
                 const message = error?.response?.data?.message
                     || error?.response?.data?.errors?.token_type?.[0]
-                    || "Token action failed.";
+                    || trans('tokens.error_fallback');
 
                 showError(message);
             } finally {
@@ -269,10 +270,10 @@ const submitFamilyDialog = () => {
     const reason = familyRevokeReason.value?.trim() || "admin_family_revoked";
 
     confirm.require({
-        message: `Revoke token family ${familyLabel(row)}?`,
-        header: "Confirm family revoke",
-        acceptLabel: "Revoke Family",
-        rejectLabel: "Cancel",
+        message: trans('tokens.family.confirm_message', { family: familyLabel(row) }),
+        header: trans('tokens.family.confirm_title'),
+        acceptLabel: trans('tokens.family.accept'),
+        rejectLabel: trans('common.cancel'),
         accept: async () => {
             busy.value = true;
 
@@ -283,8 +284,8 @@ const submitFamilyDialog = () => {
 
                 toast.add({
                     severity: "success",
-                    summary: "Family Revoked",
-                    detail: "Token family revoked successfully.",
+                    summary: trans('tokens.family.summary'),
+                    detail: trans('tokens.family.detail'),
                     life: 3000,
                 });
 
@@ -294,7 +295,7 @@ const submitFamilyDialog = () => {
                 const message = error?.response?.data?.message
                     || error?.response?.data?.errors?.family_id?.[0]
                     || error?.response?.data?.errors?.reason?.[0]
-                    || "Token family action failed.";
+                    || trans('tokens.error_fallback');
 
                 showError(message);
             } finally {
@@ -311,35 +312,35 @@ usePageOverlayCleanup(() => {
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Tokens" />
+        <Head :title="trans('tokens.title')" />
         <Toast />
         <ConfirmDialog />
-        <Dialog :visible="familyDialogVisible" modal header="Revoke Token Family" @update:visible="familyDialogVisible = $event">
+        <Dialog :visible="familyDialogVisible" modal :header="trans('tokens.family.dialog_title')" @update:visible="familyDialogVisible = $event">
             <div class="flex flex-col gap-4">
                 <p class="text-sm text-slate-600">
-                    Revoke the entire token family for
-                    <span class="font-medium">{{ selectedFamilyRow?.clientName ?? "selected client" }}</span>.
+                    {{ trans('tokens.family.dialog_description') }}
+                    <span class="font-medium">{{ selectedFamilyRow?.clientName ?? trans('common.client') }}</span>.
                 </p>
                 <div class="flex flex-col gap-2">
-                    <label for="family-reason" class="text-sm font-medium text-slate-700">Reason</label>
+                    <label for="family-reason" class="text-sm font-medium text-slate-700">{{ trans('common.reason') }}</label>
                     <InputText
                         id="family-reason"
                         v-model="familyRevokeReason"
-                        placeholder="Optional revoke reason"
+                        :placeholder="trans('tokens.family.reason_placeholder')"
                         data-family-reason
                     />
                 </div>
                 <div class="flex justify-end gap-3">
-                    <Button label="Cancel" severity="secondary" outlined data-family-cancel @click="closeFamilyDialog" />
-                    <Button label="Continue" :disabled="busy" data-family-submit @click="submitFamilyDialog" />
+                    <Button :label="trans('common.cancel')" severity="secondary" outlined data-family-cancel @click="closeFamilyDialog" />
+                    <Button :label="trans('common.continue')" :disabled="busy" data-family-submit @click="submitFamilyDialog" />
                 </div>
             </div>
         </Dialog>
 
         <div class="flex h-full min-h-0 flex-1 flex-col gap-6">
             <PageHeader
-                title="Tokens"
-                description="Issued access and refresh token metadata with revocation and chain visibility."
+                :title="trans('tokens.title')"
+                :description="trans('tokens.description')"
             />
 
             <AdminTableCard>
@@ -358,7 +359,7 @@ usePageOverlayCleanup(() => {
                                 <InputText
                                     v-model="tableFilters.global.value"
                                     class="w-full"
-                                    placeholder="Search by client, user, email, or family"
+                                    :placeholder="trans('tokens.search_placeholder')"
                                     @keyup.enter="onGlobalSearch"
                                 />
                             </IconField>

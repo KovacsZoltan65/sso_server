@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { router, usePage } from '@inertiajs/vue3';
 import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { trans } from 'laravel-vue-i18n';
 import { useConfirm } from 'primevue/useconfirm';
 import { useToast } from 'primevue/usetoast';
 
@@ -42,7 +43,7 @@ export function useAdminListActions({
     const showSuccess = (message) => {
         toast.add({
             severity: 'success',
-            summary: 'Sikeres művelet',
+            summary: trans('common.success'),
             detail: message,
             life: 3000,
         });
@@ -51,7 +52,7 @@ export function useAdminListActions({
     const showError = (message) => {
         toast.add({
             severity: 'error',
-            summary: 'Hiba',
+            summary: trans('common.error'),
             detail: message,
             life: 4000,
         });
@@ -83,7 +84,7 @@ export function useAdminListActions({
 
     const refresh = () => {
         reload({}, { resetSelection: true });
-        showSuccess(`${entityLabelPlural} refreshed successfully.`);
+        showSuccess(trans('common.refresh'));
     };
 
     const extractErrorMessage = (error, fallbackMessage) => (
@@ -118,7 +119,7 @@ export function useAdminListActions({
             showSuccess(response.data.message);
             reload(shouldGoToPreviousPage ? { page: pageState.page } : {}, { resetSelection: true });
         } catch (error) {
-            showError(extractErrorMessage(error, `The selected ${entityLabel} operation could not be completed.`));
+            showError(extractErrorMessage(error, trans('common.error')));
         } finally {
             isMutating.value = false;
         }
@@ -126,11 +127,11 @@ export function useAdminListActions({
 
     const confirmDelete = (row) => {
         confirm.require({
-            message: `Delete "${row.name}"? This action cannot be undone.`,
-            header: `Delete ${entityLabel}`,
+            message: `${trans('common.delete')} "${row.name}"?`,
+            header: `${trans('common.delete')} ${entityLabel}`,
             icon: 'pi pi-exclamation-triangle',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
+            acceptLabel: trans('common.delete'),
+            rejectLabel: trans('common.cancel'),
             acceptClass: 'p-button-danger',
             accept: () => {
                 closeConfirm();
@@ -141,11 +142,11 @@ export function useAdminListActions({
 
     const confirmBulkDelete = () => {
         confirm.require({
-            message: `Delete the selected ${selectedIds.value.length} ${entityLabelPlural}? This action cannot be undone.`,
-            header: `Delete ${entityLabelPlural}`,
+            message: `${trans('common.delete')} (${selectedIds.value.length}) ${entityLabelPlural}?`,
+            header: `${trans('common.delete')} ${entityLabelPlural}`,
             icon: 'pi pi-exclamation-triangle',
-            acceptLabel: 'Delete',
-            rejectLabel: 'Cancel',
+            acceptLabel: trans('common.delete'),
+            rejectLabel: trans('common.cancel'),
             acceptClass: 'p-button-danger',
             accept: () => {
                 closeConfirm();

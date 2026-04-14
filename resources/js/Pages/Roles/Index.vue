@@ -3,6 +3,7 @@ import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
@@ -183,7 +184,7 @@ const roleActionItems = (role) => [
 </script>
 
 <template>
-    <Head title="Roles" />
+    <Head :title="trans('navigation.roles.label')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -191,8 +192,8 @@ const roleActionItems = (role) => [
 
         <div class="admin-table-page">
             <PageHeader
-                title="Roles"
-                description="Manage application roles with the same admin table standard used across users and permissions."
+                :title="trans('navigation.roles.label')"
+                :description="trans('navigation.roles.description')"
             />
 
             <AdminTableCard>
@@ -222,9 +223,9 @@ const roleActionItems = (role) => [
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManageRoles"
-                                createLabel="Create Role"
+                                :createLabel="trans('common.create')"
                                 :canBulkDelete="canManageRoles"
-                                bulkDeleteLabel="Delete Selected"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedRows.length"
                                 :selectableCount="selectableRows.length"
                                 :busy="busy"

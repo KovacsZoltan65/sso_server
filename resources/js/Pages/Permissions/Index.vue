@@ -5,6 +5,7 @@ import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
@@ -214,7 +215,7 @@ const permissionActionItems = (permission) => [
 </script>
 
 <template>
-    <Head title="Permissions" />
+    <Head :title="trans('navigation.permissions.label')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -222,8 +223,8 @@ const permissionActionItems = (permission) => [
 
         <div class="admin-table-page">
             <PageHeader
-                title="Permissions"
-                description="Manage application permissions with the same admin table standard used across users and roles."
+                :title="trans('navigation.permissions.label')"
+                :description="trans('navigation.permissions.description')"
             />
 
             <AdminTableCard>
@@ -252,11 +253,11 @@ const permissionActionItems = (permission) => [
                             <AdminTableToolbar
                                 searchable
                                 :search-value="tableFilters.global.value ?? ''"
-                                search-placeholder="Global search"
+                                :search-placeholder="trans('toolbar.search_placeholder')"
                                 :canCreate="canManagePermissions"
-                                createLabel="Create Permission"
+                                :createLabel="trans('common.create')"
                                 :canBulkDelete="canManagePermissions"
-                                bulkDeleteLabel="Delete Selected"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedCount"
                                 :selectableCount="selectableCount"
                                 :busy="busy"

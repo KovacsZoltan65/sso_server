@@ -3,6 +3,7 @@ import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from 'laravel-vue-i18n';
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { revokeRememberedConsent } from "@/Services/rememberedConsentService";
@@ -127,16 +128,16 @@ const refresh = () => {
 
     toast.add({
         severity: "success",
-        summary: "Refreshed",
-        detail: "Remembered consents refreshed successfully.",
+        summary: trans('common.success'),
+        detail: trans('remembered_consents.refresh_detail'),
         life: 2500,
     });
 };
 
-const showError = (fallbackMessage = "Remembered consent action failed.") => {
+const showError = (fallbackMessage = trans('remembered_consents.error_fallback')) => {
     toast.add({
         severity: "error",
-        summary: "Error",
+        summary: trans('common.error'),
         detail: fallbackMessage,
         life: 4000,
     });
@@ -203,10 +204,10 @@ const submitRevokeDialog = () => {
     };
 
     confirm.require({
-        message: `Revoke remembered consent #${row.id}?`,
-        header: "Confirm revoke",
-        acceptLabel: "Revoke",
-        rejectLabel: "Cancel",
+        message: trans('remembered_consents.revoke.confirm_message', { id: row.id }),
+        header: trans('remembered_consents.revoke.confirm_title'),
+        acceptLabel: trans('remembered_consents.revoke.accept'),
+        rejectLabel: trans('common.cancel'),
         accept: async () => {
             busy.value = true;
 
@@ -216,10 +217,10 @@ const submitRevokeDialog = () => {
 
                 toast.add({
                     severity: "success",
-                    summary: alreadyRevoked ? "Already revoked" : "Revoked",
+                    summary: alreadyRevoked ? trans('remembered_consents.revoke.already_revoked_summary') : trans('remembered_consents.revoke.summary'),
                     detail: alreadyRevoked
-                        ? "Remembered consent was already revoked."
-                        : "Remembered consent revoked successfully.",
+                        ? trans('remembered_consents.revoke.already_revoked_detail')
+                        : trans('remembered_consents.revoke.detail'),
                     life: 3000,
                 });
 
@@ -228,7 +229,7 @@ const submitRevokeDialog = () => {
             } catch (error) {
                 const message = error?.response?.data?.message
                     || error?.response?.data?.errors?.revocation_reason?.[0]
-                    || "Remembered consent action failed.";
+                    || trans('remembered_consents.error_fallback');
 
                 showError(message);
             } finally {
@@ -259,20 +260,19 @@ usePageOverlayCleanup(() => {
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Remembered Consents" />
+        <Head :title="trans('remembered_consents.title')" />
         <Toast />
         <ConfirmDialog />
-        <Dialog :visible="revokeDialogVisible" modal header="Revoke Remembered Consent" @update:visible="revokeDialogVisible = $event">
+        <Dialog :visible="revokeDialogVisible" modal :header="trans('remembered_consents.revoke.dialog_title')" @update:visible="revokeDialogVisible = $event">
             <div class="flex flex-col gap-4">
                 <p class="text-sm text-slate-600">
-                    Revoke remembered consent for
-                    <span class="font-medium">{{ selectedConsent?.clientName ?? "selected client" }}</span>
-                    and
-                    <span class="font-medium">{{ selectedConsent?.userEmail ?? "selected user" }}</span>.
+                    {{ trans('remembered_consents.revoke.dialog_description') }}
+                    <span class="font-medium">{{ selectedConsent?.clientName ?? trans('common.client') }}</span>
+                    <span class="font-medium">{{ selectedConsent?.userEmail ?? trans('common.user') }}</span>.
                 </p>
 
                 <div class="flex flex-col gap-2">
-                    <label for="revocation-reason" class="text-sm font-medium text-slate-700">Reason</label>
+                    <label for="revocation-reason" class="text-sm font-medium text-slate-700">{{ trans('common.reason') }}</label>
                     <Select
                         id="revocation-reason"
                         v-model="selectedRevocationReason"
@@ -285,16 +285,16 @@ usePageOverlayCleanup(() => {
                 </div>
 
                 <div class="flex justify-end gap-3">
-                    <Button label="Cancel" severity="secondary" outlined data-revoke-cancel @click="closeRevokeDialog" />
-                    <Button label="Continue" :disabled="busy" data-revoke-submit @click="submitRevokeDialog" />
+                    <Button :label="trans('common.cancel')" severity="secondary" outlined data-revoke-cancel @click="closeRevokeDialog" />
+                    <Button :label="trans('common.continue')" :disabled="busy" data-revoke-submit @click="submitRevokeDialog" />
                 </div>
             </div>
         </Dialog>
 
         <div class="flex h-full min-h-0 flex-1 flex-col gap-6">
             <PageHeader
-                title="Remembered Consents"
-                description="Review stored remembered consent grants and revoke them when policy or security requires it."
+                :title="trans('remembered_consents.title')"
+                :description="trans('remembered_consents.description')"
             />
 
             <AdminTableCard>
@@ -313,7 +313,7 @@ usePageOverlayCleanup(() => {
                                 <InputText
                                     v-model="tableFilters.global.value"
                                     class="w-full"
-                                    placeholder="Search by client, user, email, or revoke reason"
+                                    :placeholder="trans('remembered_consents.search_placeholder')"
                                     @keyup.enter="onGlobalSearch"
                                 />
                             </IconField>

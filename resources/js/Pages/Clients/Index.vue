@@ -3,6 +3,7 @@ import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
+import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { Head, router, usePage } from '@inertiajs/vue3';
@@ -218,7 +219,7 @@ const clientActionItems = (client) => [
 </script>
 
 <template>
-    <Head title="SSO Clients" />
+    <Head :title="trans('clients.title')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -226,25 +227,25 @@ const clientActionItems = (client) => [
 
         <div class="admin-table-page">
             <PageHeader
-                title="SSO Clients"
-                description="Manage client registrations with dedicated create and edit pages for a stable, scalable SSO admin flow."
+                :title="trans('clients.title')"
+                :description="trans('clients.description')"
             />
 
             <div
                 v-if="flashClientSecret"
                 class="mb-6 rounded-3xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm text-emerald-950"
             >
-                <div class="font-semibold">Client secret</div>
+                <div class="font-semibold">{{ trans('clients.flash_secret.title') }}</div>
                 <p class="mt-1 leading-6 text-emerald-900">
-                    Save this secret now. It will not be shown again after this request.
+                    {{ trans('clients.flash_secret.description') }}
                 </p>
                 <div class="mt-3 grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
                     <div class="rounded-2xl bg-white/80 px-3 py-3">
-                        <div class="text-xs uppercase tracking-[0.2em] text-emerald-700">Client ID</div>
+                        <div class="text-xs uppercase tracking-[0.2em] text-emerald-700">{{ trans('clients.fields.client_id') }}</div>
                         <div class="mt-1 break-all font-mono text-sm">{{ flashClientSecret.clientId }}</div>
                     </div>
                     <div class="rounded-2xl bg-white/80 px-3 py-3">
-                        <div class="text-xs uppercase tracking-[0.2em] text-emerald-700">Client Secret</div>
+                        <div class="text-xs uppercase tracking-[0.2em] text-emerald-700">{{ trans('clients.fields.client_secret') }}</div>
                         <div class="mt-1 break-all font-mono text-sm">{{ flashClientSecret.secret }}</div>
                     </div>
                 </div>
@@ -277,7 +278,7 @@ const clientActionItems = (client) => [
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManageClients"
-                                createLabel="Create Client"
+                                :createLabel="trans('common.create')"
                                 :busy="busy"
                                 @create="goToCreatePage"
                                 @refresh="refresh"

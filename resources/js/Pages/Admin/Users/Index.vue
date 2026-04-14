@@ -5,6 +5,7 @@ import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from 'laravel-vue-i18n';
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
@@ -231,7 +232,7 @@ const userActionItems = (user) => [
 </script>
 
 <template>
-    <Head title="Users" />
+    <Head :title="trans('navigation.users.label')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -239,8 +240,8 @@ const userActionItems = (user) => [
 
         <div class="admin-table-page">
             <PageHeader
-                title="Users"
-                description="Repository-backed admin user list with consistent selection, row actions, bulk delete, and refresh behavior."
+                :title="trans('navigation.users.label')"
+                :description="trans('navigation.users.description')"
             />
 
             <AdminTableCard>
@@ -270,11 +271,11 @@ const userActionItems = (user) => [
                             <AdminTableToolbar
                                 searchable
                                 :search-value="tableFilters.global.value ?? ''"
-                                search-placeholder="Global search"
+                                :search-placeholder="trans('toolbar.search_placeholder')"
                                 :canCreate="canManageUsers"
-                                createLabel="Create User"
+                                :createLabel="trans('common.create')"
                                 :canBulkDelete="canManageUsers"
-                                bulkDeleteLabel="Delete Selected"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedCount"
                                 :selectableCount="selectableCount"
                                 :busy="busy"

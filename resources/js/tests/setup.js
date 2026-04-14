@@ -1,11 +1,25 @@
 import { config } from '@vue/test-utils';
 import { defineComponent, h, inject, provide, ref } from 'vue';
 import { afterEach, beforeEach, vi } from 'vitest';
+import en from '../../../lang/en.json';
+import hu from '../../../lang/hu.json';
 import { axiosDelete, axiosPost, axiosPut, resetAxiosMocks } from './mocks/axios';
 import { createMockForm, getPage, resetInertiaMocks, router } from './mocks/inertia';
 import { confirmClose, confirmRequire, resetPrimeVueMocks, toastAdd } from './mocks/primevue';
 
 const dataTableColumnsKey = Symbol('dataTableColumns');
+const translations = { en, hu };
+
+const translate = (key, replacements = {}) => {
+    const locale = getPage().props.locale?.current ?? 'hu';
+    const fallback = getPage().props.locale?.fallback ?? 'en';
+    const message = translations[locale]?.[key] ?? translations[fallback]?.[key] ?? key;
+
+    return Object.entries(replacements).reduce(
+        (text, [name, value]) => text.replaceAll(`:${name}`, String(value)),
+        message,
+    );
+};
 
 const makeFieldComponent = (tag = 'input') => defineComponent({
     inheritAttrs: false,
@@ -465,6 +479,17 @@ vi.mock('@inertiajs/vue3', async () => {
         }),
     };
 });
+
+vi.mock('laravel-vue-i18n', () => ({
+    trans: translate,
+    wTrans: (key, replacements = {}) => ({ value: translate(key, replacements) }),
+    i18nVue: {
+        install(app) {
+            app.config.globalProperties.$t = translate;
+            app.config.globalProperties.trans = translate;
+        },
+    },
+}));
 
 vi.mock('axios', () => ({
     default: {
