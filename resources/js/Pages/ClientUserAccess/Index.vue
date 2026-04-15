@@ -371,7 +371,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             </template>
                         </Column>
 
-                        <Column v-if="canManageClientAccess" :header="trans('table.actions')" :exportable="false" style="width: 12rem">
+                        <Column v-if="canManageClientAccess" :header="trans('table.columns.actions')" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="actionItems(data)" />
                             </template>

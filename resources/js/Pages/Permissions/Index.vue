@@ -332,11 +332,11 @@ const permissionActionItems = (permission) => [
 
                         <Column field="rolesCount" :header="trans('table.columns.assigned_roles')" />
                         <Column field="usersCount" :header="trans('table.columns.direct_users')" />
-                        <Column field="createdAt" :header="trans('table.created_at')" sortable />
+                        <Column field="createdAt" :header="trans('table.columns.created_at')" sortable />
 
                         <Column
                             v-if="canManagePermissions"
-                            :header="trans('table.actions')"
+                            :header="trans('table.columns.actions')"
                             :exportable="false"
                             style="width: 12rem"
                         >

@@ -335,9 +335,9 @@ const clientActionItems = (client) => [
                                 </div>
                             </template>
                         </Column>
-                        <Column field="createdAt" :header="trans('table.created_at')" sortable />
+                        <Column field="createdAt" :header="trans('table.columns.created_at')" sortable />
 
-                        <Column v-if="canManageClients" :header="trans('table.actions')" :exportable="false" style="width: 12rem">
+                        <Column v-if="canManageClients" :header="trans('table.columns.actions')" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="clientActionItems(data)" />
                             </template>

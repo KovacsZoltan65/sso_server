@@ -3,7 +3,7 @@ import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
-import { trans } from 'laravel-vue-i18n';
+import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
@@ -98,8 +98,8 @@ const { busy, reload, refresh, confirmDelete, confirmBulkDelete } = useAdminList
     indexRouteName: "admin.roles.index",
     destroyRouteName: "admin.roles.destroy",
     bulkDestroyRouteName: "admin.roles.bulk-destroy",
-    entityLabel: trans('pages.roles.item'),
-    entityLabelPlural: trans('pages.roles.items'),
+    entityLabel: trans("pages.roles.item"),
+    entityLabelPlural: trans("pages.roles.items"),
     buildParams,
     clearSelection,
     selectedIds,
@@ -168,13 +168,13 @@ const goToEditPage = (role) => {
 
 const roleActionItems = (role) => [
     {
-        label: trans('actions.edit'),
+        label: trans("actions.edit"),
         icon: "pi pi-pencil",
         isPrimary: true,
         command: () => goToEditPage(role),
     },
     {
-        label: trans('actions.delete'),
+        label: trans("actions.delete"),
         icon: "pi pi-trash",
         isDangerous: true,
         disabled: !role.canDelete,
@@ -238,7 +238,9 @@ const roleActionItems = (role) => [
                                         <InputIcon class="pi pi-search text-slate-400" />
                                         <InputText
                                             v-model="tableFilters.global.value"
-                                            :placeholder="trans('roles.search_placeholder')"
+                                            :placeholder="
+                                                trans('roles.search_placeholder')
+                                            "
                                             class="w-full"
                                             @update:modelValue="onGlobalFilterInput"
                                         />
@@ -249,7 +251,7 @@ const roleActionItems = (role) => [
 
                         <template #empty>
                             <div class="py-8 text-center text-sm text-slate-500">
-                                {{ trans('table.empty') }}
+                                {{ trans("table.empty") }}
                             </div>
                         </template>
 
@@ -338,17 +340,28 @@ const roleActionItems = (role) => [
                                     />
                                 </div>
                                 <span v-else class="text-sm text-slate-500">
-                                    {{ trans('messages.no_permissions') }}
+                                    {{ trans("messages.no_permissions") }}
                                 </span>
                             </template>
                         </Column>
 
-                        <Column field="usersCount" :header="trans('table.columns.assigned_users')" />
-                        <Column field="createdAt" :header="trans('table.created_at')" sortable />
+                        <!-- Hozzárendelt felhasználók -->
+                        <Column
+                            field="usersCount"
+                            :header="trans('table.columns.assigned_users')"
+                        />
 
+                        <!-- Create At -->
+                        <Column
+                            field="createdAt"
+                            :header="trans('table.columns.created_at')"
+                            sortable
+                        />
+
+                        <!-- Actions -->
                         <Column
                             v-if="canManageRoles"
-                            :header="trans('table.actions')"
+                            :header="trans('table.columns.actions')"
                             :exportable="false"
                             style="width: 12rem"
                         >
@@ -364,10 +377,22 @@ const roleActionItems = (role) => [
                         class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <div>
-                            {{ trans('table.showing_of', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total, item: trans('pages.roles.items') }) }}
+                            {{
+                                trans("table.showing_of", {
+                                    from: pagination.from ?? 0,
+                                    to: pagination.to ?? 0,
+                                    total: pagination.total,
+                                    item: trans("pages.roles.items"),
+                                })
+                            }}
                         </div>
                         <div>
-                            {{ trans('table.page_of', { current: pagination.currentPage, last: pagination.lastPage }) }}
+                            {{
+                                trans("table.page_of", {
+                                    current: pagination.currentPage,
+                                    last: pagination.lastPage,
+                                })
+                            }}
                         </div>
                     </div>
                 </template>

@@ -5,7 +5,7 @@ import AdminTableSummary from "@/Components/Admin/AdminTableSummary.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
-import { trans } from 'laravel-vue-i18n';
+import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
@@ -73,9 +73,15 @@ const {
     initialSortOrder: props.sorting.order ?? 1,
     initialTotalRecords: props.pagination.total ?? 0,
     initialFilters: {
-        global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
+        global: {
+            value: props.filters.global ?? null,
+            matchMode: FilterMatchMode.CONTAINS,
+        },
         name: { value: props.filters.name ?? null, matchMode: FilterMatchMode.CONTAINS },
-        email: { value: props.filters.email ?? null, matchMode: FilterMatchMode.CONTAINS },
+        email: {
+            value: props.filters.email ?? null,
+            matchMode: FilterMatchMode.CONTAINS,
+        },
         isActive: {
             value: props.filters.status ?? null,
             matchMode: FilterMatchMode.EQUALS,
@@ -117,16 +123,17 @@ const clearTableSelection = () => {
     clearSelectionRows();
 };
 
-const buildParams = (overrides = {}) => buildFetchParams({
-    filters: {
-        global: tableFilters.global.value || undefined,
-        name: tableFilters.name.value || undefined,
-        email: tableFilters.email.value || undefined,
-        status: tableFilters.isActive.value || undefined,
-        verified: tableFilters.emailVerifiedAt.value || undefined,
-    },
-    extra: overrides,
-});
+const buildParams = (overrides = {}) =>
+    buildFetchParams({
+        filters: {
+            global: tableFilters.global.value || undefined,
+            name: tableFilters.name.value || undefined,
+            email: tableFilters.email.value || undefined,
+            status: tableFilters.isActive.value || undefined,
+            verified: tableFilters.emailVerifiedAt.value || undefined,
+        },
+        extra: overrides,
+    });
 
 const {
     busy,
@@ -151,20 +158,25 @@ const {
 const onGlobalFilterInput = (value) => {
     tableFilters.global.value = value ?? null;
     resetPagination();
-    reload(buildParams({ page: 1, global: value || undefined }), { resetSelection: true });
+    reload(buildParams({ page: 1, global: value || undefined }), {
+        resetSelection: true,
+    });
 };
 
 const onFilter = (event) => {
     resetPagination();
 
-    reload(buildParams({
-        page: 1,
-        global: event.filters.global?.value || undefined,
-        name: event.filters.name?.value || undefined,
-        email: event.filters.email?.value || undefined,
-        status: event.filters.isActive?.value || undefined,
-        verified: event.filters.emailVerifiedAt?.value || undefined,
-    }), { resetSelection: true });
+    reload(
+        buildParams({
+            page: 1,
+            global: event.filters.global?.value || undefined,
+            name: event.filters.name?.value || undefined,
+            email: event.filters.email?.value || undefined,
+            status: event.filters.isActive?.value || undefined,
+            verified: event.filters.emailVerifiedAt?.value || undefined,
+        }),
+        { resetSelection: true }
+    );
 };
 
 const onSort = (event) => {
@@ -216,13 +228,13 @@ const handleSaved = ({ message }) => {
 
 const userActionItems = (user) => [
     {
-        label: "Edit",
+        label: trans("actions.edit"),
         icon: "pi pi-pencil",
         isPrimary: true,
         command: () => openEditModal(user),
     },
     {
-        label: "Delete",
+        label: trans("actions.delete"),
         icon: "pi pi-trash",
         isDangerous: true,
         disabled: !user.canDelete,
@@ -319,7 +331,7 @@ const userActionItems = (user) => [
 
                         <Column
                             field="name"
-                            header="Name"
+                            :header="trans('table.columns.name')"
                             sortable
                             :showFilterMatchModes="false"
                             :showFilterOperator="false"
@@ -353,7 +365,7 @@ const userActionItems = (user) => [
 
                         <Column
                             field="email"
-                            header="Email"
+                            :header="trans('table.columns.email')"
                             sortable
                             :showFilterMatchModes="false"
                             :showFilterOperator="false"
@@ -371,7 +383,7 @@ const userActionItems = (user) => [
 
                         <Column
                             field="isActive"
-                            header="Status"
+                            :header="trans('table.columns.status')"
                             sortable
                             :showFilterMatchModes="false"
                             :showFilterOperator="false"
@@ -397,7 +409,7 @@ const userActionItems = (user) => [
                             </template>
                         </Column>
 
-                        <Column header="Roles">
+                        <Column :header="trans('table.columns.roles')">
                             <template #body="{ data }">
                                 <div class="flex flex-wrap gap-2">
                                     <Tag
@@ -412,7 +424,7 @@ const userActionItems = (user) => [
 
                         <Column
                             field="emailVerifiedAt"
-                            header="Verified"
+                            :header="trans('table.columns.verified')"
                             sortable
                             :showFilterMatchModes="false"
                             :showFilterOperator="false"
@@ -438,11 +450,15 @@ const userActionItems = (user) => [
                             </template>
                         </Column>
 
-                        <Column field="createdAt" header="Created At" sortable />
+                        <Column
+                            field="createdAt"
+                            :header="trans('table.columns.created_at')"
+                            sortable
+                        />
 
                         <Column
                             v-if="canManageUsers"
-                            header="Actions"
+                            :header="trans('common.actions')"
                             :exportable="false"
                             style="width: 12rem"
                         >

@@ -430,7 +430,7 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column :header="trans('table.actions')" :style="{ width: '12rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '12rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="resolveRowActions(data)" :disabled="resolveRowActions(data).length === 0 || busy" />
                                 </template>
