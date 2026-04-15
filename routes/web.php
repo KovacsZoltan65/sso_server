@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\ScopeController;
 use App\Http\Controllers\Admin\TokenController as AdminTokenController;
 use App\Http\Controllers\Admin\TokenPolicyController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\OAuth\AuthorizationController;
 use App\Http\Controllers\OAuth\OidcDiscoveryController;
 use App\Http\Controllers\OAuth\OidcEndSessionController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
+Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 Route::get('/.well-known/openid-configuration', OidcDiscoveryController::class)->name('oidc.discovery');
 Route::get('/.well-known/jwks.json', OidcJwksController::class)->name('oidc.jwks');

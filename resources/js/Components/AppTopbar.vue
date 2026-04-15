@@ -3,6 +3,7 @@ import { router } from "@inertiajs/vue3";
 
 import Avatar from "primevue/avatar";
 import Button from "primevue/button";
+import LanguageSwitcher from "@/Components/LanguageSwitcher.vue";
 
 defineProps({
     user: {
@@ -46,6 +47,7 @@ const goToProfile = () => {
         </div>
 
         <div class="flex items-center gap-3">
+            <LanguageSwitcher />
             <div class="hidden text-right sm:block">
                 <div class="text-sm font-semibold">{{ user?.name }}</div>
                 <div class="text-xs text-slate-500">{{ user?.email }}</div>

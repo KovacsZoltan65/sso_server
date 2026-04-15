@@ -52,7 +52,7 @@ class HandleInertiaRequests extends Middleware
             'locale' => [
                 'current' => app()->getLocale(),
                 'fallback' => config('app.fallback_locale'),
-                'available' => ['hu', 'en'],
+                'available' => config('app.available_locales', ['hu', 'en']),
             ],
         ];
     }
