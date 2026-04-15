@@ -1,6 +1,7 @@
 <script setup>
 import GuestLayout from '@/Layouts/GuestLayout.vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import Button from 'primevue/button';
 import Message from 'primevue/message';
 
@@ -15,23 +16,23 @@ const form = useForm({});
 </script>
 
 <template>
-    <Head title="Verify email" />
+    <Head :title="trans('auth.verify_email.page_title')" />
 
     <GuestLayout
-        title="Verify your email address"
-        description="Email verification is still available from the Breeze stack if you enable it on the User model later."
+        :title="trans('auth.verify_email.title')"
+        :description="trans('auth.verify_email.description')"
     >
         <Message v-if="props.status === 'verification-link-sent'" severity="success" class="mb-5">
-            A fresh verification link has been sent to your email address.
+            {{ trans('auth.verify_email.link_sent') }}
         </Message>
 
         <div class="space-y-5">
             <p class="section-copy">
-                Thanks for signing up. Before getting started, confirm your address by clicking the link we emailed to you.
+                {{ trans('auth.verify_email.description') }}
             </p>
 
             <Button
-                label="Resend verification email"
+                :label="trans('auth.verify_email.resend_cta')"
                 icon="pi pi-send"
                 class="w-full justify-center"
                 :loading="form.processing"
@@ -39,7 +40,7 @@ const form = useForm({});
             />
 
             <Link :href="route('logout')" method="post" as="button" class="w-full text-center text-sm font-semibold text-slate-600">
-                Log out
+                {{ trans('common.logout') }}
             </Link>
         </div>
     </GuestLayout>

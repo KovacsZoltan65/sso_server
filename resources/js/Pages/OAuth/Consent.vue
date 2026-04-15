@@ -1,6 +1,7 @@
 <script setup>
 import PublicAuthLayout from '@/Layouts/PublicAuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import Button from 'primevue/button';
 
 const props = defineProps({
@@ -24,11 +25,11 @@ const props = defineProps({
 
 const outcomeCopy = {
     approve: props.client.originHost
-        ? `Approve to continue back to ${props.client.originHost}${props.client.returnPath || ''}.`
-        : 'Approve to continue back to the requesting application.',
+        ? trans('pages.consent.outcome_approve_with_host', { host: `${props.client.originHost}${props.client.returnPath || ''}` })
+        : trans('pages.consent.outcome_approve_generic'),
     deny: props.client.originHost
-        ? `Deny to return safely to ${props.client.originHost} without sharing these permissions.`
-        : 'Deny to stop this request without sharing these permissions.',
+        ? trans('pages.consent.outcome_deny_with_host', { host: props.client.originHost })
+        : trans('pages.consent.outcome_deny_generic'),
 };
 
 const approveForm = useForm({
@@ -49,9 +50,9 @@ const submitDeny = () => {
 </script>
 
 <template>
-    <Head title="Review access request" />
+    <Head :title="trans('pages.consent.title')" />
 
-    <PublicAuthLayout title="Review access request" :description="summary.description">
+    <PublicAuthLayout :title="trans('pages.consent.title')" :description="summary.description">
         <div class="space-y-6">
             <p
                 v-if="approveForm.errors.consent_token || denyForm.errors.consent_token"
@@ -63,7 +64,7 @@ const submitDeny = () => {
             <section class="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                     <div>
-                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Application</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{{ trans('fields.application') }}</p>
                         <h3 class="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{{ client.name }}</h3>
                     </div>
                     <span
@@ -77,15 +78,15 @@ const submitDeny = () => {
 
                 <div class="mt-4 grid gap-3 md:grid-cols-2">
                     <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Registered origin</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{{ trans('pages.consent.registered_origin') }}</p>
                         <p class="mt-2 text-sm font-semibold text-slate-900">
-                            {{ client.originHost || 'Registered application' }}
+                            {{ client.originHost || trans('pages.consent.registered_application') }}
                         </p>
                     </div>
                     <div class="rounded-2xl border border-slate-200 bg-white px-4 py-3">
-                        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Return destination</p>
+                        <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{{ trans('pages.consent.return_destination') }}</p>
                         <p class="mt-2 text-sm font-semibold text-slate-900">
-                            {{ client.originHost || 'Application callback' }}{{ client.returnPath || '' }}
+                            {{ client.originHost || trans('pages.consent.application_callback') }}{{ client.returnPath || '' }}
                         </p>
                     </div>
                 </div>
@@ -93,7 +94,7 @@ const submitDeny = () => {
 
             <section class="space-y-3">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Requested access</p>
+                    <p class="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{{ trans('pages.consent.requested_access') }}</p>
                     <p class="mt-2 text-sm leading-7 text-slate-600">{{ summary.title }}</p>
                 </div>
 
@@ -123,7 +124,7 @@ const submitDeny = () => {
                     <p class="mb-2 text-xs leading-5 text-slate-500">{{ outcomeCopy.approve }}</p>
                     <Button
                         type="submit"
-                        label="Approve"
+                        :label="trans('actions.approve')"
                         icon="pi pi-check"
                         class="w-full justify-center"
                         :loading="approveForm.processing"
@@ -133,7 +134,7 @@ const submitDeny = () => {
                     <p class="mb-2 text-xs leading-5 text-slate-500">{{ outcomeCopy.deny }}</p>
                     <Button
                         type="submit"
-                        label="Deny"
+                        :label="trans('actions.deny')"
                         icon="pi pi-times"
                         severity="secondary"
                         class="w-full justify-center"
@@ -143,7 +144,7 @@ const submitDeny = () => {
             </div>
 
             <p class="text-xs leading-6 text-slate-500">
-                Both decisions rely on the server-side consent token instead of browser-provided authorize fields.
+                {{ trans('pages.consent.footer_note') }}
             </p>
         </div>
     </PublicAuthLayout>

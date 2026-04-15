@@ -273,7 +273,7 @@ const userActionItems = (user) => [
                                 :search-value="tableFilters.global.value ?? ''"
                                 :search-placeholder="trans('toolbar.search_placeholder')"
                                 :canCreate="canManageUsers"
-                                :createLabel="trans('common.create')"
+                                :createLabel="trans('actions.create')"
                                 :canBulkDelete="canManageUsers"
                                 :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedCount"

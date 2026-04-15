@@ -52,7 +52,7 @@ class UpdateSelfPasswordRequest extends FormRequest
                 }
 
                 foreach ($unexpectedKeys as $key) {
-                    $validator->errors()->add($key, 'This field cannot be updated through self-service password change.');
+                    $validator->errors()->add($key, __('validation.custom.self_service_password.forbidden_field'));
                 }
 
                 app(SelfServiceProfileService::class)->logForbiddenMutationAttempt(

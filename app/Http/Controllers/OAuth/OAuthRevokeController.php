@@ -20,14 +20,14 @@ class OAuthRevokeController extends Controller
             $tokenService->revokeToken($request->validated());
         } catch (ValidationException $exception) {
             return $this->errorResponse(
-                message: 'OAuth token revoke request failed.',
+                message: __('api.oauth.revoke.request_failed'),
                 errors: $exception->errors(),
                 status: $exception->status,
             );
         }
 
         return $this->successResponse(
-            message: 'Token revoked successfully.',
+            message: __('api.tokens.revoked'),
             data: null,
         );
     }

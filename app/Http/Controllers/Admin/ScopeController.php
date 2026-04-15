@@ -67,7 +67,7 @@ class ScopeController extends Controller
 
         return redirect()
             ->route('admin.scopes.index')
-            ->with('success', 'Scope created successfully.');
+            ->with('success', __('api.scopes.created'));
     }
 
     /**
@@ -99,7 +99,7 @@ class ScopeController extends Controller
 
         return redirect()
             ->route('admin.scopes.index')
-            ->with('success', 'Scope updated successfully.');
+            ->with('success', __('api.scopes.updated'));
     }
 
     /**
@@ -127,14 +127,14 @@ class ScopeController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: 'Scope deleted successfully.',
+                message: __('api.scopes.deleted'),
                 data: ['id' => $scope->id],
             );
         }
 
         return redirect()
             ->route('admin.scopes.index')
-            ->with('success', 'Scope deleted successfully.');
+            ->with('success', __('api.scopes.deleted'));
     }
 
     /**
@@ -155,7 +155,7 @@ class ScopeController extends Controller
         }
 
         return $this->successResponse(
-            message: 'Selected scopes deleted successfully.',
+            message: __('api.scopes.bulk_deleted'),
             data: ['ids' => $deletedIds],
             meta: ['deletedCount' => count($deletedIds)],
         );

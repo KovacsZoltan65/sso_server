@@ -84,27 +84,27 @@ const tableState = reactive({
 
 const perPageOptions = [5, 10, 15, 25];
 const tokenTypeOptions = [
-    { label: "Access Token", value: "access_token" },
-    { label: "Refresh Token", value: "refresh_token" },
+    { label: trans("pages.tokens.access_token"), value: "access_token" },
+    { label: trans("pages.tokens.refresh_token"), value: "refresh_token" },
 ];
 const stateOptions = [
-    { label: "All", value: null },
-    { label: "Active", value: "active" },
-    { label: "Expired", value: "expired" },
-    { label: "Revoked", value: "revoked" },
-    { label: "Rotated", value: "rotated" },
-    { label: "Suspicious", value: "suspicious" },
-    { label: "Family Revoked", value: "family_revoked" },
+    { label: trans("common.all"), value: null },
+    { label: trans("status.active"), value: "active" },
+    { label: trans("status.expired"), value: "expired" },
+    { label: trans("status.revoked"), value: "revoked" },
+    { label: trans("status.rotated"), value: "rotated" },
+    { label: trans("status.suspicious"), value: "suspicious" },
+    { label: trans("status.family_revoked"), value: "family_revoked" },
 ];
 const clientSelectOptions = computed(() => [
-    { label: "All clients", value: null },
+    { label: trans("pages.tokens.all_clients"), value: null },
     ...props.clientOptions.map((client) => ({
         label: `${client.name} (${client.clientId})`,
         value: client.id,
     })),
 ]);
 const userSelectOptions = computed(() => [
-    { label: "All users", value: null },
+    { label: trans("pages.tokens.all_users"), value: null },
     ...props.userOptions.map((user) => ({
         label: `${user.name} (${user.email})`,
         value: user.id,
@@ -198,14 +198,14 @@ const resolveRowActions = (row) => {
 
     return [
         ...(props.canManageTokens && row.canRevoke ? [{
-            label: "Revoke",
+            label: trans("actions.revoke"),
             icon: "pi pi-ban",
             isPrimary: true,
             isDangerous: true,
             command: () => confirmRevoke(row),
         }] : []),
         ...(props.canManageTokenFamilies && row.canRevokeFamily ? [{
-            label: "Revoke Family",
+            label: trans("actions.revoke_family"),
             icon: "pi pi-shield",
             isDangerous: true,
             command: () => openFamilyDialog(row),
@@ -372,7 +372,7 @@ usePageOverlayCleanup(() => {
                             :options="tokenTypeOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Token type"
+                            :placeholder="trans('table.columns.type')"
                             @update:model-value="onTokenTypeChange"
                         />
                         <Select
@@ -380,7 +380,7 @@ usePageOverlayCleanup(() => {
                             :options="stateOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="State"
+                            :placeholder="trans('table.columns.state')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -388,7 +388,7 @@ usePageOverlayCleanup(() => {
                             :options="clientSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Client"
+                            :placeholder="trans('common.client')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -396,7 +396,7 @@ usePageOverlayCleanup(() => {
                             :options="userSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="User"
+                            :placeholder="trans('common.user')"
                             @change="onTableFilter"
                         />
                     </div>
@@ -420,13 +420,13 @@ usePageOverlayCleanup(() => {
                             @page="onPage"
                             @sort="onSort"
                         >
-                            <Column field="tokenType" header="Type" sortable>
+                            <Column field="tokenType" :header="trans('table.columns.type')" sortable>
                                 <template #body="{ data }">
-                                    <span>{{ data.tokenType === "access_token" ? "Access Token" : "Refresh Token" }}</span>
+                                    <span>{{ data.tokenType === "access_token" ? trans('pages.tokens.access_token') : trans('pages.tokens.refresh_token') }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="userName" header="User" sortable>
+                            <Column field="userName" :header="trans('table.columns.user')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.userName }}</span>
@@ -435,7 +435,7 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="clientName" header="Client" sortable>
+                            <Column field="clientName" :header="trans('table.columns.client')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.clientName }}</span>
@@ -444,47 +444,47 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="status" header="Status">
+                            <Column field="status" :header="trans('table.columns.status')">
                                 <template #body="{ data }">
                                     <div data-token-status class="flex items-center gap-2">
                                         <TokenStatusTag :status="data.status" />
                                         <span v-if="data.suspiciousIncident" class="text-xs font-medium text-amber-700" data-token-suspicious>
-                                            Incident
+                                            {{ trans('status.incident') }}
                                         </span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column field="familyId" header="Family">
+                            <Column field="familyId" :header="trans('table.columns.family')">
                                 <template #body="{ data }">
                                     <div class="flex flex-col text-sm" data-token-family>
                                         <span>{{ familyLabel(data) }}</span>
-                                        <span v-if="data.parentTokenId" class="text-slate-500">Parent #{{ data.parentTokenId }}</span>
-                                        <span v-if="data.replacedByTokenId" class="text-slate-500">Replaced by #{{ data.replacedByTokenId }}</span>
-                                        <span v-if="data.familyRevoked" class="text-slate-500">Family revoked</span>
+                                        <span v-if="data.parentTokenId" class="text-slate-500">{{ trans('pages.tokens.parent_token', { id: data.parentTokenId }) }}</span>
+                                        <span v-if="data.replacedByTokenId" class="text-slate-500">{{ trans('pages.tokens.replaced_by_token', { id: data.replacedByTokenId }) }}</span>
+                                        <span v-if="data.familyRevoked" class="text-slate-500">{{ trans('status.family_revoked') }}</span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column field="issuedAt" header="Issued" sortable>
+                            <Column field="issuedAt" :header="trans('table.columns.issued')" sortable>
                                 <template #body="{ data }">
                                     <span>{{ data.issuedAt }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="expiresAt" header="Expires" sortable>
+                            <Column field="expiresAt" :header="trans('table.columns.expires')" sortable>
                                 <template #body="{ data }">
-                                    <span>{{ data.expiresAt ?? "N/A" }}</span>
+                                    <span>{{ data.expiresAt ?? trans('common.not_available') }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="revokedAt" header="Revoked">
+                            <Column field="revokedAt" :header="trans('table.columns.revoked')">
                                 <template #body="{ data }">
-                                    <span>{{ data.revokedAt ?? "N/A" }}</span>
+                                    <span>{{ data.revokedAt ?? trans('common.not_available') }}</span>
                                 </template>
                             </Column>
 
-                            <Column header="Actions" :style="{ width: '12rem' }">
+                            <Column :header="trans('table.actions')" :style="{ width: '12rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="resolveRowActions(data)" :disabled="resolveRowActions(data).length === 0 || busy" />
                                 </template>
@@ -492,7 +492,7 @@ usePageOverlayCleanup(() => {
 
                             <template #empty>
                                 <div class="flex min-h-40 items-center justify-center text-slate-500">
-                                    No tokens match the current filters.
+                                    {{ trans('table.empty') }}
                                 </div>
                             </template>
                         </DataTable>

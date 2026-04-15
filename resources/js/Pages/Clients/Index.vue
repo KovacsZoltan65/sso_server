@@ -102,8 +102,8 @@ const {
     indexRouteName: 'admin.sso-clients.index',
     destroyRouteName: 'admin.sso-clients.destroy',
     bulkDestroyRouteName: 'admin.sso-clients.destroy',
-    entityLabel: 'SSO Client',
-    entityLabelPlural: 'clients',
+    entityLabel: trans('navigation.sso_clients.label'),
+    entityLabelPlural: trans('pages.clients.items'),
     buildParams,
     clearSelection: () => {},
     selectedIds: ref([]),
@@ -122,7 +122,7 @@ watch(
 
         toast.add({
             severity: 'success',
-            summary: 'Sikeres művelet',
+            summary: trans('common.success'),
             detail: message,
             life: 3000,
         });
@@ -139,7 +139,7 @@ watch(
 
         toast.add({
             severity: 'error',
-            summary: 'Hiba',
+            summary: trans('common.error'),
             detail: message,
             life: 4000,
         });
@@ -204,13 +204,13 @@ const goToEditPage = (client) => {
 
 const clientActionItems = (client) => [
     {
-        label: 'Edit',
+        label: trans('actions.edit'),
         icon: 'pi pi-pencil',
         isPrimary: true,
         command: () => goToEditPage(client),
     },
     {
-        label: 'Delete',
+        label: trans('actions.delete'),
         icon: 'pi pi-trash',
         isDangerous: true,
         command: () => confirmDelete(client),
@@ -278,7 +278,7 @@ const clientActionItems = (client) => [
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManageClients"
-                                :createLabel="trans('common.create')"
+                                :createLabel="trans('actions.create')"
                                 :busy="busy"
                                 @create="goToCreatePage"
                                 @refresh="refresh"
@@ -288,7 +288,7 @@ const clientActionItems = (client) => [
                                         <InputIcon class="pi pi-search text-slate-400" />
                                         <InputText
                                             v-model="tableFilters.global.value"
-                                            placeholder="Search clients"
+                                            :placeholder="trans('clients.search_placeholder')"
                                             class="w-full"
                                             @update:modelValue="onGlobalFilterInput"
                                         />
@@ -299,28 +299,28 @@ const clientActionItems = (client) => [
 
                         <template #empty>
                             <div class="py-8 text-center text-sm text-slate-500">
-                                No clients found for the current filters.
+                                {{ trans('table.empty') }}
                             </div>
                         </template>
 
-                        <Column field="name" header="Name" sortable />
-                        <Column field="clientId" header="Client ID" sortable />
-                        <Column field="isActive" header="Status">
+                        <Column field="name" :header="trans('table.columns.name')" sortable />
+                        <Column field="clientId" :header="trans('clients.fields.client_id')" sortable />
+                        <Column field="isActive" :header="trans('table.columns.status')">
                             <template #body="{ data }">
-                                <Tag :value="data.isActive ? 'Active' : 'Inactive'" :severity="data.isActive ? 'success' : 'warn'" />
+                                <Tag :value="data.isActive ? trans('status.active') : trans('status.inactive')" :severity="data.isActive ? 'success' : 'warn'" />
                             </template>
                         </Column>
-                        <Column field="redirectUriCount" header="Redirect URIs">
+                        <Column field="redirectUriCount" :header="trans('table.columns.redirect_uris')">
                             <template #body="{ data }">
                                 <div class="space-y-1">
                                     <div class="font-medium text-slate-700">{{ data.redirectUriCount }}</div>
                                     <div class="text-xs text-slate-500">
-                                        {{ data.redirectUris[0] ?? 'No redirect URI configured' }}
+                                        {{ data.redirectUris[0] ?? trans('messages.no_redirect_uri') }}
                                     </div>
                                 </div>
                             </template>
                         </Column>
-                        <Column field="scopesCount" header="Scopes">
+                        <Column field="scopesCount" :header="trans('table.columns.scopes')">
                             <template #body="{ data }">
                                 <div class="flex flex-wrap gap-2">
                                     <Tag
@@ -330,14 +330,14 @@ const clientActionItems = (client) => [
                                         severity="secondary"
                                     />
                                     <span v-if="data.scopes.length > 3" class="text-xs text-slate-500">
-                                        +{{ data.scopes.length - 3 }} more
+                                        +{{ data.scopes.length - 3 }} {{ trans('common.more') }}
                                     </span>
                                 </div>
                             </template>
                         </Column>
-                        <Column field="createdAt" header="Created At" sortable />
+                        <Column field="createdAt" :header="trans('table.created_at')" sortable />
 
-                        <Column v-if="canManageClients" header="Actions" :exportable="false" style="width: 12rem">
+                        <Column v-if="canManageClients" :header="trans('table.actions')" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="clientActionItems(data)" />
                             </template>
@@ -348,9 +348,9 @@ const clientActionItems = (client) => [
                 <template #footer>
                     <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} clients
+                            {{ trans('table.showing_of', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total, item: trans('pages.clients.items') }) }}
                         </div>
-                        <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
+                        <div>{{ trans('table.page_of', { current: pagination.currentPage, last: pagination.lastPage }) }}</div>
                     </div>
                 </template>
             </AdminTableCard>

@@ -61,7 +61,7 @@ class TokenController extends Controller
         );
 
         return $this->successResponse(
-            message: 'Token revoked successfully.',
+            message: __('api.tokens.revoked'),
             data: ['id' => $token->id],
         );
     }
@@ -81,16 +81,16 @@ class TokenController extends Controller
             );
         } catch (ModelNotFoundException) {
             return $this->errorResponse(
-                message: 'Token family not found.',
-                errors: ['family_id' => ['Token family not found.']],
+                message: __('api.tokens.family_not_found'),
+                errors: ['family_id' => [__('api.tokens.family_not_found')]],
                 status: 404,
             );
         }
 
         return $this->successResponse(
             message: $result['already_revoked']
-                ? 'Token family was already revoked.'
-                : 'Token family revoked successfully.',
+                ? __('api.tokens.family_already_revoked')
+                : __('api.tokens.family_revoked'),
             data: $result,
         );
     }

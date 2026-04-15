@@ -49,7 +49,7 @@ class UpdateSelfProfileRequest extends FormRequest
                 }
 
                 foreach ($unexpectedKeys as $key) {
-                    $validator->errors()->add($key, 'This field cannot be updated through self-service profile.');
+                    $validator->errors()->add($key, __('validation.custom.self_service_profile.forbidden_field'));
                 }
 
                 app(SelfServiceProfileService::class)->logForbiddenMutationAttempt(

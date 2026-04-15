@@ -71,7 +71,7 @@ class ClientController extends Controller
 
         return redirect()
             ->route('admin.sso-clients.index')
-            ->with('success', 'SSO client created successfully.')
+            ->with('success', __('api.clients.created'))
             ->with('clientSecret', [
                 'clientId' => $result['client']->client_id,
                 'secret' => $result['plainSecret'],
@@ -106,7 +106,7 @@ class ClientController extends Controller
 
         return redirect()
             ->route('admin.sso-clients.index')
-            ->with('success', 'SSO client updated successfully.');
+            ->with('success', __('api.clients.updated'));
     }
 
     /**
@@ -125,7 +125,7 @@ class ClientController extends Controller
 
         return redirect()
             ->route('admin.sso-clients.edit', $ssoClient)
-            ->with('success', 'Client secret rotated successfully.')
+            ->with('success', __('api.clients.secret_rotated'))
             ->with('clientSecret', [
                 'clientId' => $result['client']->client_id,
                 'secret' => $result['plainSecret'],
@@ -150,14 +150,14 @@ class ClientController extends Controller
 
         if ($request->expectsJson()) {
             return $this->successResponse(
-                message: 'Client secret revoked successfully.',
+                message: __('api.clients.secret_revoked'),
                 data: ['id' => $clientSecret->id],
             );
         }
 
         return redirect()
             ->route('admin.sso-clients.edit', $ssoClient)
-            ->with('success', 'Client secret revoked successfully.');
+            ->with('success', __('api.clients.secret_revoked'));
     }
 
     /**
@@ -173,13 +173,13 @@ class ClientController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: 'SSO client deleted successfully.',
+                message: __('api.clients.deleted'),
                 data: ['id' => $ssoClient->id],
             );
         }
 
         return redirect()
             ->route('admin.sso-clients.index')
-            ->with('success', 'SSO client deleted successfully.');
+            ->with('success', __('api.clients.deleted'));
     }
 }

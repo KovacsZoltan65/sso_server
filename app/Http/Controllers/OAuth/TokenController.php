@@ -18,10 +18,10 @@ class TokenController extends Controller
                 ? $tokenService->refreshAccessToken($payload, $request->ip(), $request->userAgent())
                 : $tokenService->exchangeAuthorizationCode($payload, $request->ip(), $request->userAgent());
 
-            return $this->successResponse('OAuth token issued successfully.', $result);
+            return $this->successResponse(__('api.oauth.token.issued'), $result);
         } catch (ValidationException $exception) {
             return $this->errorResponse(
-                message: 'OAuth token request failed.',
+                message: __('api.oauth.token.request_failed'),
                 errors: $exception->errors(),
                 status: 422,
             );

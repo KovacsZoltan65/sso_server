@@ -1,5 +1,6 @@
 <script setup>
 import Button from 'primevue/button';
+import { trans } from 'laravel-vue-i18n';
 import Menu from 'primevue/menu';
 import { computed, ref } from 'vue';
 
@@ -102,7 +103,7 @@ const runPrimaryAction = (event) => {
             severity="secondary"
             text
             rounded
-            aria-label="Row actions"
+            :aria-label="trans('table.row_actions')"
             :disabled="disabled"
             @click="toggle"
         />

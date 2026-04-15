@@ -98,7 +98,7 @@ const bulkStatusText = computed(() => {
 const resolvedSearchPlaceholder = computed(
     () => props.searchPlaceholder || trans("toolbar.search_placeholder")
 );
-const resolvedCreateLabel = computed(() => props.createLabel || trans("common.create"));
+const resolvedCreateLabel = computed(() => props.createLabel || trans("actions.create"));
 const resolvedBulkDeleteLabel = computed(
     () => props.bulkDeleteLabel || trans("toolbar.bulk.delete")
 );

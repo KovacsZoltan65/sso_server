@@ -65,7 +65,7 @@ class ClientUserAccessPageController extends Controller
 
         return redirect()
             ->route('admin.client-user-access.index')
-            ->with('success', 'Client user access created successfully.');
+            ->with('success', __('api.client_user_access.created'));
     }
 
     /**
@@ -94,6 +94,6 @@ class ClientUserAccessPageController extends Controller
 
         return redirect()
             ->route('admin.client-user-access.index')
-            ->with('success', 'Client user access updated successfully.');
+            ->with('success', __('api.client_user_access.updated'));
     }
 }

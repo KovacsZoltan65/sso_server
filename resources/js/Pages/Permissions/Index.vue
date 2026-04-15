@@ -119,7 +119,7 @@ const {
     destroyRouteName: "admin.permissions.destroy",
     bulkDestroyRouteName: "admin.permissions.bulk-destroy",
     entityLabel: "Permission",
-    entityLabelPlural: "permissions",
+    entityLabelPlural: trans('pages.permissions.items'),
     buildParams,
     clearSelection,
     selectedIds,
@@ -199,13 +199,13 @@ const handleSaved = ({ message }) => {
 
 const permissionActionItems = (permission) => [
     {
-        label: "Edit",
+        label: trans('actions.edit'),
         icon: "pi pi-pencil",
         isPrimary: true,
         command: () => openEditModal(permission),
     },
     {
-        label: "Delete",
+        label: trans('actions.delete'),
         icon: "pi pi-trash",
         isDangerous: true,
         disabled: !permission.canDelete,
@@ -238,8 +238,8 @@ const permissionActionItems = (permission) => [
                         :sort-field="tableState.sortField"
                         :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        empty-message="No permissions found for the current filters."
-                        loading-message="Loading permissions..."
+                        :empty-message="trans('table.empty')"
+                        :loading-message="trans('table.loading')"
                         data-key="id"
                         lazy
                         filterDisplay="menu"
@@ -255,7 +255,7 @@ const permissionActionItems = (permission) => [
                                 :search-value="tableFilters.global.value ?? ''"
                                 :search-placeholder="trans('toolbar.search_placeholder')"
                                 :canCreate="canManagePermissions"
-                                :createLabel="trans('common.create')"
+                                :createLabel="trans('actions.create')"
                                 :canBulkDelete="canManagePermissions"
                                 :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedCount"
@@ -273,7 +273,7 @@ const permissionActionItems = (permission) => [
                                 <div
                                     :title="
                                         selectableCount === 0
-                                            ? 'No deletable permissions on this page.'
+                                            ? trans('toolbar.bulk.none')
                                             : ''
                                     "
                                 >
@@ -301,7 +301,7 @@ const permissionActionItems = (permission) => [
 
                         <Column
                             field="name"
-                            header="Name"
+                            :header="trans('table.columns.name')"
                             sortable
                             :showFilterMatchModes="false"
                             :showFilterOperator="false"
@@ -310,33 +310,33 @@ const permissionActionItems = (permission) => [
                             <template #filter="{ filterModel, filterCallback }">
                                 <InputText
                                     v-model="filterModel.value"
-                                    placeholder="Filter name"
+                                    :placeholder="trans('table.filter_name')"
                                     class="w-full"
                                     @input="filterCallback()"
                                 />
                             </template>
                         </Column>
 
-                        <Column field="guardName" header="Guard">
+                        <Column field="guardName" :header="trans('table.columns.guard')">
                             <template #body="{ data }">
                                 <div class="flex flex-wrap items-center gap-2">
                                     <Tag :value="data.guardName" severity="secondary" />
                                     <Tag
                                         v-if="data.deleteBlockCode === 'assigned_records'"
-                                        value="In Use"
+                                        :value="trans('status.in_use')"
                                         severity="warn"
                                     />
                                 </div>
                             </template>
                         </Column>
 
-                        <Column field="rolesCount" header="Assigned Roles" />
-                        <Column field="usersCount" header="Direct Users" />
-                        <Column field="createdAt" header="Created At" sortable />
+                        <Column field="rolesCount" :header="trans('table.columns.assigned_roles')" />
+                        <Column field="usersCount" :header="trans('table.columns.direct_users')" />
+                        <Column field="createdAt" :header="trans('table.created_at')" sortable />
 
                         <Column
                             v-if="canManagePermissions"
-                            header="Actions"
+                            :header="trans('table.actions')"
                             :exportable="false"
                             style="width: 12rem"
                         >
@@ -356,7 +356,7 @@ const permissionActionItems = (permission) => [
                         :to="pagination.to"
                         :current-page="pagination.currentPage"
                         :last-page="pagination.lastPage || lastPage"
-                        item-label="permissions"
+                        :item-label="trans('pages.permissions.items')"
                     />
                 </template>
             </AdminTableCard>

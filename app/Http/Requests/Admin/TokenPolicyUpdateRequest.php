@@ -43,15 +43,15 @@ class TokenPolicyUpdateRequest extends FormRequest
             $refreshTtl = (int) $this->input('refresh_token_ttl_minutes', 0);
 
             if ($refreshTtl < $accessTtl) {
-                $validator->errors()->add('refresh_token_ttl_minutes', 'Refresh token TTL must be greater than or equal to access token TTL.');
+                $validator->errors()->add('refresh_token_ttl_minutes', __('validation.custom.refresh_token_ttl_minutes.gte_access_token_ttl'));
             }
 
             if ($this->boolean('reuse_refresh_token_forbidden') && ! $this->boolean('refresh_token_rotation_enabled')) {
-                $validator->errors()->add('reuse_refresh_token_forbidden', 'Refresh token reuse can only be forbidden when rotation is enabled.');
+                $validator->errors()->add('reuse_refresh_token_forbidden', __('validation.custom.reuse_refresh_token_forbidden.requires_rotation'));
             }
 
             if ($this->boolean('is_default') && ! $this->boolean('is_active')) {
-                $validator->errors()->add('is_active', 'The default token policy must remain active.');
+                $validator->errors()->add('is_active', __('validation.custom.is_active.default_policy_must_be_active'));
             }
         });
     }

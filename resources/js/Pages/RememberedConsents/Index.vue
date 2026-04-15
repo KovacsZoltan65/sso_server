@@ -83,20 +83,20 @@ const tableState = reactive({
 
 const perPageOptions = [5, 10, 15, 25];
 const statusOptions = [
-    { label: "All statuses", value: null },
-    { label: "Active", value: "active" },
-    { label: "Revoked", value: "revoked" },
-    { label: "Expired", value: "expired" },
+    { label: trans("common.all_statuses"), value: null },
+    { label: trans("status.active"), value: "active" },
+    { label: trans("status.revoked"), value: "revoked" },
+    { label: trans("status.expired"), value: "expired" },
 ];
 const clientSelectOptions = computed(() => [
-    { label: "All clients", value: null },
+    { label: trans("pages.remembered_consents.all_clients"), value: null },
     ...props.clientOptions.map((client) => ({
         label: `${client.name} (${client.clientId})`,
         value: client.id,
     })),
 ]);
 const userSelectOptions = computed(() => [
-    { label: "All users", value: null },
+    { label: trans("pages.remembered_consents.all_users"), value: null },
     ...props.userOptions.map((user) => ({
         label: `${user.name} (${user.email})`,
         value: user.id,
@@ -245,7 +245,7 @@ const resolveRowActions = (row) => {
     }
 
     return [{
-        label: "Revoke",
+        label: trans("actions.revoke"),
         icon: "pi pi-ban",
         isPrimary: true,
         isDangerous: true,
@@ -279,7 +279,7 @@ usePageOverlayCleanup(() => {
                         :options="revocationReasonOptions"
                         option-label="label"
                         option-value="value"
-                        placeholder="Select revoke reason"
+                        :placeholder="trans('pages.remembered_consents.select_revoke_reason')"
                         data-revoke-reason
                     />
                 </div>
@@ -326,7 +326,7 @@ usePageOverlayCleanup(() => {
                             :options="statusOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Status"
+                            :placeholder="trans('common.status')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -334,7 +334,7 @@ usePageOverlayCleanup(() => {
                             :options="clientSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Client"
+                            :placeholder="trans('common.client')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -342,7 +342,7 @@ usePageOverlayCleanup(() => {
                             :options="userSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="User"
+                            :placeholder="trans('common.user')"
                             @change="onTableFilter"
                         />
                     </div>
@@ -366,7 +366,7 @@ usePageOverlayCleanup(() => {
                             @page="onPage"
                             @sort="onSort"
                         >
-                            <Column field="userName" header="User" sortable>
+                            <Column field="userName" :header="trans('table.columns.user')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.userName }}</span>
@@ -375,7 +375,7 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="clientName" header="Client" sortable>
+                            <Column field="clientName" :header="trans('table.columns.client')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.clientName }}</span>
@@ -384,7 +384,7 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="scopeCodes" header="Scopes">
+                            <Column field="scopeCodes" :header="trans('table.columns.scopes')">
                                 <template #body="{ data }">
                                     <div class="flex flex-wrap gap-2" data-consent-scopes>
                                         <Tag
@@ -397,40 +397,40 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="trustTierSnapshot" header="Trust">
+                            <Column field="trustTierSnapshot" :header="trans('table.columns.trust')">
                                 <template #body="{ data }">
                                     <span>{{ data.trustTierSnapshot }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="status" header="Status">
+                            <Column field="status" :header="trans('table.columns.status')">
                                 <template #body="{ data }">
                                     <Tag :value="data.status" :severity="statusSeverity(data.status)" data-consent-status />
                                 </template>
                             </Column>
 
-                            <Column field="grantedAt" header="Granted" sortable>
+                            <Column field="grantedAt" :header="trans('table.columns.granted')" sortable>
                                 <template #body="{ data }">
                                     <span>{{ data.grantedAt }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="expiresAt" header="Expires" sortable>
+                            <Column field="expiresAt" :header="trans('table.columns.expires')" sortable>
                                 <template #body="{ data }">
                                     <span>{{ data.expiresAt }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="revokedAt" header="Revoked">
+                            <Column field="revokedAt" :header="trans('table.columns.revoked')">
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
-                                        <span>{{ data.revokedAt ?? "N/A" }}</span>
+                                        <span>{{ data.revokedAt ?? trans('common.not_available') }}</span>
                                         <span v-if="data.revocationReason" class="text-sm text-slate-500">{{ data.revocationReason }}</span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column header="Actions" :style="{ width: '12rem' }">
+                            <Column :header="trans('table.actions')" :style="{ width: '12rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="resolveRowActions(data)" :disabled="resolveRowActions(data).length === 0 || busy" />
                                 </template>
@@ -438,7 +438,7 @@ usePageOverlayCleanup(() => {
 
                             <template #empty>
                                 <div class="flex min-h-40 items-center justify-center text-slate-500">
-                                    No remembered consents match the current filters.
+                                    {{ trans('table.empty') }}
                                 </div>
                             </template>
                         </DataTable>

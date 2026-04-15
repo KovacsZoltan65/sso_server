@@ -127,10 +127,10 @@ export function useAdminListActions({
 
     const confirmDelete = (row) => {
         confirm.require({
-            message: `${trans('common.delete')} "${row.name}"?`,
-            header: `${trans('common.delete')} ${entityLabel}`,
+            message: `${trans('actions.delete')} "${row.name}"?`,
+            header: `${trans('actions.delete')} ${entityLabel}`,
             icon: 'pi pi-exclamation-triangle',
-            acceptLabel: trans('common.delete'),
+            acceptLabel: trans('actions.delete'),
             rejectLabel: trans('common.cancel'),
             acceptClass: 'p-button-danger',
             accept: () => {
@@ -142,10 +142,10 @@ export function useAdminListActions({
 
     const confirmBulkDelete = () => {
         confirm.require({
-            message: `${trans('common.delete')} (${selectedIds.value.length}) ${entityLabelPlural}?`,
-            header: `${trans('common.delete')} ${entityLabelPlural}`,
+            message: `${trans('actions.delete')} (${selectedIds.value.length}) ${entityLabelPlural}?`,
+            header: `${trans('actions.delete')} ${entityLabelPlural}`,
             icon: 'pi pi-exclamation-triangle',
-            acceptLabel: trans('common.delete'),
+            acceptLabel: trans('actions.delete'),
             rejectLabel: trans('common.cancel'),
             acceptClass: 'p-button-danger',
             accept: () => {
