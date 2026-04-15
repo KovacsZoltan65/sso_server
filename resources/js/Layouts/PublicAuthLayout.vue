@@ -9,6 +9,14 @@ defineProps({
         type: String,
         default: "",
     },
+    languageSwitcherOffsetX: {
+        type: Number,
+        default: 0,
+    },
+    languageSwitcherOffsetY: {
+        type: Number,
+        default: 0,
+    },
 });
 </script>
 
@@ -65,7 +73,13 @@ defineProps({
                 </section>
 
                 <section class="relative flex items-center px-6 py-10 sm:px-10 lg:px-12">
-                    <div class="absolute right-0 top-0">
+                    <div
+                        class="absolute"
+                        :style="{
+                            right: `${languageSwitcherOffsetX}px`,
+                            top: `${languageSwitcherOffsetY}px`,
+                        }"
+                    >
                         <LanguageSwitcher />
                     </div>
                     <div class="w-full">

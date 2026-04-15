@@ -35,7 +35,12 @@ const submit = () => {
 <template>
     <Head :title="trans('auth.login.page_title')" />
 
-    <PublicAuthLayout :title="trans('auth.login.title')" :description="trans('auth.login.description')">
+    <PublicAuthLayout
+        :title="trans('auth.login.title')"
+        :description="trans('auth.login.description')"
+        :language-switcher-offset-x="3"
+        :language-switcher-offset-y="3"
+    >
         <Message v-if="status" severity="success" class="mb-5">{{ status }}</Message>
 
         <form class="space-y-5" @submit.prevent="submit">

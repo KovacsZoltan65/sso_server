@@ -1,5 +1,7 @@
 <script setup>
-import { router, usePage } from "@inertiajs/vue3";
+import { usePage } from "@inertiajs/vue3";
+import { currentLocale, loadLanguageAsync } from "laravel-vue-i18n";
+import axios from "axios";
 import Button from "primevue/button";
 import { computed, ref } from "vue";
 
@@ -7,33 +9,42 @@ const page = usePage();
 const isSubmitting = ref(false);
 
 const availableLocales = computed(() => page.props.locale?.available ?? ["hu", "en"]);
-const currentLocale = computed(() => page.props.locale?.current ?? "hu");
+const activeLocale = computed(() => currentLocale.value || page.props.locale?.current || "hu");
 
 const localeLabels = {
     hu: "HU",
     en: "EN",
 };
 
-const switchLocale = (locale) => {
-    if (isSubmitting.value || locale === currentLocale.value) {
+const switchLocale = async (locale) => {
+    if (isSubmitting.value || locale === activeLocale.value) {
         return;
     }
 
     isSubmitting.value = true;
+    const previousLocale = activeLocale.value;
 
-    router.post(
-        route("locale.update"),
-        { locale },
-        {
-            preserveScroll: true,
-            preserveState: false,
-            replace: true,
-            onFinish: () => {
-                isSubmitting.value = false;
-                window.location.reload();
+    try {
+        await loadLanguageAsync(locale);
+        document.documentElement.setAttribute("lang", locale);
+    } catch (_error) {
+        isSubmitting.value = false;
+        return;
+    }
+
+    try {
+        await axios.post(route("locale.update"), { locale }, {
+            headers: {
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
             },
-        }
-    );
+        });
+    } catch (_error) {
+        await loadLanguageAsync(previousLocale);
+        document.documentElement.setAttribute("lang", previousLocale);
+    } finally {
+        isSubmitting.value = false;
+    }
 };
 </script>
 
@@ -47,8 +58,8 @@ const switchLocale = (locale) => {
             :label="localeLabels[locale] ?? locale.toUpperCase()"
             size="small"
             rounded
-            :severity="locale === currentLocale ? 'contrast' : 'secondary'"
-            :text="locale !== currentLocale"
+            :severity="locale === activeLocale ? 'contrast' : 'secondary'"
+            :text="locale !== activeLocale"
             :disabled="isSubmitting"
             @click="switchLocale(locale)"
         />
