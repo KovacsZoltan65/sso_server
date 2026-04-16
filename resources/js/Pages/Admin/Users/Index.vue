@@ -356,7 +356,7 @@ const userActionItems = (user) => [
                             <template #filter="{ filterModel, filterCallback }">
                                 <InputText
                                     v-model="filterModel.value"
-                                    placeholder="Filter name"
+                                    :placeholder="trans('table.filter_name')"
                                     class="w-full"
                                     @input="filterCallback()"
                                 />
@@ -374,7 +374,7 @@ const userActionItems = (user) => [
                             <template #filter="{ filterModel, filterCallback }">
                                 <InputText
                                     v-model="filterModel.value"
-                                    placeholder="Filter email"
+                                    :placeholder="trans('table.filter_email')"
                                     class="w-full"
                                     @input="filterCallback()"
                                 />
@@ -402,7 +402,7 @@ const userActionItems = (user) => [
                                     :options="statusOptions"
                                     optionLabel="label"
                                     optionValue="value"
-                                    placeholder="All"
+                                    :placeholder="trans('common.all')"
                                     class="w-full"
                                     @change="filterCallback()"
                                 />
@@ -443,7 +443,7 @@ const userActionItems = (user) => [
                                     :options="verifiedOptions"
                                     optionLabel="label"
                                     optionValue="value"
-                                    placeholder="All"
+                                    :placeholder="trans('common.all')"
                                     class="w-full"
                                     @change="filterCallback()"
                                 />

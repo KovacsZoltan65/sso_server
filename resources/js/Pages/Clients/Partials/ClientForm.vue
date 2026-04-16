@@ -1,10 +1,11 @@
 <script setup>
-import GroupedCheckboxSelector from '@/Components/Admin/GroupedCheckboxSelector.vue';
-import Checkbox from 'primevue/checkbox';
-import Button from 'primevue/button';
-import InputText from 'primevue/inputtext';
-import Select from 'primevue/select';
-import { computed } from 'vue';
+import GroupedCheckboxSelector from "@/Components/Admin/GroupedCheckboxSelector.vue";
+import Checkbox from "primevue/checkbox";
+import Button from "primevue/button";
+import InputText from "primevue/inputtext";
+import Select from "primevue/select";
+import { computed } from "vue";
+import { trans } from "laravel-vue-i18n/*";
 
 const props = defineProps({
     form: {
@@ -13,7 +14,7 @@ const props = defineProps({
     },
     mode: {
         type: String,
-        default: 'create',
+        default: "create",
     },
     loading: {
         type: Boolean,
@@ -21,7 +22,7 @@ const props = defineProps({
     },
     formId: {
         type: String,
-        default: 'client-form',
+        default: "client-form",
     },
     scopeOptions: {
         type: Array,
@@ -37,46 +38,55 @@ const props = defineProps({
     },
     submitLabel: {
         type: String,
-        default: 'Save',
+        default: "Save",
     },
     cancelLabel: {
         type: String,
-        default: 'Cancel',
+        default: "Cancel",
     },
     layoutMode: {
         type: String,
-        default: 'page',
+        default: "page",
     },
 });
 
-const emit = defineEmits(['submit', 'cancel']);
+const emit = defineEmits(["submit", "cancel"]);
 
-const isModalLayout = computed(() => props.layoutMode === 'modal');
+const isModalLayout = computed(() => props.layoutMode === "modal");
 
 const redirectUris = computed(() => {
-    if (!Array.isArray(props.form.redirect_uris) || props.form.redirect_uris.length === 0) {
-        props.form.redirect_uris = [''];
+    if (
+        !Array.isArray(props.form.redirect_uris) ||
+        props.form.redirect_uris.length === 0
+    ) {
+        props.form.redirect_uris = [""];
     }
 
     return props.form.redirect_uris;
 });
 
 const addRedirectUri = () => {
-    props.form.redirect_uris = [...redirectUris.value, ''];
+    props.form.redirect_uris = [...redirectUris.value, ""];
 };
 
 const removeRedirectUri = (index) => {
     if (redirectUris.value.length === 1) {
-        props.form.redirect_uris = [''];
+        props.form.redirect_uris = [""];
         return;
     }
 
-    props.form.redirect_uris = redirectUris.value.filter((_, currentIndex) => currentIndex !== index);
+    props.form.redirect_uris = redirectUris.value.filter(
+        (_, currentIndex) => currentIndex !== index
+    );
 };
 </script>
 
 <template>
-    <form :id="formId" class="flex min-h-0 flex-col gap-6" @submit.prevent="emit('submit')">
+    <form
+        :id="formId"
+        class="flex min-h-0 flex-col gap-6"
+        @submit.prevent="emit('submit')"
+    >
         <div
             :class="[
                 'grid min-h-0 gap-6',
@@ -87,7 +97,9 @@ const removeRedirectUri = (index) => {
         >
             <div class="grid min-w-0 gap-4 xl:col-span-2">
                 <div class="grid gap-2">
-                    <label for="client-name" class="text-sm font-medium text-slate-700">Name</label>
+                    <label for="client-name" class="text-sm font-medium text-slate-700"
+                        >Name</label
+                    >
                     <InputText
                         id="client-name"
                         v-model="form.name"
@@ -95,27 +107,39 @@ const removeRedirectUri = (index) => {
                         :disabled="loading"
                         fluid
                     />
-                    <small v-if="form.errors.name" class="text-red-500">{{ form.errors.name }}</small>
+                    <small v-if="form.errors.name" class="text-red-500">{{
+                        form.errors.name
+                    }}</small>
                 </div>
 
                 <div class="grid gap-2">
-                    <label for="client-id" class="text-sm font-medium text-slate-700">Client ID</label>
+                    <label for="client-id" class="text-sm font-medium text-slate-700"
+                        >Client ID</label
+                    >
                     <InputText
                         id="client-id"
-                        :modelValue="mode === 'edit' ? (form.client_id || form.clientId || '') : 'Generated automatically after create'"
+                        :modelValue="
+                            mode === 'edit'
+                                ? form.client_id || form.clientId || ''
+                                : 'Generated automatically after create'
+                        "
                         :disabled="true"
                         fluid
                     />
                     <small class="text-slate-500">
-                        {{ mode === 'create'
-                            ? 'The client ID is generated automatically when the client is created.'
-                            : 'The client ID is immutable after creation.' }}
+                        {{
+                            mode === "create"
+                                ? "The client ID is generated automatically when the client is created."
+                                : "The client ID is immutable after creation."
+                        }}
                     </small>
                 </div>
 
                 <div class="grid gap-3">
                     <div class="flex items-center justify-between gap-3">
-                        <label class="text-sm font-medium text-slate-700">Redirect URIs</label>
+                        <label class="text-sm font-medium text-slate-700"
+                            >Redirect URIs</label
+                        >
                         <Button
                             type="button"
                             label="Add URI"
@@ -138,7 +162,7 @@ const removeRedirectUri = (index) => {
                                 :id="`redirect-uri-${index}`"
                                 v-model="form.redirect_uris[index]"
                                 :disabled="loading"
-                                placeholder="https://client.example.com/callback"
+                                :placeholder="trans('common.url_placeholder')"
                                 class="flex-1"
                             />
                             <Button
@@ -151,7 +175,10 @@ const removeRedirectUri = (index) => {
                                 @click="removeRedirectUri(index)"
                             />
                         </div>
-                        <small v-if="form.errors[`redirect_uris.${index}`]" class="text-red-500">
+                        <small
+                            v-if="form.errors[`redirect_uris.${index}`]"
+                            class="text-red-500"
+                        >
                             {{ form.errors[`redirect_uris.${index}`] }}
                         </small>
                     </div>
@@ -169,12 +196,14 @@ const removeRedirectUri = (index) => {
                 ]"
             >
                 <div class="grid gap-2">
-                    <label for="client-scopes" class="text-sm font-medium text-slate-700">Scopes</label>
+                    <label for="client-scopes" class="text-sm font-medium text-slate-700"
+                        >Scopes</label
+                    >
                     <GroupedCheckboxSelector
                         v-model="form.scopes"
                         :options="scopeOptions"
                         fieldLabel="Scopes"
-                        searchPlaceholder="Search scopes by group or name"
+                        :searchPlaceholder="trans('toolbar.search_placeholder_02')"
                         emptyMessage="No scopes match the current search."
                         groupCountLabel="scopes"
                         :allowInternalScroll="!isModalLayout"
@@ -182,11 +211,17 @@ const removeRedirectUri = (index) => {
                         :twoColumnGrid="!isModalLayout"
                         :disabled="loading"
                     />
-                    <small v-if="form.errors.scopes" class="text-red-500">{{ form.errors.scopes }}</small>
+                    <small v-if="form.errors.scopes" class="text-red-500">{{
+                        form.errors.scopes
+                    }}</small>
                 </div>
 
                 <div v-if="tokenPolicies.length" class="grid gap-2">
-                    <label for="client-token-policy" class="text-sm font-medium text-slate-700">Token policy</label>
+                    <label
+                        for="client-token-policy"
+                        class="text-sm font-medium text-slate-700"
+                        >Token policy</label
+                    >
                     <Select
                         id="client-token-policy"
                         v-model="form.token_policy_id"
@@ -194,7 +229,7 @@ const removeRedirectUri = (index) => {
                         optionLabel="name"
                         optionValue="id"
                         showClear
-                        placeholder="Select a token policy"
+                        :placeholder="trans('actions.select_token_policy')"
                         :disabled="loading"
                         class="w-full"
                     />
@@ -205,7 +240,9 @@ const removeRedirectUri = (index) => {
 
                 <div class="grid gap-2">
                     <label class="text-sm font-medium text-slate-700">Status</label>
-                    <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3">
+                    <div
+                        class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-3"
+                    >
                         <Checkbox
                             inputId="client-is-active"
                             :binary="true"
@@ -217,13 +254,18 @@ const removeRedirectUri = (index) => {
                             Client is active
                         </label>
                     </div>
-                    <small v-if="form.errors.is_active" class="text-red-500">{{ form.errors.is_active }}</small>
+                    <small v-if="form.errors.is_active" class="text-red-500">{{
+                        form.errors.is_active
+                    }}</small>
                 </div>
 
-                <div class="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900">
+                <div
+                    class="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900"
+                >
                     <div class="font-medium">Secret handling</div>
                     <p class="mt-1 leading-6 text-sky-800">
-                        The client secret is generated automatically during create and shown exactly once after success.
+                        The client secret is generated automatically during create and
+                        shown exactly once after success.
                     </p>
                 </div>
             </div>

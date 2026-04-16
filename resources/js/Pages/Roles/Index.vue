@@ -19,6 +19,7 @@ import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import Toast from "primevue/toast";
 import { computed, reactive, ref } from "vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
 
 const props = defineProps({
     rows: {
@@ -198,7 +199,149 @@ const roleActionItems = (role) => [
 
             <AdminTableCard>
                 <div class="admin-table-shell">
-                    <DataTable
+                    <BaseDataTable
+                        :value="rows"
+                        :loading="busy"
+                        :loading-message="trans('')"
+                        :empty-message="trans('')"
+                        removable-sort
+                        data-key="id"
+                        :rows="tableState.perPage"
+                        :first="pagination.first"
+                        :total-records="pagination.total"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder"
+                        :rows-per-page-options="perPageOptions"
+                        @page="onFilter"
+                        @sort="onSort"
+                    >
+                        <template #header>
+                            <AdminTableToolbar
+                                :canCreate="canManageRoles"
+                                :createLabel="trans('actions.create')"
+                                :canBulkDelete="canManageRoles"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
+                                :selectedCount="selectedRows.length"
+                                :selectableCount="selectableRows.length"
+                                :busy="busy"
+                                @create="goToCreatePage"
+                                @bulk-delete="confirmBulkDelete"
+                                @refresh="refresh"
+                            >
+                                <template #search>
+                                    <IconField class="w-full">
+                                        <InputIcon class="pi pi-search text-slate-400" />
+                                        <InputText
+                                            v-model="tableFilters.global.value"
+                                            :placeholder="
+                                                trans('roles.search_placeholder')
+                                            "
+                                            class="w-full"
+                                            @update:modelValue="onGlobalFilterInput"
+                                        />
+                                    </IconField>
+                                </template>
+                            </AdminTableToolbar>
+                        </template>
+
+                        <template #empty>
+                            <div class="py-8 text-center text-sm text-slate-500">
+                                {{ trans("table.empty") }}
+                            </div>
+                        </template>
+
+                        <!-- Selector -->
+                        <Column selectionMode="multiple" headerStyle="width: 3rem" />
+
+                        <!-- Name -->
+                        <Column
+                            field="name"
+                            :header="trans('table.columns.name')"
+                            sortable
+                            :showFilterMatchModes="false"
+                            :showFilterOperator="false"
+                            :showAddButton="false"
+                        >
+                            <template #body="{ data }">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span>{{ data.name }}</span>
+                                    <Tag
+                                        v-if="data.deleteBlockCode === 'protected_role'"
+                                        :value="trans('status.protected')"
+                                        severity="warn"
+                                    />
+                                </div>
+                            </template>
+
+                            <template #filter="{ filterModel, filterCallback }">
+                                <InputText
+                                    v-model="filterModel.value"
+                                    :placeholder="trans('table.filter_name')"
+                                    class="w-full"
+                                    @input="filterCallback()"
+                                />
+                            </template>
+                        </Column>
+
+                        <!-- Guard -->
+                        <Column field="guardName" :header="trans('table.columns.guard')">
+                            <template #body="{ data }">
+                                <Tag :value="data.guardName" severity="secondary" />
+                            </template>
+                        </Column>
+
+                        <!-- Permissions -->
+                        <Column :header="trans('table.columns.permissions')">
+                            <template #body="{ data }">
+                                <div
+                                    v-if="data.permissions?.length"
+                                    class="flex flex-wrap gap-2"
+                                >
+                                    <Tag
+                                        v-for="permission in data.permissions.slice(0, 3)"
+                                        :key="permission"
+                                        :value="permission"
+                                        severity="info"
+                                    />
+                                    <Tag
+                                        v-if="data.permissions.length > 3"
+                                        :value="`+${data.permissions.length - 3}`"
+                                        severity="contrast"
+                                    />
+                                </div>
+                                <span v-else class="text-sm text-slate-500">
+                                    {{ trans("messages.no_permissions") }}
+                                </span>
+                            </template>
+                        </Column>
+
+                        <!-- Assigned User -->
+                        <Column
+                            field="usersCount"
+                            :header="trans('table.columns.assigned_users')"
+                        />
+
+                        <!-- Created At -->
+                        <Column
+                            field="createdAt"
+                            :header="trans('table.columns.created_at')"
+                            sortable
+                        />
+
+                        <!-- Actions -->
+                        <Column
+                            v-if="canManageRoles"
+                            :header="trans('common.actions')"
+                            :exportable="false"
+                            style="width: 12rem"
+                        >
+                            <template #body="{ data }">
+                                <RowActionMenu :items="roleActionItems(data)" />
+                            </template>
+                        </Column>
+                    </BaseDataTable>
+
+                    <!--<DataTable
                         :value="rows"
                         v-model:filters="tableFilters"
                         :rows="tableState.perPage"
@@ -345,20 +488,17 @@ const roleActionItems = (role) => [
                             </template>
                         </Column>
 
-                        <!-- Hozzárendelt felhasználók -->
                         <Column
                             field="usersCount"
                             :header="trans('table.columns.assigned_users')"
                         />
 
-                        <!-- Create At -->
                         <Column
                             field="createdAt"
                             :header="trans('table.columns.created_at')"
                             sortable
                         />
 
-                        <!-- Actions -->
                         <Column
                             v-if="canManageRoles"
                             :header="trans('table.columns.actions')"
@@ -369,7 +509,7 @@ const roleActionItems = (role) => [
                                 <RowActionMenu :items="roleActionItems(data)" />
                             </template>
                         </Column>
-                    </DataTable>
+                    </DataTable>-->
                 </div>
 
                 <template #footer>
