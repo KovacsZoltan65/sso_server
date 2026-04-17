@@ -4,6 +4,7 @@ import { router } from "@inertiajs/vue3";
 import Avatar from "primevue/avatar";
 import Button from "primevue/button";
 import LanguageSwitcher from "@/Components/LanguageSwitcher.vue";
+import { trans } from "laravel-vue-i18n";
 
 defineProps({
     user: {
@@ -33,15 +34,15 @@ const goToProfile = () => {
                 severity="contrast"
                 rounded
                 text
-                :aria-label="$t('topbar.open_navigation')"
+                :aria-label="trans('topbar.open_navigation')"
                 aria-controls="app-mobile-navigation"
                 :aria-expanded="String(navigationOpen)"
                 @click="emit('toggle-navigation')"
             />
             <div>
-                <div class="eyebrow">{{ $t("topbar.server.eyebrow") }}</div>
+                <div class="eyebrow">{{ trans("topbar.server.eyebrow") }}</div>
                 <div class="text-lg font-semibold">
-                    {{ $t("topbar.server.title") }}
+                    {{ trans("topbar.server.title") }}
                 </div>
             </div>
         </div>
@@ -62,7 +63,7 @@ const goToProfile = () => {
                 severity="secondary"
                 text
                 rounded
-                :aria-label="$t('common.profile')"
+                :aria-label="trans('common.profile')"
                 @click="goToProfile"
             />
             <Button
@@ -70,7 +71,7 @@ const goToProfile = () => {
                 severity="secondary"
                 text
                 rounded
-                :aria-label="$t('common.logout')"
+                :aria-label="trans('common.logout')"
                 @click="emit('logout')"
             />
         </div>

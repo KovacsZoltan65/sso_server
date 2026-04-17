@@ -22,6 +22,8 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
+
+// Nyelv választó
 Route::post('/locale', [LocaleController::class, 'update'])->name('locale.update');
 
 Route::get('/.well-known/openid-configuration', OidcDiscoveryController::class)->name('oidc.discovery');
@@ -38,56 +40,56 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
 
         // Users routes
-        Route::controller(UserController::class)->name('users.')->group(function () {
-            Route::get('/users', 'index')->name('index');
-            Route::post('/users', 'store')->name('store');
-            Route::delete('/users', 'bulkDestroy')->name('bulk-destroy');
-            Route::put('/users/{user}', 'update')->name('update');
-            Route::delete('/users/{user}', 'destroy')->name('destroy');
+        Route::controller(UserController::class)->prefix('users')->name('users.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/', 'store')->name('store');
+            Route::delete('/', 'bulkDestroy')->name('bulk-destroy');
+            Route::put('/{user}', 'update')->name('update');
+            Route::delete('/{user}', 'destroy')->name('destroy');
         });
 
         // Roles routes
-        Route::controller(RoleController::class)->name('roles.')->group(function () {
-            Route::get('/roles', 'index')->name('index');
-            Route::get('/roles/create', 'create')->name('create');
-            Route::post('/roles', 'store')->name('store');
-            Route::delete('/roles', 'bulkDestroy')->name('bulk-destroy');
-            Route::get('/roles/{role}/edit', 'edit')->name('edit');
-            Route::put('/roles/{role}', 'update')->name('update');
-            Route::delete('/roles/{role}', 'destroy')->name('destroy');
+        Route::controller(RoleController::class)->prefix('roles')->name('roles.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::delete('/', 'bulkDestroy')->name('bulk-destroy');
+            Route::get('/{role}/edit', 'edit')->name('edit');
+            Route::put('/{role}', 'update')->name('update');
+            Route::delete('/{role}', 'destroy')->name('destroy');
         });
 
         // Permissions routes
-        Route::controller(PermissionController::class)->name('permissions.')->group(function () {
-            Route::get('/permissions', 'index')->name('index');
-            Route::get('/permissions/create', 'create')->name('create');
-            Route::post('/permissions', 'store')->name('store');
-            Route::delete('/permissions', 'bulkDestroy')->name('bulk-destroy');
-            Route::get('/permissions/{permission}/edit', 'edit')->name('edit');
-            Route::put('/permissions/{permission}', 'update')->name('update');
-            Route::delete('/permissions/{permission}', 'destroy')->name('destroy');
+        Route::controller(PermissionController::class)->prefix('permissions')->name('permissions.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::delete('/', 'bulkDestroy')->name('bulk-destroy');
+            Route::get('/{permission}/edit', 'edit')->name('edit');
+            Route::put('/{permission}', 'update')->name('update');
+            Route::delete('/{permission}', 'destroy')->name('destroy');
         });
 
         // SSO Clients routes
-        Route::controller(ClientController::class)->name('sso-clients.')->group(function () {
-            Route::get('/sso-clients', 'index')->name('index');
-            Route::get('/sso-clients/create', 'create')->name('create');
-            Route::post('/sso-clients', 'store')->name('store');
-            Route::get('/sso-clients/{ssoClient}/edit', 'edit')->name('edit');
-            Route::put('/sso-clients/{ssoClient}', 'update')->name('update');
-            Route::post('/sso-clients/{ssoClient}/rotate-secret', 'rotateSecret')->name('rotate-secret');
+        Route::controller(ClientController::class)->prefix('sso-clients')->name('sso-clients.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{ssoClient}/edit', 'edit')->name('edit');
+            Route::put('/{ssoClient}', 'update')->name('update');
+            Route::post('/{ssoClient}/rotate-secret', 'rotateSecret')->name('rotate-secret');
 
-            Route::delete('/sso-clients/{ssoClient}/secrets/{clientSecret}', 'revokeSecret')->name('revoke-secret');
-            Route::delete('/sso-clients/{ssoClient}', 'destroy')->name('destroy');
+            Route::delete('/{ssoClient}/secrets/{clientSecret}', 'revokeSecret')->name('revoke-secret');
+            Route::delete('/{ssoClient}', 'destroy')->name('destroy');
         });
 
         // Client - User Access routes
-        Route::controller(ClientUserAccessPageController::class)->name('client-user-access.')->group(function () {
-            Route::get('/client-user-access', 'index')->name('index');
-            Route::get('/client-user-access/create', 'create')->name('create');
-            Route::post('/client-user-access', 'store')->name('store');
-            Route::get('/client-user-access/{clientUserAccess}/edit', 'edit')->name('edit');
-            Route::put('/client-user-access/{clientUserAccess}', 'update')->name('update');
+        Route::controller(ClientUserAccessPageController::class)->prefix('client-user-access')->name('client-user-access.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::get('/{clientUserAccess}/edit', 'edit')->name('edit');
+            Route::put('/{clientUserAccess}', 'update')->name('update');
         });
 
         // Scopes routes
@@ -102,40 +104,40 @@ Route::middleware(['auth'])->group(function () {
         });
 
         // Token Poicies routes
-        Route::controller(TokenPolicyController::class)->name('token-policies.')->group(function () {
-            Route::get('/token-policies', 'index')->name('index');
-            Route::get('/token-policies/create', 'create')->name('create');
-            Route::post('/token-policies', 'store')->name('store');
-            Route::delete('/token-policies', 'bulkDestroy')->name('bulk-destroy');
-            Route::get('/token-policies/{tokenPolicy}/edit', 'edit')->name('edit');
-            Route::put('/token-policies/{tokenPolicy}', 'update')->name('update');
-            Route::delete('/token-policies/{tokenPolicy}', 'destroy')->name('destroy');
+        Route::controller(TokenPolicyController::class)->prefix('token-policies')->name('token-policies.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::get('/create', 'create')->name('create');
+            Route::post('/', 'store')->name('store');
+            Route::delete('/', 'bulkDestroy')->name('bulk-destroy');
+            Route::get('/{tokenPolicy}/edit', 'edit')->name('edit');
+            Route::put('/{tokenPolicy}', 'update')->name('update');
+            Route::delete('/{tokenPolicy}', 'destroy')->name('destroy');
         });
 
         // Tokens routes
-        Route::controller(AdminTokenController::class)->name('tokens.')->group(function () {
-            Route::get('/tokens', 'index')->name('index');
-            Route::post('/tokens/{token}/revoke', 'revoke')->name('revoke');
-            Route::post('/tokens/families/{familyId}/revoke', 'revokeFamily')->name('revoke-family');
+        Route::controller(AdminTokenController::class)->prefix('tokens')->name('tokens.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/{token}/revoke', 'revoke')->name('revoke');
+            Route::post('/families/{familyId}/revoke', 'revokeFamily')->name('revoke-family');
         });
 
         // Remember Consents
-        Route::controller(RememberedConsentController::class)->name('remembered-consents.')->group(function () {
-            Route::get('/remembered-consents', 'index')->name('index');
-            Route::post('/remembered-consents/{consent}/revoke', 'revoke')->name('revoke');
+        Route::controller(RememberedConsentController::class)->prefix('remembered-consents')->name('remembered-consents.')->group(function () {
+            Route::get('/', 'index')->name('index');
+            Route::post('/{consent}/revoke', 'revoke')->name('revoke');
         });
 
         // PlaceholderPageController routes
-        Route::controller(PlaceholderPageController::class)->group(function () {
-            Route::get('/audit-logs', 'auditLogs')->name('audit-logs.index');
+        Route::controller(PlaceholderPageController::class)->prefix('audit-logs')->name('audit-logs.')->group(function () {
+            Route::get('/', 'auditLogs')->name('index');
         });
     });
 
     // ProfileController routes
-    Route::controller(ProfileController::class)->name('profile.')->group(function () {
-        Route::get('/profile', 'edit')->name('edit');
-        Route::patch('/profile', 'update')->name('update');
-        Route::delete('/profile', 'destroy')->name('destroy');
+    Route::controller(ProfileController::class)->prefix('profile')->name('profile.')->group(function () {
+        Route::get('/', 'edit')->name('edit');
+        Route::patch('/', 'update')->name('update');
+        Route::delete('/', 'destroy')->name('destroy');
     });
 });
 
