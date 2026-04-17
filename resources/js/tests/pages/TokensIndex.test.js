@@ -93,10 +93,10 @@ describe('Tokens index', () => {
 
         expect(wrapper.text()).toContain('Suspicious');
         expect(wrapper.text()).toContain('Family Revoked');
-        expect(wrapper.text()).toContain('Incident');
+        expect(wrapper.text()).toMatch(/Incident|Incidens/);
         expect(wrapper.text()).toContain('family-12345...');
-        expect(wrapper.text()).toContain('Replaced by #12');
-        expect(wrapper.text()).toContain('Family revoked');
+        expect(wrapper.text()).toMatch(/Replaced by #12|Lecserélte #12/);
+        expect(wrapper.text()).toMatch(/Family revoked|Tokenlánc visszavonva/);
     });
 
     it('pushes filter state into the server request', async () => {
@@ -127,7 +127,8 @@ describe('Tokens index', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Revoke"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
 
         expect(confirmRequire).toHaveBeenCalledTimes(1);
 
@@ -161,7 +162,8 @@ describe('Tokens index', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Revoke Family"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await nextTick();
 
         const input = wrapper.find('[data-family-reason]');
@@ -201,7 +203,8 @@ describe('Tokens index', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Revoke"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
         await nextTick();
 
@@ -227,7 +230,8 @@ describe('Tokens index', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Revoke Family"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await nextTick();
         await wrapper.find('[data-family-reason]').setValue('x');
         await wrapper.find('[data-family-submit]').trigger('click');

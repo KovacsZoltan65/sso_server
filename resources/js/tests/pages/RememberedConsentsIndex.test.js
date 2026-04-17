@@ -120,7 +120,8 @@ describe('Remembered consents index', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Revoke"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         await nextTick();
 
         await wrapper.find('[data-revoke-reason]').setValue('security_incident');
@@ -165,7 +166,8 @@ describe('Remembered consents index', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Revoke"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         await nextTick();
         await wrapper.find('[data-revoke-submit]').trigger('click');
         await confirmRequire.mock.calls[0][0].accept();

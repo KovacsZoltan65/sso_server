@@ -24,3 +24,5 @@ Homestead.json
 Homestead.yaml
 Thumbs.db
 /nbproject/private/
+_ide_helper_models.php
+_ide_helper.php

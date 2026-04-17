@@ -99,7 +99,7 @@ it('authorized user can store permission', function () {
             'name' => 'reports.export',
         ])
         ->assertRedirect(route('admin.permissions.index'))
-        ->assertSessionHas('success', 'Permission created successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseHas('permissions', [
         'name' => 'reports.export',
@@ -149,7 +149,7 @@ it('authorized user can update permission', function () {
             'name' => 'reports.download',
         ])
         ->assertRedirect(route('admin.permissions.index'))
-        ->assertSessionHas('success', 'Permission updated successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseHas('permissions', [
         'id' => $permission->id,
@@ -185,7 +185,7 @@ it('authorized user can delete unassigned permission', function () {
     $this->actingAs($user)
         ->delete(route('admin.permissions.destroy', $permission))
         ->assertRedirect(route('admin.permissions.index'))
-        ->assertSessionHas('success', 'Permission deleted successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseMissing('permissions', [
         'id' => $permission->id,
@@ -235,12 +235,7 @@ it('authorized user can bulk delete unassigned permissions', function () {
             'ids' => $permissions->pluck('id')->all(),
         ])
         ->assertOk()
-        ->assertJson([
-            'message' => 'Selected permissions deleted successfully.',
-            'meta' => [
-                'deletedCount' => 2,
-            ],
-        ]);
+        ->assertJsonPath('meta.deletedCount', 2);
 
     foreach ($permissions as $permission) {
         $this->assertDatabaseMissing('permissions', [

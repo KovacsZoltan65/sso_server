@@ -62,10 +62,11 @@ describe('Scopes CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         expect(router.get).toHaveBeenCalledWith(route('admin.scopes.edit', 1));
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await rowActionButtons[1].trigger('click');
         expect(confirmRequire).toHaveBeenCalledTimes(1);
 
         await confirmRequire.mock.calls[0][0].accept();
@@ -97,7 +98,7 @@ describe('Scopes CRUD frontend', () => {
 
         await nextTick();
 
-        expect(wrapper.text()).toContain('In Use');
+        expect(wrapper.text()).toMatch(/In Use|Használatban/);
 
         await wrapper.find('[data-toolbar-action="refresh"]').trigger('click');
         await nextTick();
@@ -105,7 +106,7 @@ describe('Scopes CRUD frontend', () => {
         expect(router.get).toHaveBeenCalledTimes(1);
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'scopes refreshed successfully.',
+            detail: 'Frissítés',
         }));
     });
 
@@ -140,7 +141,8 @@ describe('Scopes CRUD frontend', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(router.get).toHaveBeenLastCalledWith(

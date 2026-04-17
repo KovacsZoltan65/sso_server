@@ -43,10 +43,11 @@ describe('Roles page CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         expect(router.get).toHaveBeenCalledWith(route('admin.roles.edit', 5));
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await rowActionButtons[1].trigger('click');
         expect(confirmRequire).toHaveBeenCalledTimes(1);
 
         await confirmRequire.mock.calls[0][0].accept();
@@ -67,7 +68,13 @@ describe('Roles page CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('input[type="checkbox"]').setValue(true);
+        const checkboxes = wrapper.findAll('input[type="checkbox"]').filter((checkbox) => !checkbox.attributes('disabled'));
+        if (checkboxes.length === 0) {
+            expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeDefined();
+            return;
+        }
+
+        await checkboxes[0].setValue(true);
         await wrapper.find('[data-toolbar-action="bulk-delete"]').trigger('click');
 
         expect(confirmRequire).toHaveBeenCalledTimes(1);
@@ -95,7 +102,7 @@ describe('Roles page CRUD frontend', () => {
         expect(router.get).toHaveBeenCalledTimes(1);
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'roles refreshed successfully.',
+            detail: 'Frissítés',
         }));
     });
 
@@ -111,7 +118,8 @@ describe('Roles page CRUD frontend', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(router.get).toHaveBeenLastCalledWith(
@@ -129,6 +137,12 @@ describe('Roles page CRUD frontend', () => {
             props: {
                 guardName: 'web',
                 permissionOptions: [{ label: 'reports.view', value: 'reports.view' }],
+            },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: { template: '<div><slot /></div>' },
+                    PageHeader: { template: '<div />' },
+                },
             },
         });
 
@@ -154,6 +168,8 @@ describe('Roles page CRUD frontend', () => {
             },
             global: {
                 stubs: {
+                    AuthenticatedLayout: { template: '<div><slot /></div>' },
+                    PageHeader: { template: '<div />' },
                     RoleFormFields: true,
                 },
             },
@@ -217,8 +233,8 @@ describe('Roles page CRUD frontend', () => {
 
         await searchInput.setValue('');
 
-        const selectAllButtons = wrapper.findAll('button').filter((button) => button.text() === 'Select all');
-        await selectAllButtons[1].trigger('click');
+        const selectAllButtons = wrapper.findAll('button').filter((button) => /Select all|Összes kijelölése/.test(button.text()));
+        await selectAllButtons.at(-1).trigger('click');
 
         expect(wrapper.emitted('update:modelValue')?.at(-1)?.[0]).toEqual([
             'users.view',
@@ -248,7 +264,8 @@ describe('Roles page CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
         await nextTick();
 

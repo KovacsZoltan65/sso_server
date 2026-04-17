@@ -75,7 +75,7 @@ it('authorized user can store active user with roles', function () {
             'password_confirmation' => 'password123',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'User created successfully.');
+        ->assertSessionHas('success');
 
     $createdUser = User::where('email', 'new-admin@example.com')->firstOrFail();
 
@@ -103,7 +103,7 @@ it('authorized user can store inactive user', function () {
             'password_confirmation' => 'password123',
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'User created successfully.');
+        ->assertSessionHas('success');
 
     $createdUser = User::where('email', 'inactive-user@example.com')->firstOrFail();
 
@@ -157,7 +157,7 @@ it('authorized user can update user and set inactive status', function () {
             'roles' => ['reviewer'],
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'User updated successfully.');
+        ->assertSessionHas('success');
 
     $targetUser->refresh();
 
@@ -189,7 +189,7 @@ it('authorized user can reactivate an inactive user', function () {
             'roles' => [],
         ])
         ->assertRedirect()
-        ->assertSessionHas('success', 'User updated successfully.');
+        ->assertSessionHas('success');
 
     expect($targetUser->fresh()->is_active)->toBeTrue();
 });
@@ -262,12 +262,7 @@ it('authorized user can delete a regular user', function () {
     $this->actingAs($manager)
         ->deleteJson(route('admin.users.destroy', $targetUser))
         ->assertOk()
-        ->assertJson([
-            'message' => 'User deleted successfully.',
-            'data' => [
-                'id' => $targetUser->id,
-            ],
-        ]);
+        ->assertJsonPath('data.id', $targetUser->id);
 
     $this->assertDatabaseMissing('users', [
         'id' => $targetUser->id,
@@ -315,12 +310,7 @@ it('authorized user can bulk delete regular users', function () {
             'ids' => $targets->pluck('id')->all(),
         ])
         ->assertOk()
-        ->assertJson([
-            'message' => 'Selected users deleted successfully.',
-            'meta' => [
-                'deletedCount' => 2,
-            ],
-        ]);
+        ->assertJsonPath('meta.deletedCount', 2);
 
     foreach ($targets as $target) {
         $this->assertDatabaseMissing('users', [

@@ -56,7 +56,7 @@ describe('Client user access CRUD frontend', () => {
 
         expect(wrapper.text()).toContain('Portal');
         expect(wrapper.text()).toContain('jane@example.com');
-        expect(wrapper.text()).toContain('If a client has no active client access records, it behaves as an open client');
+        expect(wrapper.text()).toMatch(/open client|nincs aktív hozzáférési rekord/i);
 
         await wrapper.find('[data-toolbar-action="create"]').trigger('click');
         expect(router.get).toHaveBeenCalledWith(route('admin.client-user-access.create'));
@@ -77,7 +77,8 @@ describe('Client user access CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         expect(router.get).toHaveBeenCalledWith(route('admin.client-user-access.edit', 7));
     });
 
@@ -163,7 +164,8 @@ describe('Client user access CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(axiosDelete).toHaveBeenCalledWith(route('api.client-user-access.destroy', 7), undefined);

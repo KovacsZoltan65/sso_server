@@ -75,7 +75,8 @@ describe('Clients CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         expect(router.get).toHaveBeenCalledWith(route('admin.sso-clients.edit', 7));
     });
 
@@ -219,7 +220,7 @@ describe('Clients CRUD frontend', () => {
 
         await searchInput.setValue('');
 
-        const selectAllButtons = wrapper.findAll('button').filter((button) => button.text() === 'Select all');
+        const selectAllButtons = wrapper.findAll('button').filter((button) => /Select all|Összes kijelölése/.test(button.text()));
         await selectAllButtons[0].trigger('click');
 
         expect(form.scopes).toEqual(['openid', 'email']);
@@ -264,7 +265,8 @@ describe('Clients CRUD frontend', () => {
             detail: 'SSO client created successfully.',
         }));
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
         await nextTick();
 
@@ -334,7 +336,7 @@ describe('Clients CRUD frontend', () => {
         await nextTick();
         expect(rotateForm.post).toHaveBeenCalledTimes(1);
 
-        const revokeButton = wrapper.findAll('button').find((button) => button.text() === 'Revoke');
+        const revokeButton = wrapper.findAll('button').find((button) => /Revoke|Visszavonás/.test(button.text()));
         await revokeButton.trigger('click');
         await confirmRequire.mock.calls.at(-1)[0].accept();
 
@@ -357,7 +359,8 @@ describe('Clients CRUD frontend', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(router.get).toHaveBeenLastCalledWith(

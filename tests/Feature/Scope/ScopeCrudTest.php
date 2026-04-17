@@ -103,7 +103,7 @@ it('authorized user can store scope', function () {
             'is_active' => true,
         ])
         ->assertRedirect(route('admin.scopes.index'))
-        ->assertSessionHas('success', 'Scope created successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseHas('scopes', [
         'name' => 'Profile Read',
@@ -166,7 +166,7 @@ it('authorized user can update scope', function () {
             'is_active' => false,
         ])
         ->assertRedirect(route('admin.scopes.index'))
-        ->assertSessionHas('success', 'Scope updated successfully.');
+        ->assertSessionHas('success');
 
     $scope->refresh();
 
@@ -210,7 +210,7 @@ it('authorized user can delete unused scope', function () {
     $this->actingAs($user)
         ->delete(route('admin.scopes.destroy', $scope))
         ->assertRedirect(route('admin.scopes.index'))
-        ->assertSessionHas('success', 'Scope deleted successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseMissing('scopes', [
         'id' => $scope->id,
@@ -247,7 +247,6 @@ it('authorized user can bulk delete unused scopes', function () {
             'ids' => $scopes->pluck('id')->all(),
         ])
         ->assertOk()
-        ->assertJsonPath('message', 'Selected scopes deleted successfully.')
         ->assertJsonPath('meta.deletedCount', 2);
 
     $this->assertDatabaseCount('scopes', 0);

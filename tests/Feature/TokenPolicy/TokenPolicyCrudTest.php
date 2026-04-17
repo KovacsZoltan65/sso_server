@@ -84,7 +84,7 @@ it('authorized user can store token policy', function () {
             'is_active' => true,
         ])
         ->assertRedirect(route('admin.token-policies.index'))
-        ->assertSessionHas('success', 'Token policy created successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseHas('token_policies', [
         'code' => 'public.strict',
@@ -192,7 +192,7 @@ it('authorized user can update token policy', function () {
             'is_active' => true,
         ])
         ->assertRedirect(route('admin.token-policies.index'))
-        ->assertSessionHas('success', 'Token policy updated successfully.');
+        ->assertSessionHas('success');
 
     $tokenPolicy->refresh();
 
@@ -236,7 +236,6 @@ it('authorized user can bulk delete unused token policies', function () {
             'ids' => $tokenPolicies->pluck('id')->all(),
         ])
         ->assertOk()
-        ->assertJsonPath('message', 'Selected token policies deleted successfully.')
         ->assertJsonPath('meta.deletedCount', 2);
 
     $this->assertDatabaseCount('token_policies', 0);

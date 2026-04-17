@@ -563,6 +563,12 @@ config.global.stubs = {
     teleport: true,
 };
 
+config.global.mocks = {
+    ...(config.global.mocks ?? {}),
+    $t: translate,
+    trans: translate,
+};
+
 beforeEach(() => {
     resetAxiosMocks();
     resetInertiaMocks();

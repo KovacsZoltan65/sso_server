@@ -1,5 +1,6 @@
 <script setup>
 import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
@@ -15,7 +16,6 @@ import { useToast } from "primevue/usetoast";
 import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
-import DataTable from "primevue/datatable";
 import Dialog from "primevue/dialog";
 import IconField from "primevue/iconfield";
 import InputIcon from "primevue/inputicon";
@@ -402,7 +402,7 @@ usePageOverlayCleanup(() => {
                     </div>
 
                     <div class="min-h-0 flex-1 overflow-hidden">
-                        <DataTable
+                        <BaseDataTable
                             :value="rows"
                             :filters="tableFilters"
                             data-key="id"
@@ -410,6 +410,7 @@ usePageOverlayCleanup(() => {
                             paginator
                             scrollable
                             scroll-height="flex"
+                            :striped-rows="false"
                             paginator-template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
                             current-page-report-template="{first} to {last} of {totalRecords}"
                             :rows="pagination.perPage"
@@ -495,7 +496,7 @@ usePageOverlayCleanup(() => {
                                     {{ trans('table.empty') }}
                                 </div>
                             </template>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
                 </div>
             </AdminTableCard>

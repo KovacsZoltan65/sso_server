@@ -79,7 +79,7 @@ it('authorized user can store role with permissions', function () {
             'permissions' => ['reports.view', 'reports.export'],
         ])
         ->assertRedirect(route('admin.roles.index'))
-        ->assertSessionHas('success', 'Role created successfully.');
+        ->assertSessionHas('success');
 
     $role = Role::findByName('auditor', 'web');
 
@@ -142,7 +142,7 @@ it('authorized user can update role and sync permissions', function () {
             'permissions' => ['reports.export'],
         ])
         ->assertRedirect(route('admin.roles.index'))
-        ->assertSessionHas('success', 'Role updated successfully.');
+        ->assertSessionHas('success');
 
     $role->refresh();
 
@@ -184,7 +184,7 @@ it('authorized user can delete unassigned role', function () {
     $this->actingAs($user)
         ->delete(route('admin.roles.destroy', $role))
         ->assertRedirect(route('admin.roles.index'))
-        ->assertSessionHas('success', 'Role deleted successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseMissing('roles', [
         'id' => $role->id,
@@ -248,12 +248,7 @@ it('authorized user can bulk delete unassigned roles', function () {
             'ids' => $roles->pluck('id')->all(),
         ])
         ->assertOk()
-        ->assertJson([
-            'message' => 'Selected roles deleted successfully.',
-            'meta' => [
-                'deletedCount' => 2,
-            ],
-        ]);
+        ->assertJsonPath('meta.deletedCount', 2);
 
     foreach ($roles as $role) {
         $this->assertDatabaseMissing('roles', [

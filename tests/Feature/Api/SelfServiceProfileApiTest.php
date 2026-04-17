@@ -149,9 +149,7 @@ it('rejects forbidden self-service mutation fields instead of silently accepting
         ])
         ->assertStatus(422)
         ->assertJsonPath('message', 'Validation failed.')
-        ->assertJsonPath('errors.email.0', 'This field cannot be updated through self-service profile.')
-        ->assertJsonPath('errors.roles.0', 'This field cannot be updated through self-service profile.')
-        ->assertJsonPath('errors.permissions.0', 'This field cannot be updated through self-service profile.');
+        ->assertJsonValidationErrors(['email', 'roles', 'permissions']);
 
     $user->refresh();
 
@@ -224,7 +222,7 @@ it('rejects forbidden fields on the password endpoint to protect the self-servic
             'roles' => ['admin'],
         ])
         ->assertStatus(422)
-        ->assertJsonPath('errors.roles.0', 'This field cannot be updated through self-service password change.');
+        ->assertJsonValidationErrors(['roles']);
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'security',

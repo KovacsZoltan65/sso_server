@@ -62,10 +62,11 @@ describe('Admin Users index', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         expect(wrapper.find('[data-edit-modal]').attributes('data-visible')).toBe('true');
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await rowActionButtons[1].trigger('click');
         expect(confirmRequire).toHaveBeenCalledTimes(1);
 
         await confirmRequire.mock.calls[0][0].accept();
@@ -98,7 +99,7 @@ describe('Admin Users index', () => {
 
         await nextTick();
 
-        expect(wrapper.text()).toContain('Protected');
+        expect(wrapper.text()).toMatch(/Protected|Védett/);
 
         await wrapper.find('[data-toolbar-action="refresh"]').trigger('click');
         await nextTick();
@@ -119,8 +120,8 @@ describe('Admin Users index', () => {
 
         await nextTick();
 
-        expect(wrapper.text()).toContain('Active');
-        expect(wrapper.text()).toContain('Inactive');
+        expect(wrapper.text()).toMatch(/Active|Aktív/);
+        expect(wrapper.text()).toMatch(/Inactive|Inaktív/);
 
         const selects = wrapper.findAll('select');
         await selects[0].setValue('inactive');
@@ -162,7 +163,8 @@ describe('Admin Users index', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(router.get).toHaveBeenLastCalledWith(

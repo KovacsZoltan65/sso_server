@@ -5,7 +5,7 @@ import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import { computed } from "vue";
-import { trans } from "laravel-vue-i18n/*";
+import { trans } from "laravel-vue-i18n";
 
 const props = defineProps({
     form: {

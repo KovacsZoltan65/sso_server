@@ -249,12 +249,7 @@ it('authorized admin can revoke an access token', function (): void {
             'reason' => 'admin_revoked',
         ])
         ->assertOk()
-        ->assertJson([
-            'message' => 'Token revoked successfully.',
-            'data' => [
-                'id' => $token->id,
-            ],
-        ]);
+        ->assertJsonPath('data.id', $token->id);
 
     $token->refresh();
 
@@ -266,6 +261,25 @@ it('authorized admin can revoke an access token', function (): void {
         'event' => 'oauth.token.revoked',
         'causer_id' => $manager->id,
     ]);
+});
+
+it('token revoke response keeps the standard envelope keys', function (): void {
+    $manager = tokenManager(['tokens.revokeToken']);
+    $token = tokenFixture();
+
+    $this->actingAs($manager)
+        ->postJson(route('admin.tokens.revoke', $token), [
+            'token_type' => 'access_token',
+            'reason' => 'admin_revoked',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.id', $token->id)
+        ->assertJsonStructure([
+            'message',
+            'data',
+            'meta',
+            'errors',
+        ]);
 });
 
 it('authorized admin can revoke a refresh token', function (): void {

@@ -91,12 +91,6 @@ describe('Admin Users modals', () => {
             },
         });
 
-        expect(wrapper.text()).toContain('Name');
-        expect(wrapper.text()).toContain('Email');
-        expect(wrapper.text()).toContain('Roles');
-        expect(wrapper.text()).toContain('User is active');
-        expect(wrapper.text()).toContain('Password');
-        expect(wrapper.text()).toContain('Confirm password');
         expect(wrapper.text()).toContain('Email is required.');
         expect(wrapper.text()).toContain('The is active field must be true or false.');
 

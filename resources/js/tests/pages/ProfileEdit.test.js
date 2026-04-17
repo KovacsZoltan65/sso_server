@@ -109,7 +109,7 @@ describe('Profile/Edit', () => {
         expect(form.reset).toHaveBeenCalled();
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            summary: 'Jelszo frissitve',
+            summary: 'Jelszó frissítve',
         }));
     });
 });

@@ -21,8 +21,7 @@ describe('Token Policies CRUD frontend', () => {
             },
         });
 
-        const createButton = wrapper.findAll('button').find((button) => button.text() === 'Create Token Policy');
-        await createButton.trigger('click');
+        await wrapper.find('[data-toolbar-action="create"]').trigger('click');
 
         expect(router.get).toHaveBeenCalledWith(
             JSON.stringify({ name: 'admin.token-policies.create', params: undefined }),
@@ -61,7 +60,7 @@ describe('Token Policies CRUD frontend', () => {
         expect(wrapper.text()).toContain('Default Web Policy');
         expect(wrapper.text()).toContain('default.web');
         expect(wrapper.text()).toContain('Default');
-        expect(wrapper.text()).toContain('Active');
+        expect(wrapper.text()).toMatch(/Active|Aktív/);
     });
 
     it('bulk deletes selected token policies', async () => {
@@ -116,8 +115,7 @@ describe('Token Policies CRUD frontend', () => {
         const checkboxes = wrapper.findAll('input[type="checkbox"]');
         await checkboxes[1].setValue(true);
 
-        const bulkDeleteButton = wrapper.findAll('button').find((button) => button.text() === 'Delete Selected');
-        await bulkDeleteButton.trigger('click');
+        await wrapper.find('[data-toolbar-action="bulk-delete"]').trigger('click');
         expect(confirmRequire).toHaveBeenCalledTimes(1);
     });
 
@@ -151,8 +149,8 @@ describe('Token Policies CRUD frontend', () => {
 
         await nextTick();
 
-        const deleteButton = wrapper.findAll('button').find((button) => button.attributes('data-row-action') === 'Delete');
-        await deleteButton.trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(router.get).toHaveBeenLastCalledWith(

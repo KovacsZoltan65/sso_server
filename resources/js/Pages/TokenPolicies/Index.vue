@@ -1,5 +1,6 @@
 <script setup>
 import AdminTableCard from '@/Components/Admin/AdminTableCard.vue';
+import BaseDataTable from '@/Components/Admin/BaseDataTable.vue';
 import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
@@ -12,7 +13,6 @@ import { FilterMatchMode } from '@primevue/core/api';
 import Checkbox from 'primevue/checkbox';
 import Column from 'primevue/column';
 import ConfirmDialog from 'primevue/confirmdialog';
-import DataTable from 'primevue/datatable';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 import InputText from 'primevue/inputtext';
@@ -149,17 +149,17 @@ const formatMinutes = (minutes) => {
 
             <AdminTableCard>
                 <div class="admin-table-shell">
-                    <DataTable
+                    <BaseDataTable
                         :value="rows"
                         v-model:filters="tableFilters"
                         :rows="tableState.perPage"
                         :first="pagination.first"
-                        :totalRecords="pagination.total"
-                        :rowsPerPageOptions="perPageOptions"
-                        :sortField="tableState.sortField"
-                        :sortOrder="tableState.sortOrder"
+                        :total-records="pagination.total"
+                        :rows-per-page-options="perPageOptions"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        class="admin-datatable h-full"
+                        :scrollable="false"
                         data-key="id"
                         paginator
                         lazy
@@ -270,7 +270,7 @@ const formatMinutes = (minutes) => {
                                 <RowActionMenu :items="tokenPolicyActionItems(data)" />
                             </template>
                         </Column>
-                    </DataTable>
+                    </BaseDataTable>
                 </div>
 
                 <template #footer>

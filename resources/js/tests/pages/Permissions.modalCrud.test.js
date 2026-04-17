@@ -44,10 +44,11 @@ describe('Permissions modal CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Edit"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[0].trigger('click');
         expect(wrapper.find('[data-edit-modal]').attributes('data-visible')).toBe('true');
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        await rowActionButtons[1].trigger('click');
         expect(confirmRequire).toHaveBeenCalledTimes(1);
 
         await confirmRequire.mock.calls[0][0].accept();
@@ -96,7 +97,7 @@ describe('Permissions modal CRUD frontend', () => {
         expect(router.get).toHaveBeenCalledTimes(1);
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'permissions refreshed successfully.',
+            detail: 'Frissítés',
         }));
         expect(confirmClose).toHaveBeenCalled();
     });
@@ -159,7 +160,8 @@ describe('Permissions modal CRUD frontend', () => {
         });
 
         await nextTick();
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(router.get).toHaveBeenLastCalledWith(
@@ -284,7 +286,8 @@ describe('Permissions modal CRUD frontend', () => {
 
         await nextTick();
 
-        await wrapper.find('[data-row-action="Delete"]').trigger('click');
+        const rowActionButtons = wrapper.findAll('[data-row-action]');
+        await rowActionButtons[1].trigger('click');
         await confirmRequire.mock.calls[0][0].accept();
         await nextTick();
 

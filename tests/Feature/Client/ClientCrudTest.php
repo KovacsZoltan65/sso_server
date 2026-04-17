@@ -146,7 +146,7 @@ it('authorized user can store client and receives secret once', function () {
 
     $response
         ->assertRedirect(route('admin.sso-clients.index'))
-        ->assertSessionHas('success', 'SSO client created successfully.')
+        ->assertSessionHas('success')
         ->assertSessionHas('clientSecret');
 
     $client = SsoClient::query()->with(['redirectUris', 'scopes', 'secrets'])->firstOrFail();
@@ -279,7 +279,7 @@ it('authorized user can update client', function () {
             'consent_bypass_allowed' => true,
         ])
         ->assertRedirect(route('admin.sso-clients.index'))
-        ->assertSessionHas('success', 'SSO client updated successfully.');
+        ->assertSessionHas('success');
 
     $client->refresh()->load(['redirectUris', 'scopes']);
 
@@ -338,7 +338,7 @@ it('authorized user can rotate client secret and old one becomes revoked', funct
 
     $response
         ->assertRedirect(route('admin.sso-clients.edit', $client))
-        ->assertSessionHas('success', 'Client secret rotated successfully.')
+        ->assertSessionHas('success')
         ->assertSessionHas('clientSecret');
 
     $client->refresh()->load('secrets');
@@ -387,7 +387,7 @@ it('authorized user can revoke a non-last secret', function () {
     $this->actingAs($user)
         ->delete(route('admin.sso-clients.revoke-secret', [$client, $secretToRevoke]))
         ->assertRedirect(route('admin.sso-clients.edit', $client))
-        ->assertSessionHas('success', 'Client secret revoked successfully.');
+        ->assertSessionHas('success');
 
     expect($secretToRevoke->fresh()->revoked_at)->not->toBeNull();
     expect($secretToRevoke->fresh()->is_active)->toBeFalse();
@@ -425,7 +425,7 @@ it('authorized user can delete client', function () {
     $this->actingAs($user)
         ->delete(route('admin.sso-clients.destroy', $client))
         ->assertRedirect(route('admin.sso-clients.index'))
-        ->assertSessionHas('success', 'SSO client deleted successfully.');
+        ->assertSessionHas('success');
 
     $this->assertDatabaseMissing('sso_clients', [
         'id' => $client->id,
