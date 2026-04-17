@@ -1,5 +1,7 @@
 {
     "page_header.eyebrow": "Workspace",
+
+    "common.administration": "Administration",
     "common.refresh": "Refresh",
     "common.save": "Save",
     "common.cancel": "Cancel",
@@ -17,6 +19,7 @@
     "common.reason": "Reason",
     "common.success": "Successful action",
     "common.error": "Error",
+    "common.navigation": "Navigation",
     "common.rotate_before_mobile_rollout": "E.g. Rotated before mobile rollout",
     "common.url_placeholder": "https://client.example.com/callback",
     "common.foundation_ready_title": "Foundation ready",
@@ -61,6 +64,7 @@
     "navigation.companies.label": "Companies",
     "navigation.employees.label": "Employees",
     "navigation.connection_health.label": "Connection Health",
+    "navigation.close_navigation.aria_label": "Close navigation",
     "auth.login.page_title": "Sign in",
     "auth.login.title": "Sign in",
     "auth.login.description": "Sign in to continue.",
@@ -296,5 +300,12 @@
     "public_auth_layout.hero.description": "Sign in to access the application through the central authentication service.",
     "public_auth_layout.card.title": "Trusted access",
     "public_auth_layout.card.description": "Use your existing account details to continue safely.",
-    "public_auth_layout.form.eyebrow": "Identity provider"
+    "public_auth_layout.form.eyebrow": "Identity provider",
+    "placeholder_page.title": "Model status",
+    "placeholder_page.description": "This module is intentionally kept lightweight during bootstrap. Routing, authorization, menu placement, and visual shell are ready for the full SSO implementation.",
+    "placeholder_page.integration_target": "Integration target",
+    "placeholder_page.next_integration_steps": "Next implementation steps",
+    "users.loading_message": "Loading users...",
+    "users.loading_error": "loading error",
+    "users.loading_empty": "No users found for the current filters."
 }

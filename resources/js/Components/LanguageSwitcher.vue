@@ -9,7 +9,9 @@ const page = usePage();
 const isSubmitting = ref(false);
 
 const availableLocales = computed(() => page.props.locale?.available ?? ["hu", "en"]);
-const activeLocale = computed(() => currentLocale.value || page.props.locale?.current || "hu");
+const activeLocale = computed(
+    () => currentLocale.value || page.props.locale?.current || "hu"
+);
 
 const localeLabels = {
     hu: "HU",
@@ -33,12 +35,16 @@ const switchLocale = async (locale) => {
     }
 
     try {
-        await axios.post(route("locale.update"), { locale }, {
-            headers: {
-                Accept: "application/json",
-                "X-Requested-With": "XMLHttpRequest",
-            },
-        });
+        await axios.post(
+            route("locale.update"),
+            { locale },
+            {
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
+                },
+            }
+        );
     } catch (_error) {
         await loadLanguageAsync(previousLocale);
         document.documentElement.setAttribute("lang", previousLocale);
@@ -61,6 +67,7 @@ const switchLocale = async (locale) => {
             :severity="locale === activeLocale ? 'contrast' : 'secondary'"
             :text="locale !== activeLocale"
             :disabled="isSubmitting"
+            :data-testid="`language-switch-${locale}`"
             @click="switchLocale(locale)"
         />
     </div>

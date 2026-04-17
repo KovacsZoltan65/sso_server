@@ -541,6 +541,7 @@ Frontend test stack
 - Use Vue Test Utils for Vue component and page tests
 - Do not introduce alternate frontend test frameworks without explicit approval
 - Reuse the existing Vitest mocks, setup helpers, and stubbing patterns where practical
+- Frontend selector strategy: follow `docs/frontend-test-selector-guideline.md` and prefer stable selectors over locale/copy-dependent ones
 
 Mandatory backend coverage
 

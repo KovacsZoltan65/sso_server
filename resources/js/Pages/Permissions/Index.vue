@@ -11,6 +11,7 @@ import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { useAdminTableState } from "@/Composables/useAdminTableState";
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import CreateModal from "@/Pages/Permissions/CreateModal.vue";
 import EditModal from "@/Pages/Permissions/EditModal.vue";
 import { Head } from "@inertiajs/vue3";
@@ -61,6 +62,7 @@ const props = defineProps({
 });
 
 const rows = computed(() => props.rows);
+const searchBehavior = useAdminSearchBehavior();
 
 const isCreateModalOpen = ref(false);
 const isEditModalOpen = ref(false);
@@ -129,12 +131,14 @@ const {
 
 const onGlobalFilterInput = (value) => {
     tableFilters.global.value = value ?? null;
-    resetPagination();
+    searchBehavior.queueSearch(() => {
+        resetPagination();
 
-    reload(
-        buildParams({ page: 1, global: value || undefined }),
-        { resetSelection: true }
-    );
+        reload(
+            buildParams({ page: 1, global: value || undefined }),
+            { resetSelection: true }
+        );
+    });
 };
 
 const onFilter = (event) => {

@@ -94,6 +94,7 @@ const runPrimaryAction = (event) => {
             :aria-label="primaryItem.ariaLabel ?? primaryItem.label"
             :disabled="disabled || primaryItem.disabled"
             :data-primary-row-action="primaryItem.label"
+            data-testid="row-action-primary"
             @click="runPrimaryAction"
         />
 
@@ -105,6 +106,7 @@ const runPrimaryAction = (event) => {
             rounded
             :aria-label="trans('table.row_actions')"
             :disabled="disabled"
+            data-testid="row-action-overflow"
             @click="toggle"
         />
 

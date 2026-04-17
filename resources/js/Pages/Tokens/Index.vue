@@ -82,7 +82,6 @@ const tableState = reactive({
     sortOrder: props.sorting.order ?? -1,
 });
 
-const perPageOptions = [5, 10, 15, 25];
 const tokenTypeOptions = [
     { label: trans("pages.tokens.access_token"), value: "access_token" },
     { label: trans("pages.tokens.refresh_token"), value: "refresh_token" },
@@ -411,12 +410,9 @@ usePageOverlayCleanup(() => {
                             scrollable
                             scroll-height="flex"
                             :striped-rows="false"
-                            paginator-template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-                            current-page-report-template="{first} to {last} of {totalRecords}"
                             :rows="pagination.perPage"
                             :first="pagination.first"
                             :total-records="pagination.total"
-                            :rows-per-page-options="perPageOptions"
                             :always-show-paginator="true"
                             @page="onPage"
                             @sort="onSort"

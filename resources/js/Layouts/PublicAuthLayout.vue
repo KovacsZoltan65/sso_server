@@ -1,5 +1,7 @@
 <script setup>
 import LanguageSwitcher from "@/Components/LanguageSwitcher.vue";
+import { trans } from "laravel-vue-i18n";
+
 defineProps({
     title: {
         type: String,
@@ -41,20 +43,20 @@ defineProps({
                             <p
                                 class="text-xs font-semibold uppercase tracking-[0.28em] text-sky-200/80"
                             >
-                                {{ $t("public_auth_layout.hero.badge") }}
+                                {{ trans("public_auth_layout.hero.badge") }}
                             </p>
                             <p class="mt-1 text-lg font-semibold text-white">
-                                {{ $t("public_auth_layout.hero.title") }}
+                                {{ trans("public_auth_layout.hero.title") }}
                             </p>
                         </div>
                     </div>
 
                     <div class="max-w-md">
                         <h1 class="text-4xl font-semibold leading-tight text-white">
-                            {{ $t("public_auth_layout.hero.heading") }}
+                            {{ trans("public_auth_layout.hero.heading") }}
                         </h1>
                         <p class="mt-4 text-base leading-7 text-slate-300">
-                            {{ $t("public_auth_layout.hero.description") }}
+                            {{ trans("public_auth_layout.hero.description") }}
                         </p>
                     </div>
 
@@ -63,10 +65,10 @@ defineProps({
                             <p
                                 class="text-xs font-semibold uppercase tracking-[0.22em] text-sky-200/80"
                             >
-                                {{ $t("public_auth_layout.card.title") }}
+                                {{ trans("public_auth_layout.card.title") }}
                             </p>
                             <p class="mt-2 text-sm leading-6 text-slate-300">
-                                {{ $t("public_auth_layout.card.description") }}
+                                {{ trans("public_auth_layout.card.description") }}
                             </p>
                         </div>
                     </div>
@@ -87,7 +89,7 @@ defineProps({
                             <p
                                 class="text-xs font-semibold uppercase tracking-[0.28em] text-slate-400"
                             >
-                                {{ $t("public_auth_layout.form.eyebrow") }}
+                                {{ trans("public_auth_layout.form.eyebrow") }}
                             </p>
                             <h2
                                 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950"

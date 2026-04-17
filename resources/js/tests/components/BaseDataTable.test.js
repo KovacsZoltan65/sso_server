@@ -19,4 +19,19 @@ describe('BaseDataTable', () => {
             [[{ id: 1, name: 'First' }]],
         ]);
     });
+
+    it('forwards empty selection updates without transformation', async () => {
+        const wrapper = mount(BaseDataTable, {
+            props: {
+                value: [{ id: 1, name: 'First' }],
+            },
+        });
+
+        wrapper.findComponent(DataTable).vm.$emit('update:selection', null);
+        await nextTick();
+
+        expect(wrapper.emitted('update:selection')).toEqual([
+            [null],
+        ]);
+    });
 });

@@ -6,6 +6,7 @@ import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
+import { useAdminSearchBehavior } from '@/Composables/useAdminSearchBehavior';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { trans } from 'laravel-vue-i18n';
 import { Head, router } from '@inertiajs/vue3';
@@ -60,7 +61,7 @@ const tableState = reactive({
     sortOrder: props.sorting.order ?? 1,
 });
 
-const perPageOptions = [5, 10, 15, 25];
+const searchBehavior = useAdminSearchBehavior();
 
 const {
     selectedIds,
@@ -97,8 +98,10 @@ const { busy, reload, refresh, confirmDelete, confirmBulkDelete } = useAdminList
 
 const onGlobalFilterInput = (value) => {
     tableFilters.value.global.value = value ?? null;
-    tableState.page = 1;
-    reload({ page: 1, global: value || undefined }, { resetSelection: true });
+    searchBehavior.queueSearch(() => {
+        tableState.page = 1;
+        reload({ page: 1, global: value || undefined }, { resetSelection: true });
+    });
 };
 
 const onSort = (event) => {
@@ -155,7 +158,6 @@ const formatMinutes = (minutes) => {
                         :rows="tableState.perPage"
                         :first="pagination.first"
                         :total-records="pagination.total"
-                        :rows-per-page-options="perPageOptions"
                         :sort-field="tableState.sortField"
                         :sort-order="tableState.sortOrder"
                         :loading="busy"

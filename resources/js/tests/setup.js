@@ -1,14 +1,31 @@
 import { config } from '@vue/test-utils';
 import { computed, defineComponent, h, inject, provide, ref } from 'vue';
 import { afterEach, beforeEach, vi } from 'vitest';
-import en from '../../../lang/en.json';
-import hu from '../../../lang/hu.json';
+import { readFileSync } from 'node:fs';
 import { axiosDelete, axiosPost, axiosPut, resetAxiosMocks } from './mocks/axios';
 import { createMockForm, getPage, resetInertiaMocks, router, setPageProps } from './mocks/inertia';
 import { confirmClose, confirmRequire, resetPrimeVueMocks, toastAdd } from './mocks/primevue';
 
+// Selector guardrail: avoid `findAll('button').find(...)` and hardcoded
+// `wrapper.text().toContain('...')` assertions when a stable selector or i18n key exists.
+// Run `npm run test:selector-guard` for warn-only checks.
+
 const dataTableColumnsKey = Symbol('dataTableColumns');
-const translations = { en, hu };
+
+const loadTranslations = (relativePath) => {
+    try {
+        return JSON.parse(
+            readFileSync(new URL(relativePath, import.meta.url), 'utf8'),
+        );
+    } catch (_error) {
+        return {};
+    }
+};
+
+const translations = {
+    en: loadTranslations('../../../lang/en.json'),
+    hu: loadTranslations('../../../lang/hu.json'),
+};
 
 const translate = (key, replacements = {}) => {
     const locale = getPage().props.locale?.current ?? 'hu';

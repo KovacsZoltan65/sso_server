@@ -1,6 +1,7 @@
 import { nextTick } from 'vue';
 import { describe, expect, it } from 'vitest';
 import { mount } from '@vue/test-utils';
+import DataTable from 'primevue/datatable';
 import GroupedCheckboxSelector from '@/Components/Admin/GroupedCheckboxSelector.vue';
 import Create from '@/Pages/Roles/Create.vue';
 import Edit from '@/Pages/Roles/Edit.vue';
@@ -82,6 +83,47 @@ describe('Roles page CRUD frontend', () => {
         await confirmRequire.mock.calls[0][0].accept();
 
         expect(axiosDelete).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps protected records non-selectable and bulk action disabled', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 7, name: 'system-role', guardName: 'web', permissions: [], usersCount: 0, canDelete: false, deleteBlockReason: 'Protected', createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 1, perPage: 10, total: 1, from: 1, to: 1, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManageRoles: true,
+            },
+        });
+
+        await nextTick();
+
+        const rowCheckbox = wrapper.findAll('input[type="checkbox"]').at(-1);
+        expect(rowCheckbox.attributes('disabled')).toBeDefined();
+        expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeDefined();
+    });
+
+    it('resets selection on page change to prevent stale bulk-delete state', async () => {
+        const wrapper = mountPage(Index, {
+            props: {
+                rows: [{ id: 5, name: 'reviewer', guardName: 'web', permissions: ['reports.view'], usersCount: 0, canDelete: true, createdAt: '2026-03-25 10:00:00' }],
+                filters: { global: null, name: null },
+                pagination: { currentPage: 1, lastPage: 2, perPage: 10, total: 11, from: 1, to: 10, first: 0 },
+                sorting: { field: 'name', order: 1 },
+                canManageRoles: true,
+            },
+        });
+
+        await nextTick();
+
+        const rowCheckbox = wrapper.findAll('input[type="checkbox"]').filter((checkbox) => !checkbox.attributes('disabled')).at(-1);
+        await rowCheckbox.setValue(true);
+        expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeUndefined();
+
+        wrapper.findComponent(DataTable).vm.$emit('page', { page: 1, rows: 10 });
+        await nextTick();
+
+        expect(wrapper.find('[data-toolbar-action="bulk-delete"]').attributes('disabled')).toBeDefined();
     });
 
     it('uses the shared refresh action to reload the table', async () => {

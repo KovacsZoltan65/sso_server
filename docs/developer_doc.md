@@ -529,6 +529,10 @@ Szerver:
 npm run test
 ```
 
+Selector és assertion irányelv:
+
+- [`docs/frontend-test-selector-guideline.md`](/c:/wamp64/www/sso/sso_server/docs/frontend-test-selector-guideline.md)
+
 Kliens:
 
 ```bash
@@ -814,4 +818,3 @@ Ha gyorsan produktív akarsz lenni, ezt kövesd:
 - `tests/e2e/auth-flow.spec.ts`
 - `.github/workflows/e2e-auth.yml`
 - `docs/integration-contract.md`
-

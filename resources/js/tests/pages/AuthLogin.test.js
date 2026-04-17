@@ -2,6 +2,7 @@ import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import LoginPage from '@/Pages/Auth/Login.vue';
 import { getLastForm, setPageProps } from '@/tests/mocks/inertia';
+import hu from '../../../../lang/hu.json';
 
 describe('Auth/Login', () => {
     it('starts with empty credentials, removes demo hints, and preserves the submit flow', async () => {
@@ -31,8 +32,8 @@ describe('Auth/Login', () => {
 
         expect(form.email).toBe('');
         expect(form.password).toBe('');
-        expect(wrapper.text()).toContain('E-mail');
-        expect(wrapper.text()).toContain('Jelszó');
+        expect(wrapper.text()).toContain(hu['auth.email']);
+        expect(wrapper.text()).toContain(hu['auth.password']);
         expect(wrapper.text()).not.toContain('superadmin@sso.test');
         expect(wrapper.text()).not.toContain('Seeded accounts');
         expect(wrapper.text()).not.toContain('admin shell');

@@ -86,7 +86,6 @@ const tableState = reactive({
     sortOrder: props.sorting.order ?? -1,
 });
 
-const perPageOptions = [5, 10, 15, 25];
 const statusOptions = [
     { label: trans("common.all_statuses"), value: null },
     { label: trans("status.active"), value: "active" },
@@ -403,7 +402,6 @@ usePageOverlayCleanup(() => {
                             :total-records="pagination.totalRecords"
                             :sort-field="pagination.sortField"
                             :sort-order="pagination.sortOrder"
-                            :rows-per-page-options="perPageOptions"
                             @page="onPage"
                             @sort="onSort"
                         >

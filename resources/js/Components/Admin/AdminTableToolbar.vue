@@ -108,6 +108,7 @@ const resolvedBulkDeleteLabel = computed(
     <div class="flex flex-col gap-4">
         <div class="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
             <div class="min-w-0 flex-1 space-y-3">
+                <!-- Title, Description -->
                 <div v-if="title || description" class="space-y-1">
                     <h3 v-if="title" :class="titleClass">
                         {{ title }}
@@ -117,6 +118,7 @@ const resolvedBulkDeleteLabel = computed(
                     </p>
                 </div>
 
+                <!-- Search -->
                 <div
                     v-if="$slots.search || searchable"
                     :class="searchContainerClass"
@@ -136,6 +138,7 @@ const resolvedBulkDeleteLabel = computed(
                     </slot>
                 </div>
 
+                <!-- Filters -->
                 <div
                     v-if="$slots.filters"
                     class="flex flex-col gap-3 lg:flex-row lg:flex-wrap"
@@ -152,11 +155,16 @@ const resolvedBulkDeleteLabel = computed(
                     {{ bulkStatusText }}
                 </span>
 
+                <!-- Bulk Area -->
                 <slot name="bulk" />
+
+                <!-- Actions Area -->
                 <slot name="actions" />
+
+                <!-- Primary Area -->
                 <slot name="primary" />
 
-                <!-- Refresh -->
+                <!-- Refresh Button -->
                 <Button
                     :label="trans('common.refresh')"
                     icon="pi pi-refresh"
@@ -168,7 +176,7 @@ const resolvedBulkDeleteLabel = computed(
                     @click="$emit('refresh')"
                 />
 
-                <!-- Bulk Delete -->
+                <!-- Bulk Delete Button -->
                 <Button
                     v-if="canBulkDelete"
                     :label="resolvedBulkDeleteLabel"
@@ -180,7 +188,7 @@ const resolvedBulkDeleteLabel = computed(
                     @click="$emit('bulk-delete')"
                 />
 
-                <!-- Create -->
+                <!-- Create Button -->
                 <Button
                     v-if="canCreate"
                     :label="resolvedCreateLabel"

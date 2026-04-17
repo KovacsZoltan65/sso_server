@@ -35,7 +35,7 @@ const isActive = (item) => currentUrl.value.startsWith(route(item.route));
         </div>
 
         <div class="mb-4 px-3 text-xs uppercase tracking-[0.28em] text-slate-400">
-            Administration
+            {{ trans("createCommentVNode.administration") }}
         </div>
 
         <nav class="flex-1 space-y-2">

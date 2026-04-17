@@ -38,9 +38,11 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Vite;
 use App\Support\AuditLogPage;
 use Illuminate\Support\ServiceProvider;
+use Inertia\Inertia;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Repositories\Contracts\TokenRepositoryInterface;
@@ -79,6 +81,25 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TokenPolicy::class, TokenPolicyPolicy::class);
         Gate::policy(UserClientConsent::class, UserClientConsentPolicy::class);
         Gate::policy(AuditLogPage::class, AuditLogPolicy::class);
+
+        Inertia::share([
+            'errors' => function () {
+                return Session::get('errors')
+                    ? Session::get('errors')->getBag('default')->getMessages()
+                    : (object) [];
+            },
+            'available_locales' => config('app.available_locales'),
+            'locale' => fn () => app()->getLocale(),
+            'preferences' => fn () => [
+                'locale' => app()->getLocale(),
+                'timezone' => Session::has('timezone') ? Session::get('timezone') : config('app.timezone', 'UTC'),
+                'theme' => Session::has('theme') ? Session::get('theme') : 'system',
+            ],
+        ]);
+
+        Inertia::share('flash', fn () => ['message' => Session::get('message'),] );
+
+        Inertia::share('csrf_token', fn () => csrf_token());
 
         $this->configureRateLimiting();
 

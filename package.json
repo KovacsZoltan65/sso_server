@@ -6,6 +6,8 @@
         "build": "vite build",
         "dev": "vite",
         "test": "vitest run",
+        "test:selector-guard": "node resources/js/tests/selector-guard.mjs",
+        "test:selector-guard:strict": "node resources/js/tests/selector-guard.mjs --strict",
         "test:watch": "vitest"
     },
     "devDependencies": {

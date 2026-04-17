@@ -24,11 +24,16 @@ Route::get('/oauth/userinfo', OAuthUserInfoController::class)
     ->middleware('throttle:oauth-userinfo')
     ->name('oauth.userinfo');
 
-Route::middleware(['web', 'auth'])->prefix('/profile')->name('profile.')->group(function () {
-    Route::get('/', [SelfServiceProfileController::class, 'show'])->name('show');
-    Route::patch('/', [SelfServiceProfileController::class, 'update'])->name('update');
-    Route::patch('/password', [SelfServiceProfileController::class, 'updatePassword'])->name('password.update');
-});
+Route::middleware(['web', 'auth'])
+    ->controller(SelfServiceProfileController::class)
+    ->prefix('/profile')
+    ->name('profile.')
+    ->group(function () {
+        Route::get('/', 'show')->name('show');
+        Route::patch('/', 'update')->name('update');
+        Route::patch('/password', 'updatePassword')->name('password.update');
+    }
+);
 
 Route::middleware(['web', 'auth'])->group(function () {
     Route::controller(ClientUserAccessController::class)->name('api.client-user-access.')->group(function () {

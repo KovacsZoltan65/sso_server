@@ -18,8 +18,8 @@ describe('LanguageSwitcher', () => {
 
         const wrapper = mount(LanguageSwitcher);
 
-        const enButton = wrapper.findAll('button').find((button) => button.text().trim() === 'EN');
-        expect(enButton).toBeDefined();
+        const enButton = wrapper.find('[data-testid="language-switch-en"]');
+        expect(enButton.exists()).toBe(true);
         await enButton.trigger('click');
         await flushPromises();
 

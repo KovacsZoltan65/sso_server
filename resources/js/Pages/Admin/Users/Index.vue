@@ -11,6 +11,7 @@ import { useAdminTableState } from "@/Composables/useAdminTableState";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import CreateModal from "@/Pages/Admin/Users/CreateModal.vue";
 import EditModal from "@/Pages/Admin/Users/EditModal.vue";
 import { Head } from "@inertiajs/vue3";
@@ -94,7 +95,7 @@ const {
     serializeSortOrder: (value) => value,
 });
 
-const perPageOptions = [5, 10, 15, 25];
+const searchBehavior = useAdminSearchBehavior();
 
 const verifiedOptions = [
     { label: "All", value: null },
@@ -157,9 +158,11 @@ const {
 
 const onGlobalFilterInput = (value) => {
     tableFilters.global.value = value ?? null;
-    resetPagination();
-    reload(buildParams({ page: 1, global: value || undefined }), {
-        resetSelection: true,
+    searchBehavior.queueSearch(() => {
+        resetPagination();
+        reload(buildParams({ page: 1, global: value || undefined }), {
+            resetSelection: true,
+        });
     });
 };
 
@@ -264,12 +267,11 @@ const userActionItems = (user) => [
                         :rows="tableState.perPage"
                         :first="first"
                         :total-records="pagination.total"
-                        :rows-per-page-options="perPageOptions"
                         :sort-field="tableState.sortField"
                         :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        empty-message="No users found for the current filters."
-                        loading-message="Loading users..."
+                        :empty-message="trans('users.loading_empty')"
+                        :loading-message="trans('users.loading_message')"
                         data-key="id"
                         lazy
                         filterDisplay="menu"

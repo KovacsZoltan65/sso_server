@@ -7,6 +7,7 @@ import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import { Head, router } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
 import Checkbox from "primevue/checkbox";
@@ -71,12 +72,12 @@ const tableState = reactive({
     sortOrder: props.sorting.order ?? 1,
 });
 
-const perPageOptions = [5, 10, 15, 25];
+const searchBehavior = useAdminSearchBehavior();
 
 const {
     selectedIds,
-    selectedRows,
-    selectableRows,
+    selectedCount,
+    selectableCount,
     allSelected,
     partiallySelected,
     clearSelection,
@@ -109,27 +110,16 @@ const { busy, reload, refresh, confirmDelete, confirmBulkDelete } = useAdminList
 
 const onGlobalFilterInput = (value) => {
     tableFilters.value.global.value = value ?? null;
-    tableState.page = 1;
-    reload(
-        {
-            page: 1,
-            global: value || undefined,
-        },
-        { resetSelection: true }
-    );
-};
-
-const onFilter = (event) => {
-    tableState.page = 1;
-
-    reload(
-        {
-            page: 1,
-            global: event.filters.global?.value || undefined,
-            name: event.filters.name?.value || undefined,
-        },
-        { resetSelection: true }
-    );
+    searchBehavior.queueSearch(() => {
+        tableState.page = 1;
+        reload(
+            {
+                page: 1,
+                global: value || undefined,
+            },
+            { resetSelection: true }
+        );
+    });
 };
 
 const onSort = (event) => {
@@ -201,8 +191,8 @@ const roleActionItems = (role) => [
                     <BaseDataTable
                         :value="rows"
                         :loading="busy"
-                        :loading-message="trans('')"
-                        :empty-message="trans('')"
+                        :loading-message="trans('table.loading')"
+                        :empty-message="trans('table.empty')"
                         removable-sort
                         data-key="id"
                         :rows="tableState.perPage"
@@ -210,8 +200,7 @@ const roleActionItems = (role) => [
                         :total-records="pagination.total"
                         :sort-field="tableState.sortField"
                         :sort-order="tableState.sortOrder"
-                        :rows-per-page-options="perPageOptions"
-                        @page="onFilter"
+                        @page="onPage"
                         @sort="onSort"
                     >
                         <template #header>
@@ -220,8 +209,8 @@ const roleActionItems = (role) => [
                                 :createLabel="trans('actions.create')"
                                 :canBulkDelete="canManageRoles"
                                 :bulkDeleteLabel="trans('toolbar.bulk.delete')"
-                                :selectedCount="selectedRows.length"
-                                :selectableCount="selectableRows.length"
+                                :selectedCount="selectedCount"
+                                :selectableCount="selectableCount"
                                 :busy="busy"
                                 @create="goToCreatePage"
                                 @bulk-delete="confirmBulkDelete"
@@ -250,7 +239,30 @@ const roleActionItems = (role) => [
                         </template>
 
                         <!-- Selector -->
-                        <Column selectionMode="multiple" headerStyle="width: 3rem" />
+                        <Column v-if="canManageRoles" headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
+                            <template #header>
+                                <div :title="selectableCount === 0 ? trans('toolbar.bulk.none') : ''">
+                                    <Checkbox
+                                        :binary="true"
+                                        :modelValue="allSelected"
+                                        :indeterminate="partiallySelected"
+                                        :disabled="selectableCount === 0"
+                                        @update:modelValue="toggleAllSelection"
+                                    />
+                                </div>
+                            </template>
+
+                            <template #body="{ data }">
+                                <div :title="data.deleteBlockReason ?? ''">
+                                    <Checkbox
+                                        :binary="true"
+                                        :modelValue="selectedIds.includes(data.id)"
+                                        :disabled="!data.canDelete"
+                                        @update:modelValue="toggleRowSelection(data)"
+                                    />
+                                </div>
+                            </template>
+                        </Column>
 
                         <!-- Name -->
                         <Column
@@ -272,14 +284,6 @@ const roleActionItems = (role) => [
                                 </div>
                             </template>
 
-                            <template #filter="{ filterModel, filterCallback }">
-                                <InputText
-                                    v-model="filterModel.value"
-                                    :placeholder="trans('table.filter_name')"
-                                    class="w-full"
-                                    @input="filterCallback()"
-                                />
-                            </template>
                         </Column>
 
                         <!-- Guard -->

@@ -96,6 +96,15 @@ export function useAdminListActions({
         ?? fallbackMessage
     );
 
+    const resolveRowLabel = (row) => (
+        row?.name
+        ?? row?.title
+        ?? row?.code
+        ?? row?.email
+        ?? row?.id
+        ?? ''
+    );
+
     const deleteRequest = async (url, payload = undefined) => {
         isMutating.value = true;
         closeConfirm();
@@ -126,9 +135,13 @@ export function useAdminListActions({
     };
 
     const confirmDelete = (row) => {
+        const rowLabel = resolveRowLabel(row);
+
         confirm.require({
-            message: `${trans('actions.delete')} "${row.name}"?`,
-            header: `${trans('actions.delete')} ${entityLabel}`,
+            message: rowLabel
+                ? `${trans('actions.delete')} "${rowLabel}"?`
+                : trans('actions.delete'),
+            header: trans('common.deletion_confirmation'),
             icon: 'pi pi-exclamation-triangle',
             acceptLabel: trans('actions.delete'),
             rejectLabel: trans('common.cancel'),
@@ -143,7 +156,7 @@ export function useAdminListActions({
     const confirmBulkDelete = () => {
         confirm.require({
             message: `${trans('actions.delete')} (${selectedIds.value.length}) ${entityLabelPlural}?`,
-            header: `${trans('actions.delete')} ${entityLabelPlural}`,
+            header: trans('common.deletion_confirmation'),
             icon: 'pi pi-exclamation-triangle',
             acceptLabel: trans('actions.delete'),
             rejectLabel: trans('common.cancel'),

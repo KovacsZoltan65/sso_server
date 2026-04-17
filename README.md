@@ -48,6 +48,10 @@ The same command is executed in CI by [`.github/workflows/security-regression.ym
 
 When adding a new security-critical test, include it in the Pest `security` group in [`tests/Pest.php`](/c:/wamp64/www/sso/sso_server/tests/Pest.php). New auth, authorization, token, audit-log, or privilege-boundary behavior changes should add or update at least one security regression test.
 
+Frontend Vitest selector and assertion strategy is documented in:
+
+- [`docs/frontend-test-selector-guideline.md`](/c:/wamp64/www/sso/sso_server/docs/frontend-test-selector-guideline.md)
+
 ## Integration Contract
 
 Server-client OAuth/SSO integration contract is defined in:

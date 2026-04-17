@@ -8,6 +8,7 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { trans } from 'laravel-vue-i18n';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
+import { useAdminSearchBehavior } from '@/Composables/useAdminSearchBehavior';
 import { Head, router } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
 import Checkbox from 'primevue/checkbox';
@@ -60,6 +61,7 @@ const props = defineProps({
 });
 
 const rows = computed(() => props.rows);
+const searchBehavior = useAdminSearchBehavior();
 
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
@@ -113,11 +115,13 @@ const {
 
 const onGlobalFilterInput = (value) => {
     tableFilters.value.global.value = value ?? null;
-    tableState.page = 1;
-    reload({
-        page: 1,
-        global: value || undefined,
-    }, { resetSelection: true });
+    searchBehavior.queueSearch(() => {
+        tableState.page = 1;
+        reload({
+            page: 1,
+            global: value || undefined,
+        }, { resetSelection: true });
+    });
 };
 
 const onSort = (event) => {

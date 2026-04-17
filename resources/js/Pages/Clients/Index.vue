@@ -6,6 +6,7 @@ import PageHeader from "@/Components/PageHeader.vue";
 import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
+import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import { Head, router, usePage } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
 import Button from "primevue/button";
@@ -83,6 +84,7 @@ const tableState = reactive({
 });
 
 const perPageOptions = [5, 10, 15, 25];
+const searchBehavior = useAdminSearchBehavior();
 
 const buildParams = (overrides = {}) => ({
     global: tableFilters.value.global.value || undefined,
@@ -153,10 +155,12 @@ const reload = (overrides = {}) => {
 
 const onGlobalFilterInput = (value) => {
     tableFilters.value.global.value = value ?? null;
-    tableState.page = 1;
-    reload({
-        page: 1,
-        global: value || undefined,
+    searchBehavior.queueSearch(() => {
+        tableState.page = 1;
+        reload({
+            page: 1,
+            global: value || undefined,
+        });
     });
 };
 

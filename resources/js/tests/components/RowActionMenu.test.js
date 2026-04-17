@@ -17,16 +17,16 @@ describe('RowActionMenu', () => {
 
         expect(wrapper.get('[data-primary-row-action="Edit"]').text()).toContain('Edit');
 
-        await wrapper.get('button[aria-label="Row actions"]').trigger('click');
+        await wrapper.get('[data-testid="row-action-overflow"]').trigger('click');
         await flushPromises();
 
         const popup = wrapper.get('[data-menu-popup="true"]');
+        const popupButtons = popup.findAll('button');
 
         expect(popup.attributes('data-menu-append-to')).toBe('body');
-        expect(popup.text()).toContain('Delete');
-        expect(popup.text()).not.toContain('Edit');
+        expect(popupButtons).toHaveLength(1);
 
-        await popup.get('button').trigger('click');
+        await popupButtons[0].trigger('click');
 
         expect(deleteCommand).toHaveBeenCalledTimes(1);
         expect(editCommand).toHaveBeenCalledTimes(0);
@@ -58,7 +58,7 @@ describe('RowActionMenu', () => {
         });
 
         expect(wrapper.find('[data-primary-row-action]').exists()).toBe(false);
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(true);
+        expect(wrapper.find('[data-testid="row-action-overflow"]').exists()).toBe(true);
     });
 
     it('does not open the popup when the trigger is disabled', async () => {
@@ -69,7 +69,7 @@ describe('RowActionMenu', () => {
             },
         });
 
-        await wrapper.get('button[aria-label="Row actions"]').trigger('click');
+        await wrapper.get('[data-testid="row-action-overflow"]').trigger('click');
         await flushPromises();
 
         expect(wrapper.find('[data-menu-popup="true"]').exists()).toBe(false);
@@ -83,6 +83,6 @@ describe('RowActionMenu', () => {
         });
 
         expect(wrapper.find('[data-primary-row-action="Details"]').exists()).toBe(true);
-        expect(wrapper.find('button[aria-label="Row actions"]').exists()).toBe(false);
+        expect(wrapper.find('[data-testid="row-action-overflow"]').exists()).toBe(false);
     });
 });

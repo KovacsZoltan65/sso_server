@@ -1,5 +1,7 @@
 {
     "page_header.eyebrow": "Munkaterület",
+
+    "common.administration": "Adminisztráció",
     "common.refresh": "Frissítés",
     "common.save": "Mentés",
     "common.cancel": "Mégse",
@@ -17,6 +19,7 @@
     "common.reason": "Indok",
     "common.success": "Sikeres művelet",
     "common.error": "Hiba",
+    "common.navigation": "Navigáció",
     "common.rotate_before_mobile_rollout": "Pl. a mobil bevezetés előtt elforgatva",
     "common.url_placeholder": "https://client.example.com/callback",
     "common.foundation_ready_title": "Kész alapok",
@@ -61,6 +64,7 @@
     "navigation.companies.label": "Cégek",
     "navigation.employees.label": "Munkatársak",
     "navigation.connection_health.label": "Kapcsolat állapota",
+    "navigation.close_navigation.aria_label": "Navigáció bezárása",
     "auth.login.page_title": "Bejelentkezés",
     "auth.login.title": "Jelentkezz be",
     "auth.login.description": "Jelentkezz be a folytatáshoz.",
@@ -296,5 +300,12 @@
     "public_auth_layout.hero.description": "Jelentkezz be, hogy a központi hitelesítési szolgáltatáson keresztül érd el az alkalmazást.",
     "public_auth_layout.card.title": "Megbízható hozzáférés",
     "public_auth_layout.card.description": "A meglévő fiókadataiddal biztonságosan folytathatod.",
-    "public_auth_layout.form.eyebrow": "Azonosító szolgáltató"
+    "public_auth_layout.form.eyebrow": "Azonosító szolgáltató",
+    "placeholder_page.title": "Model állapot",
+    "placeholder_page.description": "Ez a modul szándékosan könnyűsúlyú a rendszerindítás során. Az útvonalválasztás, az engedélyezés, a menüelhelyezés és a vizuális shell készen áll a teljes SSO implementációra.",
+    "placeholder_page.integration_target": "Integrációs cél",
+    "placeholder_page.next_integration_steps": "Következő megvalósítási lépések",
+    "users.loading_message": "Felhasználók betöltése...",
+    "users.loading_error": "Hiba a betöltéskor",
+    "users.loading_empty": "Nem található felhasználó a jelenlegi szűrőkhöz."
 }
