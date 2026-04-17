@@ -31,8 +31,8 @@ describe('Auth/Login', () => {
 
         expect(form.email).toBe('');
         expect(form.password).toBe('');
-        expect(wrapper.text()).toContain('Email');
-        expect(wrapper.text()).toContain('Password');
+        expect(wrapper.text()).toContain('E-mail');
+        expect(wrapper.text()).toContain('Jelszó');
         expect(wrapper.text()).not.toContain('superadmin@sso.test');
         expect(wrapper.text()).not.toContain('Seeded accounts');
         expect(wrapper.text()).not.toContain('admin shell');

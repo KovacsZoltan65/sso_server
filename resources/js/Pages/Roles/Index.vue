@@ -3,6 +3,7 @@ import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from "laravel-vue-i18n";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { useAdminTableSelection } from "@/Composables/useAdminTableSelection";
@@ -18,6 +19,7 @@ import InputText from "primevue/inputtext";
 import Tag from "primevue/tag";
 import Toast from "primevue/toast";
 import { computed, reactive, ref } from "vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
 
 const props = defineProps({
     rows: {
@@ -97,8 +99,8 @@ const { busy, reload, refresh, confirmDelete, confirmBulkDelete } = useAdminList
     indexRouteName: "admin.roles.index",
     destroyRouteName: "admin.roles.destroy",
     bulkDestroyRouteName: "admin.roles.bulk-destroy",
-    entityLabel: "Role",
-    entityLabelPlural: "roles",
+    entityLabel: trans("pages.roles.item"),
+    entityLabelPlural: trans("pages.roles.items"),
     buildParams,
     clearSelection,
     selectedIds,
@@ -167,13 +169,13 @@ const goToEditPage = (role) => {
 
 const roleActionItems = (role) => [
     {
-        label: "Edit",
+        label: trans("actions.edit"),
         icon: "pi pi-pencil",
         isPrimary: true,
         command: () => goToEditPage(role),
     },
     {
-        label: "Delete",
+        label: trans("actions.delete"),
         icon: "pi pi-trash",
         isDangerous: true,
         disabled: !role.canDelete,
@@ -183,7 +185,7 @@ const roleActionItems = (role) => [
 </script>
 
 <template>
-    <Head title="Roles" />
+    <Head :title="trans('navigation.roles.label')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -191,13 +193,155 @@ const roleActionItems = (role) => [
 
         <div class="admin-table-page">
             <PageHeader
-                title="Roles"
-                description="Manage application roles with the same admin table standard used across users and permissions."
+                :title="trans('navigation.roles.label')"
+                :description="trans('navigation.roles.description')"
             />
 
             <AdminTableCard>
                 <div class="admin-table-shell">
-                    <DataTable
+                    <BaseDataTable
+                        :value="rows"
+                        :loading="busy"
+                        :loading-message="trans('')"
+                        :empty-message="trans('')"
+                        removable-sort
+                        data-key="id"
+                        :rows="tableState.perPage"
+                        :first="pagination.first"
+                        :total-records="pagination.total"
+                        :sort-field="tableState.sortField"
+                        :sort-order="tableState.sortOrder"
+                        :rows-per-page-options="perPageOptions"
+                        @page="onFilter"
+                        @sort="onSort"
+                    >
+                        <template #header>
+                            <AdminTableToolbar
+                                :canCreate="canManageRoles"
+                                :createLabel="trans('actions.create')"
+                                :canBulkDelete="canManageRoles"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
+                                :selectedCount="selectedRows.length"
+                                :selectableCount="selectableRows.length"
+                                :busy="busy"
+                                @create="goToCreatePage"
+                                @bulk-delete="confirmBulkDelete"
+                                @refresh="refresh"
+                            >
+                                <template #search>
+                                    <IconField class="w-full">
+                                        <InputIcon class="pi pi-search text-slate-400" />
+                                        <InputText
+                                            v-model="tableFilters.global.value"
+                                            :placeholder="
+                                                trans('roles.search_placeholder')
+                                            "
+                                            class="w-full"
+                                            @update:modelValue="onGlobalFilterInput"
+                                        />
+                                    </IconField>
+                                </template>
+                            </AdminTableToolbar>
+                        </template>
+
+                        <template #empty>
+                            <div class="py-8 text-center text-sm text-slate-500">
+                                {{ trans("table.empty") }}
+                            </div>
+                        </template>
+
+                        <!-- Selector -->
+                        <Column selectionMode="multiple" headerStyle="width: 3rem" />
+
+                        <!-- Name -->
+                        <Column
+                            field="name"
+                            :header="trans('table.columns.name')"
+                            sortable
+                            :showFilterMatchModes="false"
+                            :showFilterOperator="false"
+                            :showAddButton="false"
+                        >
+                            <template #body="{ data }">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span>{{ data.name }}</span>
+                                    <Tag
+                                        v-if="data.deleteBlockCode === 'protected_role'"
+                                        :value="trans('status.protected')"
+                                        severity="warn"
+                                    />
+                                </div>
+                            </template>
+
+                            <template #filter="{ filterModel, filterCallback }">
+                                <InputText
+                                    v-model="filterModel.value"
+                                    :placeholder="trans('table.filter_name')"
+                                    class="w-full"
+                                    @input="filterCallback()"
+                                />
+                            </template>
+                        </Column>
+
+                        <!-- Guard -->
+                        <Column field="guardName" :header="trans('table.columns.guard')">
+                            <template #body="{ data }">
+                                <Tag :value="data.guardName" severity="secondary" />
+                            </template>
+                        </Column>
+
+                        <!-- Permissions -->
+                        <Column :header="trans('table.columns.permissions')">
+                            <template #body="{ data }">
+                                <div
+                                    v-if="data.permissions?.length"
+                                    class="flex flex-wrap gap-2"
+                                >
+                                    <Tag
+                                        v-for="permission in data.permissions.slice(0, 3)"
+                                        :key="permission"
+                                        :value="permission"
+                                        severity="info"
+                                    />
+                                    <Tag
+                                        v-if="data.permissions.length > 3"
+                                        :value="`+${data.permissions.length - 3}`"
+                                        severity="contrast"
+                                    />
+                                </div>
+                                <span v-else class="text-sm text-slate-500">
+                                    {{ trans("messages.no_permissions") }}
+                                </span>
+                            </template>
+                        </Column>
+
+                        <!-- Assigned User -->
+                        <Column
+                            field="usersCount"
+                            :header="trans('table.columns.assigned_users')"
+                        />
+
+                        <!-- Created At -->
+                        <Column
+                            field="createdAt"
+                            :header="trans('table.columns.created_at')"
+                            sortable
+                        />
+
+                        <!-- Actions -->
+                        <Column
+                            v-if="canManageRoles"
+                            :header="trans('common.actions')"
+                            :exportable="false"
+                            style="width: 12rem"
+                        >
+                            <template #body="{ data }">
+                                <RowActionMenu :items="roleActionItems(data)" />
+                            </template>
+                        </Column>
+                    </BaseDataTable>
+
+                    <!--<DataTable
                         :value="rows"
                         v-model:filters="tableFilters"
                         :rows="tableState.perPage"
@@ -222,9 +366,9 @@ const roleActionItems = (role) => [
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManageRoles"
-                                createLabel="Create Role"
+                                :createLabel="trans('actions.create')"
                                 :canBulkDelete="canManageRoles"
-                                bulkDeleteLabel="Delete Selected"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedRows.length"
                                 :selectableCount="selectableRows.length"
                                 :busy="busy"
@@ -237,7 +381,9 @@ const roleActionItems = (role) => [
                                         <InputIcon class="pi pi-search text-slate-400" />
                                         <InputText
                                             v-model="tableFilters.global.value"
-                                            placeholder="Global search"
+                                            :placeholder="
+                                                trans('roles.search_placeholder')
+                                            "
                                             class="w-full"
                                             @update:modelValue="onGlobalFilterInput"
                                         />
@@ -248,7 +394,7 @@ const roleActionItems = (role) => [
 
                         <template #empty>
                             <div class="py-8 text-center text-sm text-slate-500">
-                                No roles found for the current filters.
+                                {{ trans("table.empty") }}
                             </div>
                         </template>
 
@@ -257,7 +403,7 @@ const roleActionItems = (role) => [
                                 <div
                                     :title="
                                         selectableRows.length === 0
-                                            ? 'No deletable roles on this page.'
+                                            ? trans('toolbar.bulk.none')
                                             : ''
                                     "
                                 >
@@ -285,7 +431,7 @@ const roleActionItems = (role) => [
 
                         <Column
                             field="name"
-                            header="Name"
+                            :header="trans('table.columns.name')"
                             sortable
                             :showFilterMatchModes="false"
                             :showFilterOperator="false"
@@ -296,7 +442,7 @@ const roleActionItems = (role) => [
                                     <span>{{ data.name }}</span>
                                     <Tag
                                         v-if="data.deleteBlockCode === 'protected_role'"
-                                        value="Protected"
+                                        :value="trans('status.protected')"
                                         severity="warn"
                                     />
                                 </div>
@@ -305,20 +451,20 @@ const roleActionItems = (role) => [
                             <template #filter="{ filterModel, filterCallback }">
                                 <InputText
                                     v-model="filterModel.value"
-                                    placeholder="Filter name"
+                                    :placeholder="trans('table.filter_name')"
                                     class="w-full"
                                     @input="filterCallback()"
                                 />
                             </template>
                         </Column>
 
-                        <Column field="guardName" header="Guard">
+                        <Column field="guardName" :header="trans('table.columns.guard')">
                             <template #body="{ data }">
                                 <Tag :value="data.guardName" severity="secondary" />
                             </template>
                         </Column>
 
-                        <Column header="Permissions">
+                        <Column :header="trans('table.columns.permissions')">
                             <template #body="{ data }">
                                 <div
                                     v-if="data.permissions?.length"
@@ -337,17 +483,25 @@ const roleActionItems = (role) => [
                                     />
                                 </div>
                                 <span v-else class="text-sm text-slate-500">
-                                    No permissions
+                                    {{ trans("messages.no_permissions") }}
                                 </span>
                             </template>
                         </Column>
 
-                        <Column field="usersCount" header="Assigned Users" />
-                        <Column field="createdAt" header="Created At" sortable />
+                        <Column
+                            field="usersCount"
+                            :header="trans('table.columns.assigned_users')"
+                        />
+
+                        <Column
+                            field="createdAt"
+                            :header="trans('table.columns.created_at')"
+                            sortable
+                        />
 
                         <Column
                             v-if="canManageRoles"
-                            header="Actions"
+                            :header="trans('table.columns.actions')"
                             :exportable="false"
                             style="width: 12rem"
                         >
@@ -355,7 +509,7 @@ const roleActionItems = (role) => [
                                 <RowActionMenu :items="roleActionItems(data)" />
                             </template>
                         </Column>
-                    </DataTable>
+                    </DataTable>-->
                 </div>
 
                 <template #footer>
@@ -363,11 +517,22 @@ const roleActionItems = (role) => [
                         class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
                     >
                         <div>
-                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of
-                            {{ pagination.total }} roles
+                            {{
+                                trans("table.showing_of", {
+                                    from: pagination.from ?? 0,
+                                    to: pagination.to ?? 0,
+                                    total: pagination.total,
+                                    item: trans("pages.roles.items"),
+                                })
+                            }}
                         </div>
                         <div>
-                            Page {{ pagination.currentPage }} / {{ pagination.lastPage }}
+                            {{
+                                trans("table.page_of", {
+                                    current: pagination.currentPage,
+                                    last: pagination.lastPage,
+                                })
+                            }}
                         </div>
                     </div>
                 </template>

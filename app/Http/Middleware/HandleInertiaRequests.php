@@ -49,6 +49,11 @@ class HandleInertiaRequests extends Middleware
                 'error' => fn () => $request->session()->get('error'),
                 'clientSecret' => fn () => $request->session()->get('clientSecret'),
             ],
+            'locale' => [
+                'current' => app()->getLocale(),
+                'fallback' => config('app.fallback_locale'),
+                'available' => config('app.available_locales', ['hu', 'en']),
+            ],
         ];
     }
 }

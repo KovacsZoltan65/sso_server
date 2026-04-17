@@ -32,7 +32,7 @@ test('profile information can be updated', function () {
     $response
         ->assertSessionHasNoErrors()
         ->assertRedirect('/profile')
-        ->assertSessionHas('success', 'Profile updated.');
+        ->assertSessionHas('success', __('profile.updated_summary'));
 
     $user->refresh();
 

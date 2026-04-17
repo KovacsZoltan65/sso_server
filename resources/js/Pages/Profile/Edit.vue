@@ -2,6 +2,7 @@
 import AdminFormCard from '@/Components/Admin/AdminFormCard.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { trans } from 'laravel-vue-i18n';
 import DeleteUserForm from './Partials/DeleteUserForm.vue';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm.vue';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm.vue';
@@ -19,15 +20,15 @@ defineProps({
 </script>
 
 <template>
-    <Head title="Profil" />
+    <Head :title="trans('profile.title')" />
 
     <AuthenticatedLayout>
         <Toast />
 
         <div class="admin-form-page">
             <PageHeader
-                title="Profil"
-                description="Fiokadataid es biztonsagi beallitasaid kezelese a kozos admin felulet ritmusa szerint."
+                :title="trans('profile.title')"
+                :description="trans('profile.description')"
             />
 
             <div class="admin-form-shell space-y-6 overflow-y-auto pr-1">
@@ -35,9 +36,9 @@ defineProps({
                     <AdminFormCard>
                         <template #header>
                             <div class="space-y-1">
-                                <div class="text-sm font-semibold text-slate-900">Profil adatok</div>
+                                <div class="text-sm font-semibold text-slate-900">{{ trans('profile.identity_title') }}</div>
                                 <p class="text-sm text-slate-500">
-                                    Frissitsd a megjelenitett nevet, mikozben a kozos SSO email-azonosito valtozatlan marad.
+                                    {{ trans('profile.identity_description') }}
                                 </p>
                             </div>
                         </template>
@@ -51,9 +52,9 @@ defineProps({
                     <AdminFormCard>
                         <template #header>
                             <div class="space-y-1">
-                                <div class="text-sm font-semibold text-slate-900">Jelszo modositasa</div>
+                                <div class="text-sm font-semibold text-slate-900">{{ trans('profile.password_title') }}</div>
                                 <p class="text-sm text-slate-500">
-                                    Csereld le a jelszavadat egy uj, eros jelszora ugyanabban a self-service feluletben.
+                                    {{ trans('profile.password_description') }}
                                 </p>
                             </div>
                         </template>
@@ -65,9 +66,9 @@ defineProps({
                 <AdminFormCard :grow="false">
                     <template #header>
                         <div class="space-y-1">
-                            <div class="text-sm font-semibold text-slate-900">Fiok torlese</div>
+                            <div class="text-sm font-semibold text-slate-900">{{ trans('profile.delete_title') }}</div>
                             <p class="text-sm text-slate-500">
-                                Ez a muvelet vegleges. A torles elott ellenorizd, hogy minden szukseges adatot elmentettel.
+                                {{ trans('profile.delete_description') }}
                             </p>
                         </div>
                     </template>

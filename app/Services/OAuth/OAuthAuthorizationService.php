@@ -102,7 +102,7 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: 'OAuth authorization denied.',
+                message: __('api.oauth.authorization_denied'),
                 client: $client,
                 properties: [
                     'reason' => (string) $accessDecision['reason'],
@@ -121,7 +121,7 @@ class OAuthAuthorizationService
                 'redirect_url' => $this->buildAuthorizationErrorRedirect(
                     redirectUri: $redirectUri,
                     error: 'access_denied',
-                    description: 'Access to this client was denied.',
+                    description: __('messages.forbidden'),
                     state: Arr::get($payload, 'state'),
                 ),
             ];
@@ -158,7 +158,7 @@ class OAuthAuthorizationService
                 'redirect_url' => $this->buildAuthorizationErrorRedirect(
                     redirectUri: $redirectUri,
                     error: 'access_denied',
-                    description: 'Access to this client was denied.',
+                    description: __('messages.forbidden'),
                     state: Arr::get($payload, 'state'),
                 ),
             ];
@@ -204,7 +204,7 @@ class OAuthAuthorizationService
             'scopes' => $this->buildConsentScopeView($client, $requestedScopes),
             'summary' => [
                 'title' => sprintf('%s is requesting access to your account.', $this->resolveClientDisplayName($client)),
-                'description' => 'Review the requested permissions before deciding whether to continue.',
+                'description' => __('api.oauth.consent.review_description'),
             ],
         ];
     }
@@ -235,7 +235,7 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: 'OAuth authorization denied.',
+                message: __('api.oauth.authorization_denied'),
                 client: $client,
                 properties: [
                     'reason' => (string) $accessDecision['reason'],
@@ -253,7 +253,7 @@ class OAuthAuthorizationService
                 'redirect_url' => $this->buildAuthorizationErrorRedirect(
                     redirectUri: $redirectUri,
                     error: 'access_denied',
-                    description: 'Access to this client was denied.',
+                    description: __('messages.forbidden'),
                     state: Arr::get($payload, 'state'),
                 ),
                 'code' => null,
@@ -286,7 +286,7 @@ class OAuthAuthorizationService
             $context = $this->consentContextService->getContextByToken($consentToken);
         } catch (OAuthConsentContextNotFoundException) {
             throw ValidationException::withMessages([
-                'consent_token' => 'The consent decision is missing, expired, or no longer valid.',
+                'consent_token' => __('api.oauth.consent.token_invalid'),
             ]);
         }
 
@@ -294,7 +294,7 @@ class OAuthAuthorizationService
             $this->consentContextService->invalidateContext($consentToken);
 
             throw ValidationException::withMessages([
-                'consent_token' => 'The consent decision does not belong to the current user session.',
+                'consent_token' => __('api.oauth.consent.token_user_mismatch'),
             ]);
         }
 
@@ -310,7 +310,7 @@ class OAuthAuthorizationService
             $this->consentContextService->invalidateContext($consentToken);
 
             throw ValidationException::withMessages([
-                'consent_token' => 'The consent decision is no longer valid for this client.',
+                'consent_token' => __('api.oauth.consent.token_client_invalid'),
             ]);
         }
 
@@ -368,7 +368,7 @@ class OAuthAuthorizationService
             $context = $this->consentContextService->getContextByToken($consentToken);
         } catch (OAuthConsentContextNotFoundException) {
             throw ValidationException::withMessages([
-                'consent_token' => 'The consent decision is missing, expired, or no longer valid.',
+                'consent_token' => __('api.oauth.consent.token_invalid'),
             ]);
         }
 
@@ -376,14 +376,14 @@ class OAuthAuthorizationService
             $this->consentContextService->invalidateContext($consentToken);
 
             throw ValidationException::withMessages([
-                'consent_token' => 'The consent decision does not belong to the current user session.',
+                'consent_token' => __('api.oauth.consent.token_user_mismatch'),
             ]);
         }
 
         $redirectUrl = $this->buildAuthorizationErrorRedirect(
             redirectUri: $context->redirectUri,
             error: 'access_denied',
-            description: 'Access to this client was denied.',
+            description: __('messages.forbidden'),
             state: $context->state,
         );
 
@@ -530,7 +530,7 @@ class OAuthAuthorizationService
         $this->logAuthorizationFailure(
             user: $user,
             event: 'oauth.authorization.denied',
-            message: 'OAuth authorization denied.',
+            message: __('api.oauth.authorization_denied'),
             properties: [
                 'client_public_id' => (string) $payload['client_id'],
                 'reason' => 'invalid_client',
@@ -538,7 +538,7 @@ class OAuthAuthorizationService
         );
 
         throw ValidationException::withMessages([
-            'client_id' => 'The provided client is invalid or inactive.',
+            'client_id' => __('api.oauth.client_invalid_or_inactive'),
         ]);
     }
 
@@ -551,7 +551,7 @@ class OAuthAuthorizationService
         $this->logAuthorizationFailure(
             user: $user,
             event: 'oauth.authorization.denied',
-            message: 'OAuth authorization denied.',
+            message: __('api.oauth.authorization_denied'),
             client: $client,
             properties: [
                 'reason' => 'redirect_uri_mismatch',
@@ -562,7 +562,7 @@ class OAuthAuthorizationService
         );
 
         throw ValidationException::withMessages([
-            'redirect_uri' => 'The redirect URI does not match the registered client redirect URIs.',
+            'redirect_uri' => __('api.oauth.redirect_uri_mismatch'),
         ]);
     }
 
@@ -585,7 +585,7 @@ class OAuthAuthorizationService
                 $this->logAuthorizationFailure(
                     user: $user,
                     event: 'oauth.authorization.denied',
-                    message: 'OAuth authorization denied.',
+                    message: __('api.oauth.authorization_denied'),
                     client: $client,
                     properties: [
                         'reason' => 'scope_not_allowed',
@@ -615,7 +615,7 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: 'OAuth authorization denied.',
+                message: __('api.oauth.authorization_denied'),
                 client: $client,
                 properties: [
                     'reason' => 'pkce_required',
@@ -625,13 +625,13 @@ class OAuthAuthorizationService
             );
 
             throw ValidationException::withMessages([
-                'code_challenge' => 'PKCE is required for this client.',
+                'code_challenge' => __('api.oauth.pkce_required'),
             ]);
         }
 
         if ($codeChallenge !== '' && $codeChallengeMethod !== 'S256') {
             throw ValidationException::withMessages([
-                'code_challenge_method' => 'The code challenge method must be S256.',
+                'code_challenge_method' => __('api.oauth.code_challenge_method_s256'),
             ]);
         }
     }

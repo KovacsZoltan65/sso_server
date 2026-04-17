@@ -3,6 +3,7 @@ import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from 'laravel-vue-i18n';
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import TokenStatusTag from "@/Pages/Tokens/components/TokenStatusTag.vue";
@@ -83,27 +84,27 @@ const tableState = reactive({
 
 const perPageOptions = [5, 10, 15, 25];
 const tokenTypeOptions = [
-    { label: "Access Token", value: "access_token" },
-    { label: "Refresh Token", value: "refresh_token" },
+    { label: trans("pages.tokens.access_token"), value: "access_token" },
+    { label: trans("pages.tokens.refresh_token"), value: "refresh_token" },
 ];
 const stateOptions = [
-    { label: "All", value: null },
-    { label: "Active", value: "active" },
-    { label: "Expired", value: "expired" },
-    { label: "Revoked", value: "revoked" },
-    { label: "Rotated", value: "rotated" },
-    { label: "Suspicious", value: "suspicious" },
-    { label: "Family Revoked", value: "family_revoked" },
+    { label: trans("common.all"), value: null },
+    { label: trans("status.active"), value: "active" },
+    { label: trans("status.expired"), value: "expired" },
+    { label: trans("status.revoked"), value: "revoked" },
+    { label: trans("status.rotated"), value: "rotated" },
+    { label: trans("status.suspicious"), value: "suspicious" },
+    { label: trans("status.family_revoked"), value: "family_revoked" },
 ];
 const clientSelectOptions = computed(() => [
-    { label: "All clients", value: null },
+    { label: trans("pages.tokens.all_clients"), value: null },
     ...props.clientOptions.map((client) => ({
         label: `${client.name} (${client.clientId})`,
         value: client.id,
     })),
 ]);
 const userSelectOptions = computed(() => [
-    { label: "All users", value: null },
+    { label: trans("pages.tokens.all_users"), value: null },
     ...props.userOptions.map((user) => ({
         label: `${user.name} (${user.email})`,
         value: user.id,
@@ -131,10 +132,10 @@ const reload = (overrides = {}) => {
     });
 };
 
-const showError = (fallbackMessage = "Token action failed.") => {
+const showError = (fallbackMessage = trans('tokens.error_fallback')) => {
     toast.add({
         severity: "error",
-        summary: "Error",
+        summary: trans('common.error'),
         detail: fallbackMessage,
         life: 4000,
     });
@@ -145,8 +146,8 @@ const refresh = () => {
 
     toast.add({
         severity: "success",
-        summary: "Refreshed",
-        detail: "tokens refreshed successfully.",
+        summary: trans('common.success'),
+        detail: trans('tokens.refresh_detail'),
         life: 2500,
     });
 };
@@ -184,7 +185,7 @@ const onSort = (event) => {
 
 const familyLabel = (row) => {
     if (!row.familyId) {
-        return "No family";
+        return trans('tokens.family.none');
     }
 
     return row.familyId.length > 12 ? `${row.familyId.slice(0, 12)}...` : row.familyId;
@@ -197,14 +198,14 @@ const resolveRowActions = (row) => {
 
     return [
         ...(props.canManageTokens && row.canRevoke ? [{
-            label: "Revoke",
+            label: trans("actions.revoke"),
             icon: "pi pi-ban",
             isPrimary: true,
             isDangerous: true,
             command: () => confirmRevoke(row),
         }] : []),
         ...(props.canManageTokenFamilies && row.canRevokeFamily ? [{
-            label: "Revoke Family",
+            label: trans("actions.revoke_family"),
             icon: "pi pi-shield",
             isDangerous: true,
             command: () => openFamilyDialog(row),
@@ -214,10 +215,10 @@ const resolveRowActions = (row) => {
 
 const confirmRevoke = (row) => {
     confirm.require({
-        message: "Revoke this token?",
-        header: "Confirm revoke",
-        acceptLabel: "Revoke",
-        rejectLabel: "Cancel",
+        message: trans('tokens.revoke.confirm_message'),
+        header: trans('tokens.revoke.confirm_title'),
+        acceptLabel: trans('tokens.revoke.accept'),
+        rejectLabel: trans('common.cancel'),
         accept: async () => {
             busy.value = true;
 
@@ -229,8 +230,8 @@ const confirmRevoke = (row) => {
 
                 toast.add({
                     severity: "success",
-                    summary: "Revoked",
-                    detail: "Token revoked successfully.",
+                    summary: trans('tokens.revoke.summary'),
+                    detail: trans('tokens.revoke.detail'),
                     life: 3000,
                 });
 
@@ -238,7 +239,7 @@ const confirmRevoke = (row) => {
             } catch (error) {
                 const message = error?.response?.data?.message
                     || error?.response?.data?.errors?.token_type?.[0]
-                    || "Token action failed.";
+                    || trans('tokens.error_fallback');
 
                 showError(message);
             } finally {
@@ -269,10 +270,10 @@ const submitFamilyDialog = () => {
     const reason = familyRevokeReason.value?.trim() || "admin_family_revoked";
 
     confirm.require({
-        message: `Revoke token family ${familyLabel(row)}?`,
-        header: "Confirm family revoke",
-        acceptLabel: "Revoke Family",
-        rejectLabel: "Cancel",
+        message: trans('tokens.family.confirm_message', { family: familyLabel(row) }),
+        header: trans('tokens.family.confirm_title'),
+        acceptLabel: trans('tokens.family.accept'),
+        rejectLabel: trans('common.cancel'),
         accept: async () => {
             busy.value = true;
 
@@ -283,8 +284,8 @@ const submitFamilyDialog = () => {
 
                 toast.add({
                     severity: "success",
-                    summary: "Family Revoked",
-                    detail: "Token family revoked successfully.",
+                    summary: trans('tokens.family.summary'),
+                    detail: trans('tokens.family.detail'),
                     life: 3000,
                 });
 
@@ -294,7 +295,7 @@ const submitFamilyDialog = () => {
                 const message = error?.response?.data?.message
                     || error?.response?.data?.errors?.family_id?.[0]
                     || error?.response?.data?.errors?.reason?.[0]
-                    || "Token family action failed.";
+                    || trans('tokens.error_fallback');
 
                 showError(message);
             } finally {
@@ -311,35 +312,35 @@ usePageOverlayCleanup(() => {
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Tokens" />
+        <Head :title="trans('tokens.title')" />
         <Toast />
         <ConfirmDialog />
-        <Dialog :visible="familyDialogVisible" modal header="Revoke Token Family" @update:visible="familyDialogVisible = $event">
+        <Dialog :visible="familyDialogVisible" modal :header="trans('tokens.family.dialog_title')" @update:visible="familyDialogVisible = $event">
             <div class="flex flex-col gap-4">
                 <p class="text-sm text-slate-600">
-                    Revoke the entire token family for
-                    <span class="font-medium">{{ selectedFamilyRow?.clientName ?? "selected client" }}</span>.
+                    {{ trans('tokens.family.dialog_description') }}
+                    <span class="font-medium">{{ selectedFamilyRow?.clientName ?? trans('common.client') }}</span>.
                 </p>
                 <div class="flex flex-col gap-2">
-                    <label for="family-reason" class="text-sm font-medium text-slate-700">Reason</label>
+                    <label for="family-reason" class="text-sm font-medium text-slate-700">{{ trans('common.reason') }}</label>
                     <InputText
                         id="family-reason"
                         v-model="familyRevokeReason"
-                        placeholder="Optional revoke reason"
+                        :placeholder="trans('tokens.family.reason_placeholder')"
                         data-family-reason
                     />
                 </div>
                 <div class="flex justify-end gap-3">
-                    <Button label="Cancel" severity="secondary" outlined data-family-cancel @click="closeFamilyDialog" />
-                    <Button label="Continue" :disabled="busy" data-family-submit @click="submitFamilyDialog" />
+                    <Button :label="trans('common.cancel')" severity="secondary" outlined data-family-cancel @click="closeFamilyDialog" />
+                    <Button :label="trans('common.continue')" :disabled="busy" data-family-submit @click="submitFamilyDialog" />
                 </div>
             </div>
         </Dialog>
 
         <div class="flex h-full min-h-0 flex-1 flex-col gap-6">
             <PageHeader
-                title="Tokens"
-                description="Issued access and refresh token metadata with revocation and chain visibility."
+                :title="trans('tokens.title')"
+                :description="trans('tokens.description')"
             />
 
             <AdminTableCard>
@@ -358,7 +359,7 @@ usePageOverlayCleanup(() => {
                                 <InputText
                                     v-model="tableFilters.global.value"
                                     class="w-full"
-                                    placeholder="Search by client, user, email, or family"
+                                    :placeholder="trans('tokens.search_placeholder')"
                                     @keyup.enter="onGlobalSearch"
                                 />
                             </IconField>
@@ -371,7 +372,7 @@ usePageOverlayCleanup(() => {
                             :options="tokenTypeOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Token type"
+                            :placeholder="trans('table.columns.type')"
                             @update:model-value="onTokenTypeChange"
                         />
                         <Select
@@ -379,7 +380,7 @@ usePageOverlayCleanup(() => {
                             :options="stateOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="State"
+                            :placeholder="trans('table.columns.state')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -387,7 +388,7 @@ usePageOverlayCleanup(() => {
                             :options="clientSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Client"
+                            :placeholder="trans('common.client')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -395,7 +396,7 @@ usePageOverlayCleanup(() => {
                             :options="userSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="User"
+                            :placeholder="trans('common.user')"
                             @change="onTableFilter"
                         />
                     </div>
@@ -419,13 +420,13 @@ usePageOverlayCleanup(() => {
                             @page="onPage"
                             @sort="onSort"
                         >
-                            <Column field="tokenType" header="Type" sortable>
+                            <Column field="tokenType" :header="trans('table.columns.type')" sortable>
                                 <template #body="{ data }">
-                                    <span>{{ data.tokenType === "access_token" ? "Access Token" : "Refresh Token" }}</span>
+                                    <span>{{ data.tokenType === "access_token" ? trans('pages.tokens.access_token') : trans('pages.tokens.refresh_token') }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="userName" header="User" sortable>
+                            <Column field="userName" :header="trans('table.columns.user')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.userName }}</span>
@@ -434,7 +435,7 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="clientName" header="Client" sortable>
+                            <Column field="clientName" :header="trans('table.columns.client')" sortable>
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.clientName }}</span>
@@ -443,47 +444,47 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="status" header="Status">
+                            <Column field="status" :header="trans('table.columns.status')">
                                 <template #body="{ data }">
                                     <div data-token-status class="flex items-center gap-2">
                                         <TokenStatusTag :status="data.status" />
                                         <span v-if="data.suspiciousIncident" class="text-xs font-medium text-amber-700" data-token-suspicious>
-                                            Incident
+                                            {{ trans('status.incident') }}
                                         </span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column field="familyId" header="Family">
+                            <Column field="familyId" :header="trans('table.columns.family')">
                                 <template #body="{ data }">
                                     <div class="flex flex-col text-sm" data-token-family>
                                         <span>{{ familyLabel(data) }}</span>
-                                        <span v-if="data.parentTokenId" class="text-slate-500">Parent #{{ data.parentTokenId }}</span>
-                                        <span v-if="data.replacedByTokenId" class="text-slate-500">Replaced by #{{ data.replacedByTokenId }}</span>
-                                        <span v-if="data.familyRevoked" class="text-slate-500">Family revoked</span>
+                                        <span v-if="data.parentTokenId" class="text-slate-500">{{ trans('pages.tokens.parent_token', { id: data.parentTokenId }) }}</span>
+                                        <span v-if="data.replacedByTokenId" class="text-slate-500">{{ trans('pages.tokens.replaced_by_token', { id: data.replacedByTokenId }) }}</span>
+                                        <span v-if="data.familyRevoked" class="text-slate-500">{{ trans('status.family_revoked') }}</span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column field="issuedAt" header="Issued" sortable>
+                            <Column field="issuedAt" :header="trans('table.columns.issued')" sortable>
                                 <template #body="{ data }">
                                     <span>{{ data.issuedAt }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="expiresAt" header="Expires" sortable>
+                            <Column field="expiresAt" :header="trans('table.columns.expires')" sortable>
                                 <template #body="{ data }">
-                                    <span>{{ data.expiresAt ?? "N/A" }}</span>
+                                    <span>{{ data.expiresAt ?? trans('common.not_available') }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="revokedAt" header="Revoked">
+                            <Column field="revokedAt" :header="trans('table.columns.revoked')">
                                 <template #body="{ data }">
-                                    <span>{{ data.revokedAt ?? "N/A" }}</span>
+                                    <span>{{ data.revokedAt ?? trans('common.not_available') }}</span>
                                 </template>
                             </Column>
 
-                            <Column header="Actions" :style="{ width: '12rem' }">
+                            <Column :header="trans('table.columns.actions')" :style="{ width: '12rem' }">
                                 <template #body="{ data }">
                                     <RowActionMenu :items="resolveRowActions(data)" :disabled="resolveRowActions(data).length === 0 || busy" />
                                 </template>
@@ -491,7 +492,7 @@ usePageOverlayCleanup(() => {
 
                             <template #empty>
                                 <div class="flex min-h-40 items-center justify-center text-slate-500">
-                                    No tokens match the current filters.
+                                    {{ trans('table.empty') }}
                                 </div>
                             </template>
                         </DataTable>

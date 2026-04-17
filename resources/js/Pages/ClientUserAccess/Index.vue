@@ -6,6 +6,7 @@ import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { trans } from 'laravel-vue-i18n';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableState } from '@/Composables/useAdminTableState';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
@@ -93,13 +94,13 @@ const {
 });
 
 const statusOptions = [
-    { label: 'All statuses', value: null },
-    { label: 'Active', value: 'active' },
-    { label: 'Inactive', value: 'inactive' },
+    { label: trans('common.all_statuses'), value: null },
+    { label: trans('status.active'), value: 'active' },
+    { label: trans('status.inactive'), value: 'inactive' },
 ];
 
 const clientSelectOptions = computed(() => [
-    { label: 'All clients', value: null },
+    { label: trans('pages.client_access.all_clients'), value: null },
     ...props.clientOptions.map((client) => ({
         label: `${client.name} (${client.clientId})`,
         value: client.id,
@@ -107,7 +108,7 @@ const clientSelectOptions = computed(() => [
 ]);
 
 const userSelectOptions = computed(() => [
-    { label: 'All users', value: null },
+    { label: trans('pages.client_access.all_users'), value: null },
     ...props.userOptions.map((user) => ({
         label: `${user.name} (${user.email})`,
         value: user.id,
@@ -145,8 +146,8 @@ const {
     indexRouteName: 'admin.client-user-access.index',
     destroyRouteName: 'api.client-user-access.destroy',
     bulkDestroyRouteName: 'api.client-user-access.bulk-destroy',
-    entityLabel: 'Client access',
-    entityLabelPlural: 'client access records',
+    entityLabel: trans('pages.client_access.item'),
+    entityLabelPlural: trans('pages.client_access.items'),
     buildParams,
     clearSelection,
     selectedIds,
@@ -195,13 +196,13 @@ const goToEditPage = (access) => {
 
 const actionItems = (access) => [
     {
-        label: 'Edit',
+        label: trans('actions.edit'),
         icon: 'pi pi-pencil',
         isPrimary: true,
         command: () => goToEditPage(access),
     },
     {
-        label: 'Delete',
+        label: trans('actions.delete'),
         icon: 'pi pi-trash',
         isDangerous: true,
         disabled: !access.canDelete,
@@ -212,11 +213,11 @@ const actionItems = (access) => [
     },
 ];
 
-const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 16) : 'Not set';
+const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 16) : trans('common.not_set');
 </script>
 
 <template>
-    <Head title="Client Access" />
+    <Head :title="trans('navigation.client_access.label')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -224,17 +225,16 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
 
         <div class="admin-table-page">
             <PageHeader
-                title="Client Access"
-                description="Control which authenticated users may authorize against each SSO client, including time-bounded assignments."
+                :title="trans('navigation.client_access.label')"
+                :description="trans('navigation.client_access.description')"
             />
 
             <AdminTableCard>
                 <div class="admin-table-shell">
                     <div class="mx-6 mt-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900" data-client-access-rule>
-                        <div class="font-medium">Access rule</div>
+                        <div class="font-medium">{{ trans('pages.client_access.access_rule') }}</div>
                         <div class="mt-1">
-                            If a client has no active client access records, it behaves as an open client and any active authenticated user may authorize.
-                            Once at least one active access record exists, the client becomes restricted and only explicitly assigned active users may authorize.
+                            {{ trans('pages.client_access.access_rule_description') }}
                         </div>
                     </div>
 
@@ -244,7 +244,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             :options="clientSelectOptions"
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="Client"
+                            :placeholder="trans('common.client')"
                             class="w-full"
                             @change="onSelectFilterChange"
                         />
@@ -253,7 +253,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             :options="userSelectOptions"
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="User"
+                            :placeholder="trans('common.user')"
                             class="w-full"
                             @change="onSelectFilterChange"
                         />
@@ -262,7 +262,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             :options="statusOptions"
                             optionLabel="label"
                             optionValue="value"
-                            placeholder="Status"
+                            :placeholder="trans('common.status')"
                             class="w-full"
                             @change="onSelectFilterChange"
                         />
@@ -277,8 +277,8 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                         :sort-field="tableState.sortField"
                         :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        empty-message="No client access records found for the current filters."
-                        loading-message="Loading client access records..."
+                        :empty-message="trans('table.empty')"
+                        :loading-message="trans('table.loading')"
                         data-key="id"
                         lazy
                         responsive-layout="scroll"
@@ -289,11 +289,11 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             <AdminTableToolbar
                                 searchable
                                 :search-value="tableFilters.global.value ?? ''"
-                                search-placeholder="Search access"
+                                :search-placeholder="trans('pages.client_access.search_placeholder')"
                                 :canCreate="canManageClientAccess"
-                                createLabel="Create Access"
+                                :createLabel="trans('actions.create')"
                                 :canBulkDelete="canManageClientAccess"
-                                bulkDeleteLabel="Delete Selected"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedCount"
                                 :selectableCount="selectableCount"
                                 :busy="busy"
@@ -306,7 +306,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
                             <template #header>
-                                <div :title="selectableCount === 0 ? 'No deletable access records on this page.' : ''">
+                                <div :title="selectableCount === 0 ? trans('toolbar.bulk.none') : ''">
                                     <Checkbox
                                         :binary="true"
                                         :modelValue="allSelected"
@@ -327,7 +327,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             </template>
                         </Column>
 
-                        <Column field="clientName" header="Client" sortable>
+                        <Column field="clientName" :header="trans('table.columns.client')" sortable>
                             <template #body="{ data }">
                                 <div class="space-y-1">
                                     <div class="font-medium text-slate-800">{{ data.clientName }}</div>
@@ -336,7 +336,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             </template>
                         </Column>
 
-                        <Column field="userName" header="User" sortable>
+                        <Column field="userName" :header="trans('table.columns.user')" sortable>
                             <template #body="{ data }">
                                 <div class="space-y-1">
                                     <div class="font-medium text-slate-800">{{ data.userName }}</div>
@@ -345,33 +345,33 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                             </template>
                         </Column>
 
-                        <Column field="isActive" header="Status" sortable>
+                        <Column field="isActive" :header="trans('table.columns.status')" sortable>
                             <template #body="{ data }">
-                                <Tag :value="data.isActive ? 'Active' : 'Inactive'" :severity="data.isActive ? 'success' : 'warn'" />
+                                <Tag :value="data.isActive ? trans('status.active') : trans('status.inactive')" :severity="data.isActive ? 'success' : 'warn'" />
                             </template>
                         </Column>
 
-                        <Column field="allowedFrom" header="Allowed From" sortable>
+                        <Column field="allowedFrom" :header="trans('table.columns.allowed_from')" sortable>
                             <template #body="{ data }">
                                 <span class="text-sm text-slate-600">{{ formatDate(data.allowedFrom) }}</span>
                             </template>
                         </Column>
 
-                        <Column field="allowedUntil" header="Allowed Until" sortable>
+                        <Column field="allowedUntil" :header="trans('table.columns.allowed_until')" sortable>
                             <template #body="{ data }">
                                 <span class="text-sm text-slate-600">{{ formatDate(data.allowedUntil) }}</span>
                             </template>
                         </Column>
 
-                        <Column field="notes" header="Notes">
+                        <Column field="notes" :header="trans('table.columns.notes')">
                             <template #body="{ data }">
                                 <div class="max-w-sm text-sm text-slate-600">
-                                    {{ data.notes || 'No notes' }}
+                                    {{ data.notes || trans('messages.no_notes') }}
                                 </div>
                             </template>
                         </Column>
 
-                        <Column v-if="canManageClientAccess" header="Actions" :exportable="false" style="width: 12rem">
+                        <Column v-if="canManageClientAccess" :header="trans('table.columns.actions')" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="actionItems(data)" />
                             </template>
@@ -389,7 +389,7 @@ const formatDate = (value) => value ? String(value).replace('T', ' ').slice(0, 1
                         :to="pagination.to"
                         :current-page="pagination.currentPage"
                         :last-page="pagination.lastPage || lastPage"
-                        item-label="access records"
+                        :item-label="trans('pages.client_access.items')"
                     />
                 </template>
             </AdminTableCard>

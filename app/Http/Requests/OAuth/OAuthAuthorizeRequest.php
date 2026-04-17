@@ -46,15 +46,15 @@ class OAuthAuthorizeRequest extends FormRequest
             $method = $this->input('code_challenge_method');
 
             if ($challenge !== '' && $challenge !== null && ($method === '' || $method === null)) {
-                $validator->errors()->add('code_challenge_method', 'The code challenge method field is required when code challenge is present.');
+                $validator->errors()->add('code_challenge_method', __('validation.custom.code_challenge_method.required_with_code_challenge'));
             }
 
             if (($method !== '' && $method !== null) && ($challenge === '' || $challenge === null)) {
-                $validator->errors()->add('code_challenge', 'The code challenge field is required when code challenge method is present.');
+                $validator->errors()->add('code_challenge', __('validation.custom.code_challenge.required_with_code_challenge_method'));
             }
 
             if ($this->scopeContainsOpenId() && trim((string) $this->input('nonce')) === '') {
-                $validator->errors()->add('nonce', 'The nonce field is required when requesting the openid scope.');
+                $validator->errors()->add('nonce', __('validation.custom.nonce.required_for_openid_scope'));
             }
         });
     }

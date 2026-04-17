@@ -19,10 +19,10 @@ class OAuthIntrospectController extends Controller
         try {
             $result = $tokenService->introspectToken($request->validated());
 
-            return $this->successResponse('Token introspection completed.', $result);
+            return $this->successResponse(__('api.oauth.introspect.completed'), $result);
         } catch (ValidationException $exception) {
             return $this->errorResponse(
-                message: 'Token introspection failed.',
+                message: __('api.oauth.introspect.failed'),
                 errors: $exception->errors(),
                 status: 422,
             );

@@ -5,6 +5,7 @@ import AdminTableToolbar from '@/Components/Admin/AdminTableToolbar.vue';
 import RowActionMenu from '@/Components/Admin/RowActionMenu.vue';
 import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { trans } from 'laravel-vue-i18n';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
 import { Head, router } from '@inertiajs/vue3';
@@ -101,8 +102,8 @@ const {
     indexRouteName: 'admin.scopes.index',
     destroyRouteName: 'admin.scopes.destroy',
     bulkDestroyRouteName: 'admin.scopes.bulk-destroy',
-    entityLabel: 'Scope',
-    entityLabelPlural: 'scopes',
+    entityLabel: trans('pages.scopes.item'),
+    entityLabelPlural: trans('pages.scopes.items'),
     buildParams,
     clearSelection,
     selectedIds,
@@ -149,13 +150,13 @@ const goToEditPage = (scope) => {
 
 const scopeActionItems = (scope) => [
     {
-        label: 'Edit',
+        label: trans('actions.edit'),
         icon: 'pi pi-pencil',
         isPrimary: true,
         command: () => goToEditPage(scope),
     },
     {
-        label: 'Delete',
+        label: trans('actions.delete'),
         icon: 'pi pi-trash',
         isDangerous: true,
         disabled: !scope.canDelete,
@@ -165,7 +166,7 @@ const scopeActionItems = (scope) => [
 </script>
 
 <template>
-    <Head title="Scopes" />
+    <Head :title="trans('navigation.scopes.label')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -173,8 +174,8 @@ const scopeActionItems = (scope) => [
 
         <div class="admin-table-page">
             <PageHeader
-                title="Scopes"
-                description="Manage the reusable scope catalog used by clients and future consent-aware SSO flows."
+                :title="trans('navigation.scopes.label')"
+                :description="trans('navigation.scopes.description')"
             />
 
             <AdminTableCard>
@@ -188,8 +189,8 @@ const scopeActionItems = (scope) => [
                         :sort-field="tableState.sortField"
                         :sort-order="tableState.sortOrder"
                         :loading="busy"
-                        empty-message="No scopes found for the current filters."
-                        loading-message="Loading scopes..."
+                        :empty-message="trans('table.empty')"
+                        :loading-message="trans('table.loading')"
                         data-key="id"
                         lazy
                         filterDisplay="menu"
@@ -201,9 +202,9 @@ const scopeActionItems = (scope) => [
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManageScopes"
-                                createLabel="Create Scope"
+                                :createLabel="trans('actions.create')"
                                 :canBulkDelete="canManageScopes"
-                                bulkDeleteLabel="Delete Selected"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedRows.length"
                                 :selectableCount="selectableRows.length"
                                 :busy="busy"
@@ -216,7 +217,7 @@ const scopeActionItems = (scope) => [
                                         <InputIcon class="pi pi-search text-slate-400" />
                                         <InputText
                                             v-model="tableFilters.global.value"
-                                            placeholder="Search scopes"
+                                            :placeholder="trans('pages.scopes.search_placeholder')"
                                             class="w-full"
                                             @update:modelValue="onGlobalFilterInput"
                                         />
@@ -227,7 +228,7 @@ const scopeActionItems = (scope) => [
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
                             <template #header>
-                                <div :title="selectableRows.length === 0 ? 'No deletable scopes on this page.' : ''">
+                                <div :title="selectableRows.length === 0 ? trans('toolbar.bulk.none') : ''">
                                     <Checkbox
                                         :binary="true"
                                         :modelValue="allSelected"
@@ -250,30 +251,30 @@ const scopeActionItems = (scope) => [
                             </template>
                         </Column>
 
-                        <Column field="name" header="Name" sortable />
-                        <Column field="code" header="Code" sortable>
+                        <Column field="name" :header="trans('table.columns.name')" sortable />
+                        <Column field="code" :header="trans('table.columns.code')" sortable>
                             <template #body="{ data }">
                                 <code class="rounded bg-slate-100 px-2 py-1 text-sm text-slate-700">{{ data.code }}</code>
                             </template>
                         </Column>
-                        <Column field="description" header="Description">
+                        <Column field="description" :header="trans('table.columns.description')">
                             <template #body="{ data }">
                                 <div class="max-w-xl text-sm text-slate-600">
-                                    {{ data.description || 'No description provided.' }}
+                                    {{ data.description || trans('messages.no_description') }}
                                 </div>
                             </template>
                         </Column>
-                        <Column field="isActive" header="Status">
+                        <Column field="isActive" :header="trans('table.columns.status')">
                             <template #body="{ data }">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <Tag :value="data.isActive ? 'Active' : 'Inactive'" :severity="data.isActive ? 'success' : 'warn'" />
-                                    <Tag v-if="data.deleteBlockCode === 'assigned_clients'" value="In Use" severity="info" />
+                                    <Tag :value="data.isActive ? trans('status.active') : trans('status.inactive')" :severity="data.isActive ? 'success' : 'warn'" />
+                                    <Tag v-if="data.deleteBlockCode === 'assigned_clients'" :value="trans('status.in_use')" severity="info" />
                                 </div>
                             </template>
                         </Column>
-                        <Column field="createdAt" header="Created At" sortable />
+                        <Column field="createdAt" :header="trans('table.columns.created_at')" sortable />
 
-                        <Column v-if="canManageScopes" header="Actions" :exportable="false" style="width: 12rem">
+                        <Column v-if="canManageScopes" :header="trans('table.columns.actions')" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="scopeActionItems(data)" />
                             </template>
@@ -284,9 +285,9 @@ const scopeActionItems = (scope) => [
                 <template #footer>
                     <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} scopes
+                            {{ trans('table.showing_of', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total, item: trans('pages.scopes.items') }) }}
                         </div>
-                        <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
+                        <div>{{ trans('table.page_of', { current: pagination.currentPage, last: pagination.lastPage }) }}</div>
                     </div>
                 </template>
             </AdminTableCard>

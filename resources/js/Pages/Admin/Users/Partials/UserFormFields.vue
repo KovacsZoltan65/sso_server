@@ -1,8 +1,8 @@
 <script setup>
-import Checkbox from 'primevue/checkbox';
-import InputText from 'primevue/inputtext';
-import MultiSelect from 'primevue/multiselect';
-import Password from 'primevue/password';
+import Checkbox from "primevue/checkbox";
+import InputText from "primevue/inputtext";
+import MultiSelect from "primevue/multiselect";
+import Password from "primevue/password";
 
 defineProps({
     form: {
@@ -41,7 +41,9 @@ defineProps({
         </div>
 
         <div class="grid gap-2">
-            <label for="user-email" class="text-sm font-medium text-slate-700">Email</label>
+            <label for="user-email" class="text-sm font-medium text-slate-700"
+                >Email</label
+            >
             <InputText
                 id="user-email"
                 v-model="form.email"
@@ -56,14 +58,16 @@ defineProps({
         </div>
 
         <div class="grid gap-2">
-            <label for="user-roles" class="text-sm font-medium text-slate-700">Roles</label>
+            <label for="user-roles" class="text-sm font-medium text-slate-700"
+                >Roles</label
+            >
             <MultiSelect
                 id="user-roles"
                 v-model="form.roles"
                 :options="roleOptions"
                 optionLabel="label"
                 optionValue="value"
-                placeholder="Select roles"
+                :placeholder="trans('actions.select_roles')"
                 display="chip"
                 :disabled="disabled"
                 fluid
@@ -72,7 +76,7 @@ defineProps({
                 {{ form.errors.roles }}
             </small>
             <small v-if="form.errors['roles.0']" class="text-red-500">
-                {{ form.errors['roles.0'] }}
+                {{ form.errors["roles.0"] }}
             </small>
         </div>
 
@@ -95,7 +99,9 @@ defineProps({
 
         <template v-if="showPasswordFields">
             <div class="grid gap-2">
-                <label for="user-password" class="text-sm font-medium text-slate-700">Password</label>
+                <label for="user-password" class="text-sm font-medium text-slate-700"
+                    >Password</label
+                >
                 <Password
                     id="user-password"
                     v-model="form.password"
@@ -111,7 +117,10 @@ defineProps({
             </div>
 
             <div class="grid gap-2">
-                <label for="user-password-confirmation" class="text-sm font-medium text-slate-700">
+                <label
+                    for="user-password-confirmation"
+                    class="text-sm font-medium text-slate-700"
+                >
                     Confirm password
                 </label>
                 <Password

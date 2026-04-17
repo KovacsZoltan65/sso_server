@@ -3,6 +3,7 @@ import AdminTableCard from "@/Components/Admin/AdminTableCard.vue";
 import AdminTableToolbar from "@/Components/Admin/AdminTableToolbar.vue";
 import RowActionMenu from "@/Components/Admin/RowActionMenu.vue";
 import PageHeader from "@/Components/PageHeader.vue";
+import { trans } from "laravel-vue-i18n";
 import { usePageOverlayCleanup } from "@/Composables/usePageOverlayCleanup";
 import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { revokeRememberedConsent } from "@/Services/rememberedConsentService";
@@ -22,6 +23,7 @@ import Select from "primevue/select";
 import Tag from "primevue/tag";
 import Toast from "primevue/toast";
 import { computed, reactive, ref } from "vue";
+import BaseDataTable from "@/Components/Admin/BaseDataTable.vue";
 
 const props = defineProps({
     rows: {
@@ -63,12 +65,17 @@ const confirm = useConfirm();
 const busy = ref(false);
 const revokeDialogVisible = ref(false);
 const selectedConsent = ref(null);
-const selectedRevocationReason = ref(props.revocationReasonOptions[0]?.value ?? "admin_manual_revoke");
+const selectedRevocationReason = ref(
+    props.revocationReasonOptions[0]?.value ?? "admin_manual_revoke"
+);
 
 const rows = computed(() => props.rows);
 const tableFilters = ref({
     global: { value: props.filters.global ?? null, matchMode: FilterMatchMode.CONTAINS },
-    clientId: { value: props.filters.client_id ?? null, matchMode: FilterMatchMode.EQUALS },
+    clientId: {
+        value: props.filters.client_id ?? null,
+        matchMode: FilterMatchMode.EQUALS,
+    },
     userId: { value: props.filters.user_id ?? null, matchMode: FilterMatchMode.EQUALS },
     status: { value: props.filters.status ?? null, matchMode: FilterMatchMode.EQUALS },
 });
@@ -82,20 +89,20 @@ const tableState = reactive({
 
 const perPageOptions = [5, 10, 15, 25];
 const statusOptions = [
-    { label: "All statuses", value: null },
-    { label: "Active", value: "active" },
-    { label: "Revoked", value: "revoked" },
-    { label: "Expired", value: "expired" },
+    { label: trans("common.all_statuses"), value: null },
+    { label: trans("status.active"), value: "active" },
+    { label: trans("status.revoked"), value: "revoked" },
+    { label: trans("status.expired"), value: "expired" },
 ];
 const clientSelectOptions = computed(() => [
-    { label: "All clients", value: null },
+    { label: trans("pages.remembered_consents.all_clients"), value: null },
     ...props.clientOptions.map((client) => ({
         label: `${client.name} (${client.clientId})`,
         value: client.id,
     })),
 ]);
 const userSelectOptions = computed(() => [
-    { label: "All users", value: null },
+    { label: trans("pages.remembered_consents.all_users"), value: null },
     ...props.userOptions.map((user) => ({
         label: `${user.name} (${user.email})`,
         value: user.id,
@@ -127,16 +134,16 @@ const refresh = () => {
 
     toast.add({
         severity: "success",
-        summary: "Refreshed",
-        detail: "Remembered consents refreshed successfully.",
+        summary: trans("common.success"),
+        detail: trans("remembered_consents.refresh_detail"),
         life: 2500,
     });
 };
 
-const showError = (fallbackMessage = "Remembered consent action failed.") => {
+const showError = (fallbackMessage = trans("remembered_consents.error_fallback")) => {
     toast.add({
         severity: "error",
-        summary: "Error",
+        summary: trans("common.error"),
         detail: fallbackMessage,
         life: 4000,
     });
@@ -182,14 +189,16 @@ const statusSeverity = (status) => {
 
 const openRevokeDialog = (row) => {
     selectedConsent.value = row;
-    selectedRevocationReason.value = props.revocationReasonOptions[0]?.value ?? "admin_manual_revoke";
+    selectedRevocationReason.value =
+        props.revocationReasonOptions[0]?.value ?? "admin_manual_revoke";
     revokeDialogVisible.value = true;
 };
 
 const closeRevokeDialog = () => {
     revokeDialogVisible.value = false;
     selectedConsent.value = null;
-    selectedRevocationReason.value = props.revocationReasonOptions[0]?.value ?? "admin_manual_revoke";
+    selectedRevocationReason.value =
+        props.revocationReasonOptions[0]?.value ?? "admin_manual_revoke";
 };
 
 const submitRevokeDialog = () => {
@@ -203,10 +212,10 @@ const submitRevokeDialog = () => {
     };
 
     confirm.require({
-        message: `Revoke remembered consent #${row.id}?`,
-        header: "Confirm revoke",
-        acceptLabel: "Revoke",
-        rejectLabel: "Cancel",
+        message: trans("remembered_consents.revoke.confirm_message", { id: row.id }),
+        header: trans("remembered_consents.revoke.confirm_title"),
+        acceptLabel: trans("remembered_consents.revoke.accept"),
+        rejectLabel: trans("common.cancel"),
         accept: async () => {
             busy.value = true;
 
@@ -216,19 +225,22 @@ const submitRevokeDialog = () => {
 
                 toast.add({
                     severity: "success",
-                    summary: alreadyRevoked ? "Already revoked" : "Revoked",
+                    summary: alreadyRevoked
+                        ? trans("remembered_consents.revoke.already_revoked_summary")
+                        : trans("remembered_consents.revoke.summary"),
                     detail: alreadyRevoked
-                        ? "Remembered consent was already revoked."
-                        : "Remembered consent revoked successfully.",
+                        ? trans("remembered_consents.revoke.already_revoked_detail")
+                        : trans("remembered_consents.revoke.detail"),
                     life: 3000,
                 });
 
                 closeRevokeDialog();
                 reload();
             } catch (error) {
-                const message = error?.response?.data?.message
-                    || error?.response?.data?.errors?.revocation_reason?.[0]
-                    || "Remembered consent action failed.";
+                const message =
+                    error?.response?.data?.message ||
+                    error?.response?.data?.errors?.revocation_reason?.[0] ||
+                    trans("remembered_consents.error_fallback");
 
                 showError(message);
             } finally {
@@ -243,13 +255,15 @@ const resolveRowActions = (row) => {
         return [];
     }
 
-    return [{
-        label: "Revoke",
-        icon: "pi pi-ban",
-        isPrimary: true,
-        isDangerous: true,
-        command: () => openRevokeDialog(row),
-    }];
+    return [
+        {
+            label: trans("actions.revoke"),
+            icon: "pi pi-ban",
+            isPrimary: true,
+            isDangerous: true,
+            command: () => openRevokeDialog(row),
+        },
+    ];
 };
 
 usePageOverlayCleanup(() => {
@@ -259,42 +273,68 @@ usePageOverlayCleanup(() => {
 
 <template>
     <AuthenticatedLayout>
-        <Head title="Remembered Consents" />
+        <Head :title="trans('remembered_consents.title')" />
         <Toast />
         <ConfirmDialog />
-        <Dialog :visible="revokeDialogVisible" modal header="Revoke Remembered Consent" @update:visible="revokeDialogVisible = $event">
+        <Dialog
+            :visible="revokeDialogVisible"
+            modal
+            :header="trans('remembered_consents.revoke.dialog_title')"
+            @update:visible="revokeDialogVisible = $event"
+        >
             <div class="flex flex-col gap-4">
                 <p class="text-sm text-slate-600">
-                    Revoke remembered consent for
-                    <span class="font-medium">{{ selectedConsent?.clientName ?? "selected client" }}</span>
-                    and
-                    <span class="font-medium">{{ selectedConsent?.userEmail ?? "selected user" }}</span>.
+                    {{ trans("remembered_consents.revoke.dialog_description") }}
+                    <span class="font-medium">{{
+                        selectedConsent?.clientName ?? trans("common.client")
+                    }}</span>
+                    <span class="font-medium">{{
+                        selectedConsent?.userEmail ?? trans("common.user")
+                    }}</span
+                    >.
                 </p>
 
                 <div class="flex flex-col gap-2">
-                    <label for="revocation-reason" class="text-sm font-medium text-slate-700">Reason</label>
+                    <label
+                        for="revocation-reason"
+                        class="text-sm font-medium text-slate-700"
+                        >{{ trans("common.reason") }}</label
+                    >
                     <Select
                         id="revocation-reason"
                         v-model="selectedRevocationReason"
                         :options="revocationReasonOptions"
                         option-label="label"
                         option-value="value"
-                        placeholder="Select revoke reason"
+                        :placeholder="
+                            trans('pages.remembered_consents.select_revoke_reason')
+                        "
                         data-revoke-reason
                     />
                 </div>
 
                 <div class="flex justify-end gap-3">
-                    <Button label="Cancel" severity="secondary" outlined data-revoke-cancel @click="closeRevokeDialog" />
-                    <Button label="Continue" :disabled="busy" data-revoke-submit @click="submitRevokeDialog" />
+                    <Button
+                        :label="trans('common.cancel')"
+                        severity="secondary"
+                        outlined
+                        data-revoke-cancel
+                        @click="closeRevokeDialog"
+                    />
+                    <Button
+                        :label="trans('common.continue')"
+                        :disabled="busy"
+                        data-revoke-submit
+                        @click="submitRevokeDialog"
+                    />
                 </div>
             </div>
         </Dialog>
 
         <div class="flex h-full min-h-0 flex-1 flex-col gap-6">
             <PageHeader
-                title="Remembered Consents"
-                description="Review stored remembered consent grants and revoke them when policy or security requires it."
+                :title="trans('remembered_consents.title')"
+                :description="trans('remembered_consents.description')"
             />
 
             <AdminTableCard>
@@ -313,7 +353,9 @@ usePageOverlayCleanup(() => {
                                 <InputText
                                     v-model="tableFilters.global.value"
                                     class="w-full"
-                                    placeholder="Search by client, user, email, or revoke reason"
+                                    :placeholder="
+                                        trans('remembered_consents.search_placeholder')
+                                    "
                                     @keyup.enter="onGlobalSearch"
                                 />
                             </IconField>
@@ -326,7 +368,7 @@ usePageOverlayCleanup(() => {
                             :options="statusOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Status"
+                            :placeholder="trans('common.status')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -334,7 +376,7 @@ usePageOverlayCleanup(() => {
                             :options="clientSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="Client"
+                            :placeholder="trans('common.client')"
                             @change="onTableFilter"
                         />
                         <Select
@@ -342,49 +384,76 @@ usePageOverlayCleanup(() => {
                             :options="userSelectOptions"
                             option-label="label"
                             option-value="value"
-                            placeholder="User"
+                            :placeholder="trans('common.user')"
                             @change="onTableFilter"
                         />
                     </div>
 
                     <div class="min-h-0 flex-1 overflow-hidden">
-                        <DataTable
+                        <BaseDataTable
                             :value="rows"
-                            :filters="tableFilters"
+                            :loading="loading"
+                            :loading-message="
+                                trans('remembered_consents.loading_message')
+                            "
+                            :empty-message="trans('remembered_consents.empty_message')"
+                            removable-sort
                             data-key="id"
-                            lazy
-                            paginator
-                            scrollable
-                            scroll-height="flex"
-                            paginator-template="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink RowsPerPageDropdown CurrentPageReport"
-                            current-page-report-template="{first} to {last} of {totalRecords}"
                             :rows="pagination.perPage"
                             :first="pagination.first"
-                            :total-records="pagination.total"
+                            :total-records="pagination.totalRecords"
+                            :sort-field="pagination.sortField"
+                            :sort-order="pagination.sortOrder"
                             :rows-per-page-options="perPageOptions"
-                            :always-show-paginator="true"
                             @page="onPage"
                             @sort="onSort"
                         >
-                            <Column field="userName" header="User" sortable>
+                            <termplate #header></termplate>
+                            <template #empty>
+                                <div
+                                    class="flex min-h-40 items-center justify-center text-slate-500"
+                                >
+                                    {{ trans("table.empty") }}
+                                </div>
+                            </template>
+
+                            <!-- User Name -->
+                            <Column
+                                field="userName"
+                                :header="trans('table.columns.user')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.userName }}</span>
-                                        <span class="text-sm text-slate-500">{{ data.userEmail }}</span>
+                                        <span class="text-sm text-slate-500">{{
+                                            data.userEmail
+                                        }}</span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column field="clientName" header="Client" sortable>
+                            <!-- Client Name -->
+                            <Column
+                                field="clientName"
+                                :header="trans('table.columns.client')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
                                         <span>{{ data.clientName }}</span>
-                                        <span class="text-sm text-slate-500">{{ data.clientPublicId }}</span>
+                                        <span class="text-sm text-slate-500">{{
+                                            data.clientPublicId
+                                        }}</span>
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column field="scopeCodes" header="Scopes">
+                            <!-- Scopes -->
+                            <Column
+                                field="scopeCodes"
+                                :header="trans('table.columns.scopes')"
+                            >
                                 <template #body="{ data }">
                                     <div class="flex flex-wrap gap-2" data-consent-scopes>
                                         <Tag
@@ -397,51 +466,87 @@ usePageOverlayCleanup(() => {
                                 </template>
                             </Column>
 
-                            <Column field="trustTierSnapshot" header="Trust">
+                            <!-- Trust -->
+                            <Column
+                                field="trustTierSnapshot"
+                                :header="trans('table.columns.trust')"
+                            >
                                 <template #body="{ data }">
                                     <span>{{ data.trustTierSnapshot }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="status" header="Status">
+                            <!-- Status -->
+                            <Column
+                                field="status"
+                                :header="trans('table.columns.status')"
+                            >
                                 <template #body="{ data }">
-                                    <Tag :value="data.status" :severity="statusSeverity(data.status)" data-consent-status />
+                                    <Tag
+                                        :value="data.status"
+                                        :severity="statusSeverity(data.status)"
+                                        data-consent-status
+                                    />
                                 </template>
                             </Column>
 
-                            <Column field="grantedAt" header="Granted" sortable>
+                            <!-- Granted -->
+                            <Column
+                                field="grantedAt"
+                                :header="trans('table.columns.granted')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <span>{{ data.grantedAt }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="expiresAt" header="Expires" sortable>
+                            <!-- Expired -->
+                            <Column
+                                field="expiresAt"
+                                :header="trans('table.columns.expires')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <span>{{ data.expiresAt }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="revokedAt" header="Revoked">
+                            <!-- Revoked -->
+                            <Column
+                                field="revokedAt"
+                                :header="trans('table.columns.revoked')"
+                            >
                                 <template #body="{ data }">
                                     <div class="flex flex-col">
-                                        <span>{{ data.revokedAt ?? "N/A" }}</span>
-                                        <span v-if="data.revocationReason" class="text-sm text-slate-500">{{ data.revocationReason }}</span>
+                                        <span>{{
+                                            data.revokedAt ??
+                                            trans("common.not_available")
+                                        }}</span>
+                                        <span
+                                            v-if="data.revocationReason"
+                                            class="text-sm text-slate-500"
+                                            >{{ data.revocationReason }}</span
+                                        >
                                     </div>
                                 </template>
                             </Column>
 
-                            <Column header="Actions" :style="{ width: '12rem' }">
+                            <!-- Actions -->
+                            <Column
+                                :header="trans('common.actions')"
+                                :style="{ width: '12rem' }"
+                            >
                                 <template #body="{ data }">
-                                    <RowActionMenu :items="resolveRowActions(data)" :disabled="resolveRowActions(data).length === 0 || busy" />
+                                    <RowActionMenu
+                                        :items="resolveRowActions(data)"
+                                        :disabled="
+                                            resolveRowActions(data).length === 0 || busy
+                                        "
+                                    />
                                 </template>
                             </Column>
-
-                            <template #empty>
-                                <div class="flex min-h-40 items-center justify-center text-slate-500">
-                                    No remembered consents match the current filters.
-                                </div>
-                            </template>
-                        </DataTable>
+                        </BaseDataTable>
                     </div>
                 </div>
             </AdminTableCard>

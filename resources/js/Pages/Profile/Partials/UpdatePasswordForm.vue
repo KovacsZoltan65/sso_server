@@ -3,6 +3,7 @@ import InputError from '@/Components/InputError.vue';
 import { useForm } from '@inertiajs/vue3';
 import Password from 'primevue/password';
 import Button from 'primevue/button';
+import { trans } from 'laravel-vue-i18n';
 import { useToast } from 'primevue/usetoast';
 import { ref } from 'vue';
 
@@ -23,8 +24,8 @@ const updatePassword = () => {
             form.reset();
             toast.add({
                 severity: 'success',
-                summary: 'Jelszo frissitve',
-                detail: 'A jelszavad sikeresen modosult.',
+                summary: trans('profile.password_updated_summary'),
+                detail: trans('profile.password_updated_detail'),
                 life: 3000,
             });
         },
@@ -41,8 +42,8 @@ const updatePassword = () => {
 
             toast.add({
                 severity: 'error',
-                summary: 'Sikertelen jelszocsere',
-                detail: 'Ellenorizd a jelenlegi jelszavadat es az uj jelszo megerositeset.',
+                summary: trans('profile.password_update_failed_summary'),
+                detail: trans('profile.password_update_failed_detail'),
                 life: 4000,
             });
         },
@@ -54,7 +55,7 @@ const updatePassword = () => {
     <section class="space-y-5">
         <div class="grid gap-4">
             <div class="grid gap-2">
-                <label for="current_password" class="text-sm font-medium text-slate-700">Jelenlegi jelszo</label>
+                <label for="current_password" class="text-sm font-medium text-slate-700">{{ trans('profile.current_password') }}</label>
                 <Password
                     id="current_password"
                     ref="currentPasswordInput"
@@ -70,7 +71,7 @@ const updatePassword = () => {
             </div>
 
             <div class="grid gap-2">
-                <label for="password" class="text-sm font-medium text-slate-700">Uj jelszo</label>
+                <label for="password" class="text-sm font-medium text-slate-700">{{ trans('profile.new_password') }}</label>
                 <Password
                     id="password"
                     ref="passwordInput"
@@ -85,7 +86,7 @@ const updatePassword = () => {
             </div>
 
             <div class="grid gap-2">
-                <label for="password_confirmation" class="text-sm font-medium text-slate-700">Uj jelszo megerositese</label>
+                <label for="password_confirmation" class="text-sm font-medium text-slate-700">{{ trans('profile.confirm_password') }}</label>
                 <Password
                     id="password_confirmation"
                     v-model="form.password_confirmation"
@@ -102,7 +103,7 @@ const updatePassword = () => {
 
         <div class="flex justify-end">
             <Button
-                label="Mentes"
+                :label="trans('common.save')"
                 icon="pi pi-save"
                 :loading="form.processing"
                 :disabled="form.processing"

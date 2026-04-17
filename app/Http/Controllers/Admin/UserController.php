@@ -56,7 +56,7 @@ class UserController extends Controller
 
         $this->userService->createUser($request->validated());
 
-        return back()->with('success', 'User created successfully.');
+        return back()->with('success', __('api.users.created'));
     }
 
     /**
@@ -70,7 +70,7 @@ class UserController extends Controller
 
         $this->userService->updateUser($user, $request->validated());
 
-        return back()->with('success', 'User updated successfully.');
+        return back()->with('success', __('api.users.updated'));
     }
 
     /**
@@ -91,7 +91,7 @@ class UserController extends Controller
         }
 
         return $this->successResponse(
-            message: 'User deleted successfully.',
+            message: __('api.users.deleted'),
             data: ['id' => $user->id],
         );
     }
@@ -117,7 +117,7 @@ class UserController extends Controller
         }
 
         return $this->successResponse(
-            message: 'Selected users deleted successfully.',
+            message: __('api.users.bulk_deleted'),
             data: ['ids' => $deletedIds],
             meta: ['deletedCount' => count($deletedIds)],
         );

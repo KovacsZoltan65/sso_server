@@ -6,6 +6,7 @@ import PageHeader from '@/Components/PageHeader.vue';
 import { useAdminListActions } from '@/Composables/useAdminListActions';
 import { useAdminTableSelection } from '@/Composables/useAdminTableSelection';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { trans } from 'laravel-vue-i18n';
 import { Head, router } from '@inertiajs/vue3';
 import { FilterMatchMode } from '@primevue/core/api';
 import Checkbox from 'primevue/checkbox';
@@ -85,8 +86,8 @@ const { busy, reload, refresh, confirmDelete, confirmBulkDelete } = useAdminList
     indexRouteName: 'admin.token-policies.index',
     destroyRouteName: 'admin.token-policies.destroy',
     bulkDestroyRouteName: 'admin.token-policies.bulk-destroy',
-    entityLabel: 'Token Policy',
-    entityLabelPlural: 'token policies',
+    entityLabel: trans('pages.token_policies.item'),
+    entityLabelPlural: trans('pages.token_policies.items'),
     buildParams,
     clearSelection,
     selectedIds,
@@ -116,8 +117,8 @@ const goToCreatePage = () => router.get(route('admin.token-policies.create'));
 const goToEditPage = (tokenPolicy) => router.get(route('admin.token-policies.edit', tokenPolicy.id));
 
 const tokenPolicyActionItems = (tokenPolicy) => [
-    { label: 'Edit', icon: 'pi pi-pencil', isPrimary: true, command: () => goToEditPage(tokenPolicy) },
-    { label: 'Delete', icon: 'pi pi-trash', isDangerous: true, disabled: !tokenPolicy.canDelete, command: () => confirmDelete(tokenPolicy) },
+    { label: trans('actions.edit'), icon: 'pi pi-pencil', isPrimary: true, command: () => goToEditPage(tokenPolicy) },
+    { label: trans('actions.delete'), icon: 'pi pi-trash', isDangerous: true, disabled: !tokenPolicy.canDelete, command: () => confirmDelete(tokenPolicy) },
 ];
 
 const formatMinutes = (minutes) => {
@@ -134,7 +135,7 @@ const formatMinutes = (minutes) => {
 </script>
 
 <template>
-    <Head title="Token Policies" />
+    <Head :title="trans('navigation.token_policies.label')" />
 
     <AuthenticatedLayout>
         <Toast />
@@ -142,8 +143,8 @@ const formatMinutes = (minutes) => {
 
         <div class="admin-table-page">
             <PageHeader
-                title="Token Policies"
-                description="Manage access and refresh token issuance rules, PKCE requirements, rotation, and default policy behavior."
+                :title="trans('navigation.token_policies.label')"
+                :description="trans('navigation.token_policies.description')"
             />
 
             <AdminTableCard>
@@ -172,9 +173,9 @@ const formatMinutes = (minutes) => {
                         <template #header>
                             <AdminTableToolbar
                                 :canCreate="canManageTokenPolicies"
-                                createLabel="Create Token Policy"
+                                :createLabel="trans('actions.create')"
                                 :canBulkDelete="canManageTokenPolicies"
-                                bulkDeleteLabel="Delete Selected"
+                                :bulkDeleteLabel="trans('toolbar.bulk.delete')"
                                 :selectedCount="selectedRows.length"
                                 :selectableCount="selectableRows.length"
                                 :busy="busy"
@@ -187,7 +188,7 @@ const formatMinutes = (minutes) => {
                                         <InputIcon class="pi pi-search text-slate-400" />
                                         <InputText
                                             v-model="tableFilters.global.value"
-                                            placeholder="Search token policies"
+                                            :placeholder="trans('pages.token_policies.search_placeholder')"
                                             class="w-full"
                                             @update:modelValue="onGlobalFilterInput"
                                         />
@@ -198,13 +199,13 @@ const formatMinutes = (minutes) => {
 
                         <template #empty>
                             <div class="py-8 text-center text-sm text-slate-500">
-                                No token policies found for the current filters.
+                                {{ trans('table.empty') }}
                             </div>
                         </template>
 
                         <Column headerStyle="width: 3.5rem" bodyStyle="width: 3.5rem">
                             <template #header>
-                                <div :title="selectableRows.length === 0 ? 'No deletable token policies on this page.' : ''">
+                                <div :title="selectableRows.length === 0 ? trans('toolbar.bulk.none') : ''">
                                     <Checkbox
                                         :binary="true"
                                         :modelValue="allSelected"
@@ -227,44 +228,44 @@ const formatMinutes = (minutes) => {
                             </template>
                         </Column>
 
-                        <Column field="name" header="Name" sortable />
-                        <Column field="code" header="Code" sortable>
+                        <Column field="name" :header="trans('table.columns.name')" sortable />
+                        <Column field="code" :header="trans('table.columns.code')" sortable>
                             <template #body="{ data }">
                                 <code class="rounded bg-slate-100 px-2 py-1 text-sm text-slate-700">{{ data.code }}</code>
                             </template>
                         </Column>
-                        <Column field="accessTokenTtlMinutes" header="Access TTL" sortable>
+                        <Column field="accessTokenTtlMinutes" :header="trans('table.columns.access_ttl')" sortable>
                             <template #body="{ data }">{{ formatMinutes(data.accessTokenTtlMinutes) }}</template>
                         </Column>
-                        <Column field="refreshTokenTtlMinutes" header="Refresh TTL" sortable>
+                        <Column field="refreshTokenTtlMinutes" :header="trans('table.columns.refresh_ttl')" sortable>
                             <template #body="{ data }">{{ formatMinutes(data.refreshTokenTtlMinutes) }}</template>
                         </Column>
-                        <Column field="refreshTokenRotationEnabled" header="Rotation">
+                        <Column field="refreshTokenRotationEnabled" :header="trans('table.columns.rotation')">
                             <template #body="{ data }">
-                                <Tag :value="data.refreshTokenRotationEnabled ? 'Enabled' : 'Disabled'" :severity="data.refreshTokenRotationEnabled ? 'success' : 'secondary'" />
+                                <Tag :value="data.refreshTokenRotationEnabled ? trans('status.enabled') : trans('status.disabled')" :severity="data.refreshTokenRotationEnabled ? 'success' : 'secondary'" />
                             </template>
                         </Column>
-                        <Column field="pkceRequired" header="PKCE">
+                        <Column field="pkceRequired" :header="trans('table.columns.pkce')">
                             <template #body="{ data }">
-                                <Tag :value="data.pkceRequired ? 'Required' : 'Optional'" :severity="data.pkceRequired ? 'info' : 'secondary'" />
+                                <Tag :value="data.pkceRequired ? trans('status.required') : trans('status.optional')" :severity="data.pkceRequired ? 'info' : 'secondary'" />
                             </template>
                         </Column>
-                        <Column field="isDefault" header="Default">
+                        <Column field="isDefault" :header="trans('table.columns.default')">
                             <template #body="{ data }">
-                                <Tag :value="data.isDefault ? 'Default' : 'Custom'" :severity="data.isDefault ? 'warn' : 'secondary'" />
+                                <Tag :value="data.isDefault ? trans('status.default') : trans('status.custom')" :severity="data.isDefault ? 'warn' : 'secondary'" />
                             </template>
                         </Column>
-                        <Column field="isActive" header="Status">
+                        <Column field="isActive" :header="trans('table.columns.status')">
                             <template #body="{ data }">
                                 <div class="flex flex-wrap items-center gap-2">
-                                    <Tag :value="data.isActive ? 'Active' : 'Inactive'" :severity="data.isActive ? 'success' : 'warn'" />
-                                    <Tag v-if="data.deleteBlockCode === 'assigned_clients'" value="In Use" severity="info" />
+                                    <Tag :value="data.isActive ? trans('status.active') : trans('status.inactive')" :severity="data.isActive ? 'success' : 'warn'" />
+                                    <Tag v-if="data.deleteBlockCode === 'assigned_clients'" :value="trans('status.in_use')" severity="info" />
                                 </div>
                             </template>
                         </Column>
-                        <Column field="createdAt" header="Created At" sortable />
+                        <Column field="createdAt" :header="trans('table.columns.created_at')" sortable />
 
-                        <Column v-if="canManageTokenPolicies" header="Actions" :exportable="false" style="width: 12rem">
+                        <Column v-if="canManageTokenPolicies" :header="trans('table.columns.actions')" :exportable="false" style="width: 12rem">
                             <template #body="{ data }">
                                 <RowActionMenu :items="tokenPolicyActionItems(data)" />
                             </template>
@@ -275,9 +276,9 @@ const formatMinutes = (minutes) => {
                 <template #footer>
                     <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            Showing {{ pagination.from ?? 0 }}-{{ pagination.to ?? 0 }} of {{ pagination.total }} token policies
+                            {{ trans('table.showing_of', { from: pagination.from ?? 0, to: pagination.to ?? 0, total: pagination.total, item: trans('pages.token_policies.items') }) }}
                         </div>
-                        <div>Page {{ pagination.currentPage }} / {{ pagination.lastPage }}</div>
+                        <div>{{ trans('table.page_of', { current: pagination.currentPage, last: pagination.lastPage }) }}</div>
                     </div>
                 </template>
             </AdminTableCard>

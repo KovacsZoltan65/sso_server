@@ -67,7 +67,7 @@ class RoleController extends Controller
 
         return redirect()
             ->route('admin.roles.index')
-            ->with('success', 'Role created successfully.');
+            ->with('success', __('api.roles.created'));
     }
 
     /**
@@ -94,7 +94,7 @@ class RoleController extends Controller
 
         return redirect()
             ->route('admin.roles.index')
-            ->with('success', 'Role updated successfully.');
+            ->with('success', __('api.roles.updated'));
     }
 
     /**
@@ -122,14 +122,14 @@ class RoleController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: 'Role deleted successfully.',
+                message: __('api.roles.deleted'),
                 data: ['id' => $role->id],
             );
         }
 
         return redirect()
             ->route('admin.roles.index')
-            ->with('success', 'Role deleted successfully.');
+            ->with('success', __('api.roles.deleted'));
     }
 
     /**
@@ -150,7 +150,7 @@ class RoleController extends Controller
         }
 
         return $this->successResponse(
-            message: 'Selected roles deleted successfully.',
+            message: __('api.roles.bulk_deleted'),
             data: ['ids' => $deletedIds],
             meta: ['deletedCount' => count($deletedIds)],
         );

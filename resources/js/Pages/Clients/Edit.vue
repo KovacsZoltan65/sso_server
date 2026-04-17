@@ -258,7 +258,7 @@ const confirmRevoke = (secret) => {
                                     <InputText
                                         id="secret-name"
                                         v-model="rotateForm.name"
-                                        placeholder="Pl. Rotated before mobile rollout"
+                                        :placeholder="trans('common.rotate_before_mobile_rollout')"
                                         fluid
                                     />
                                     <small v-if="rotateForm.errors.name" class="text-red-500">{{ rotateForm.errors.name }}</small>

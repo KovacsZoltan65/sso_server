@@ -65,7 +65,7 @@ class TokenPolicyController extends Controller
 
         return redirect()
             ->route('admin.token-policies.index')
-            ->with('success', 'Token policy created successfully.');
+            ->with('success', __('api.token_policies.created'));
     }
 
     /**
@@ -92,7 +92,7 @@ class TokenPolicyController extends Controller
 
         return redirect()
             ->route('admin.token-policies.index')
-            ->with('success', 'Token policy updated successfully.');
+            ->with('success', __('api.token_policies.updated'));
     }
 
     /**
@@ -116,12 +116,12 @@ class TokenPolicyController extends Controller
         }
 
         if (request()->expectsJson()) {
-            return $this->successResponse('Token policy deleted successfully.');
+            return $this->successResponse(__('api.token_policies.deleted'));
         }
 
         return redirect()
             ->route('admin.token-policies.index')
-            ->with('success', 'Token policy deleted successfully.');
+            ->with('success', __('api.token_policies.deleted'));
     }
 
     /**
@@ -139,7 +139,7 @@ class TokenPolicyController extends Controller
         }
 
         return $this->successResponse(
-            message: 'Selected token policies deleted successfully.',
+            message: __('api.token_policies.bulk_deleted'),
             meta: $result['meta'],
         );
     }

@@ -2,6 +2,7 @@
 import Button from 'primevue/button';
 import Checkbox from 'primevue/checkbox';
 import InputText from 'primevue/inputtext';
+import { trans } from 'laravel-vue-i18n';
 import { computed, ref } from 'vue';
 
 const props = defineProps({
@@ -17,22 +18,10 @@ const props = defineProps({
         type: Boolean,
         default: false,
     },
-    fieldLabel: {
-        type: String,
-        default: 'Options',
-    },
-    searchPlaceholder: {
-        type: String,
-        default: 'Search by group or action',
-    },
-    emptyMessage: {
-        type: String,
-        default: 'No options match the current search.',
-    },
-    groupCountLabel: {
-        type: String,
-        default: 'items',
-    },
+    fieldLabel: { type: String, default: () => trans('fields.options') },
+    searchPlaceholder: { type: String, default: () => trans('table.search_group_or_action') },
+    emptyMessage: { type: String, default: () => trans('table.empty_filtered') },
+    groupCountLabel: { type: String, default: () => trans('table.items') },
     allowInternalScroll: {
         type: Boolean,
         default: true,
@@ -200,7 +189,7 @@ const clearGroup = (group) => {
                     <div class="flex flex-wrap gap-2">
                         <Button
                             type="button"
-                            label="Select all"
+                            :label="trans('actions.select_all')"
                             size="small"
                             severity="secondary"
                             text
@@ -209,7 +198,7 @@ const clearGroup = (group) => {
                         />
                         <Button
                             type="button"
-                            label="Clear"
+                            :label="trans('actions.clear_selection')"
                             size="small"
                             severity="secondary"
                             text

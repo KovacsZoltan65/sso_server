@@ -20,16 +20,16 @@ class OAuthUserInfoController extends Controller
         try {
             $result = $tokenService->getUserInfo($request->bearerToken(), $request->ip(), $request->userAgent());
 
-            return $this->successResponse('User info retrieved successfully.', $result);
+            return $this->successResponse(__('api.oauth.userinfo.retrieved'), $result);
         } catch (AuthenticationException $exception) {
             return $this->errorResponse(
-                message: 'Authentication failed.',
+                message: __('api.oauth.authentication_failed'),
                 errors: ['token' => [$exception->getMessage()]],
                 status: 401,
             );
         } catch (AuthorizationException $exception) {
             return $this->errorResponse(
-                message: 'User info request forbidden.',
+                message: __('messages.forbidden'),
                 errors: ['scope' => [$exception->getMessage()]],
                 status: 403,
             );

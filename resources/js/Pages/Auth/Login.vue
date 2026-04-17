@@ -1,5 +1,6 @@
 <script setup>
 import PublicAuthLayout from "@/Layouts/PublicAuthLayout.vue";
+import { trans } from 'laravel-vue-i18n';
 import { Head, Link, useForm } from "@inertiajs/vue3";
 import Button from "primevue/button";
 import Checkbox from "primevue/checkbox";
@@ -32,16 +33,19 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Log in" />
+    <Head :title="trans('auth.login.page_title')" />
 
-    <PublicAuthLayout title="Sign in" description="Sign in to your account to continue.">
+    <PublicAuthLayout
+        :title="trans('auth.login.title')"
+        :description="trans('auth.login.description')"
+        :language-switcher-offset-x="3"
+        :language-switcher-offset-y="3"
+    >
         <Message v-if="status" severity="success" class="mb-5">{{ status }}</Message>
 
         <form class="space-y-5" @submit.prevent="submit">
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-700" for="email"
-                    >Email</label
-                >
+                <label class="text-sm font-semibold text-slate-700" for="email">{{ trans('auth.email') }}</label>
                 <InputText
                     id="email"
                     v-model="form.email"
@@ -56,9 +60,7 @@ const submit = () => {
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-700" for="password"
-                    >Password</label
-                >
+                <label class="text-sm font-semibold text-slate-700" for="password">{{ trans('auth.password') }}</label>
                 <Password
                     id="password"
                     v-model="form.password"
@@ -76,7 +78,7 @@ const submit = () => {
             <div class="flex items-center justify-between gap-3">
                 <label class="flex items-center gap-2 text-sm text-slate-600">
                     <Checkbox v-model="form.remember" binary input-id="remember" />
-                    Remember me
+                    {{ trans('auth.remember_me') }}
                 </label>
 
                 <Link
@@ -84,13 +86,13 @@ const submit = () => {
                     :href="route('password.request')"
                     class="text-sm font-medium text-sky-700"
                 >
-                    Forgot password?
+                    {{ trans('auth.forgot_password') }}
                 </Link>
             </div>
 
             <Button
                 type="submit"
-                label="Sign in"
+                :label="trans('auth.sign_in')"
                 icon="pi pi-sign-in"
                 class="w-full justify-center"
                 :loading="form.processing"

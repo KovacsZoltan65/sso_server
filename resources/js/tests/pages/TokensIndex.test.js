@@ -150,7 +150,8 @@ describe('Tokens index', () => {
 
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'Token revoked successfully.',
+            summary: 'Token visszavonva',
+            detail: 'A token visszavonása sikeres volt.',
         }));
     });
 
@@ -181,7 +182,8 @@ describe('Tokens index', () => {
 
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'Token family revoked successfully.',
+            summary: 'Tokenlánc visszavonva',
+            detail: 'A tokenlánc visszavonása sikeres volt.',
         }));
     });
 
@@ -249,7 +251,8 @@ describe('Tokens index', () => {
         expect(router.get).toHaveBeenCalledTimes(1);
         expect(toastAdd).toHaveBeenCalledWith(expect.objectContaining({
             severity: 'success',
-            detail: 'tokens refreshed successfully.',
+            summary: 'Sikeres művelet',
+            detail: 'A tokenlista frissült.',
         }));
     });
 });

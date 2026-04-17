@@ -43,7 +43,7 @@ class ClientUserAccessController extends Controller
         );
 
         return $this->successResponse(
-            message: 'Client user access records retrieved successfully.',
+            message: __('api.client_user_access.records_retrieved'),
             data: [
                 'rows' => $payload['rows'],
                 'clientOptions' => $payload['clientOptions'],
@@ -66,7 +66,7 @@ class ClientUserAccessController extends Controller
         $access = $this->accessService->createAccess($request->validated());
 
         return $this->successResponse(
-            message: 'Client user access created successfully.',
+            message: __('api.client_user_access.created'),
             data: ['access' => ClientUserAccessSummaryData::fromModel($access)],
             status: 201,
         );
@@ -84,7 +84,7 @@ class ClientUserAccessController extends Controller
         $updatedAccess = $this->accessService->updateAccess($clientUserAccess, $request->validated());
 
         return $this->successResponse(
-            message: 'Client user access updated successfully.',
+            message: __('api.client_user_access.updated'),
             data: ['id' => $updatedAccess->id],
         );
     }
@@ -100,7 +100,7 @@ class ClientUserAccessController extends Controller
         $this->accessService->deleteAccess($clientUserAccess);
 
         return $this->successResponse(
-            message: 'Client user access deleted successfully.',
+            message: __('api.client_user_access.deleted'),
             data: ['id' => $clientUserAccess->id],
         );
     }
@@ -116,7 +116,7 @@ class ClientUserAccessController extends Controller
         $deletedIds = $this->accessService->bulkDelete($request->validated('ids'));
 
         return $this->successResponse(
-            message: 'Selected client user access records deleted successfully.',
+            message: __('api.client_user_access.bulk_deleted'),
             data: ['ids' => $deletedIds],
             meta: ['deletedCount' => count($deletedIds)],
         );
@@ -131,7 +131,7 @@ class ClientUserAccessController extends Controller
         $this->authorize('viewAny', ClientUserAccess::class);
 
         return $this->successResponse(
-            message: 'Client access assignments retrieved successfully.',
+            message: __('api.client_user_access.client_assignments_retrieved'),
             data: [
                 'rows' => $this->accessService->listUsersForClient($ssoClient)->map(
                     fn (ClientUserAccess $access) => [
@@ -157,7 +157,7 @@ class ClientUserAccessController extends Controller
         $this->authorize('viewAny', ClientUserAccess::class);
 
         return $this->successResponse(
-            message: 'User client access assignments retrieved successfully.',
+            message: __('api.client_user_access.user_assignments_retrieved'),
             data: [
                 'rows' => $this->accessService->listClientsForUser($user)->map(
                     fn (ClientUserAccess $access) => [

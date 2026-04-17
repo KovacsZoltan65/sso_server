@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue';
+import { trans } from 'laravel-vue-i18n';
 
 const props = defineProps({
     page: {
@@ -32,11 +33,11 @@ const props = defineProps({
     },
     itemLabel: {
         type: String,
-        default: 'records',
+        default: () => trans('table.items'),
     },
     emptyLabel: {
         type: String,
-        default: 'No records to display.',
+        default: () => trans('table.empty'),
     },
 });
 
@@ -102,13 +103,13 @@ const normalizedLastPage = computed(() => {
             :last-page="normalizedLastPage"
         >
             <div v-if="normalizedTotal > 0">
-                Showing {{ normalizedFrom }}-{{ normalizedTo }} of {{ normalizedTotal }} {{ itemLabel }}
+                {{ trans('table.showing_of', { from: normalizedFrom, to: normalizedTo, total: normalizedTotal, item: itemLabel }) }}
             </div>
             <div v-else>
                 {{ emptyLabel }}
             </div>
             <div>
-                Page {{ normalizedCurrentPage }} / {{ normalizedLastPage }}
+                {{ trans('table.page_of', { current: normalizedCurrentPage, last: normalizedLastPage }) }}
             </div>
         </slot>
     </div>

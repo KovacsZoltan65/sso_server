@@ -65,7 +65,7 @@ class PermissionController extends Controller
 
         return redirect()
             ->route('admin.permissions.index')
-            ->with('success', 'Permission created successfully.');
+            ->with('success', __('api.permissions.created'));
     }
 
     /**
@@ -94,7 +94,7 @@ class PermissionController extends Controller
 
         return redirect()
             ->route('admin.permissions.index')
-            ->with('success', 'Permission updated successfully.');
+            ->with('success', __('api.permissions.updated'));
     }
 
     /**
@@ -122,14 +122,14 @@ class PermissionController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: 'Permission deleted successfully.',
+                message: __('api.permissions.deleted'),
                 data: ['id' => $permission->id],
             );
         }
 
         return redirect()
             ->route('admin.permissions.index')
-            ->with('success', 'Permission deleted successfully.');
+            ->with('success', __('api.permissions.deleted'));
     }
 
     /**
@@ -151,7 +151,7 @@ class PermissionController extends Controller
         }
 
         return $this->successResponse(
-            message: 'Selected permissions deleted successfully.',
+            message: __('api.permissions.bulk_deleted'),
             data: ['ids' => $deletedIds],
             meta: ['deletedCount' => count($deletedIds)],
         );
