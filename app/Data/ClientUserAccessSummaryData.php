@@ -3,6 +3,7 @@
 namespace App\Data;
 
 use App\Models\ClientUserAccess;
+use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 
 class ClientUserAccessSummaryData extends Data
@@ -21,8 +22,7 @@ class ClientUserAccessSummaryData extends Data
         public ?string $notes,
         public string $createdAt,
         public bool $canDelete,
-    ) {
-    }
+    ) {}
 
     public static function fromModel(ClientUserAccess $access, bool $canDelete = true): self
     {
@@ -35,8 +35,12 @@ class ClientUserAccessSummaryData extends Data
             userName: $access->user->name,
             userEmail: $access->user->email,
             isActive: (bool) $access->is_active,
-            allowedFrom: $access->allowed_from?->toIso8601String(),
-            allowedUntil: $access->allowed_until?->toIso8601String(),
+            allowedFrom: $access->allowed_from
+                ? Carbon::parse($access->allowed_from)->toIso8601String()
+                : null,
+            allowedUntil: $access->allowed_until
+                ? Carbon::parse($access->allowed_until)->toIso8601String()
+                : null,
             notes: $access->notes,
             createdAt: $access->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
             canDelete: $canDelete,

@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue';
-import { trans } from 'laravel-vue-i18n';
+import { computed } from "vue";
+import { trans } from "laravel-vue-i18n";
 
 const props = defineProps({
     page: {
@@ -33,11 +33,11 @@ const props = defineProps({
     },
     itemLabel: {
         type: String,
-        default: () => trans('table.items'),
+        default: () => trans("table.items"),
     },
     emptyLabel: {
         type: String,
-        default: () => trans('table.empty'),
+        default: () => trans("table.empty"),
     },
 });
 
@@ -56,7 +56,10 @@ const normalizedFrom = computed(() => {
         return Number(props.from);
     }
 
-    return Math.min(normalizedTotal.value, ((props.page || 1) - 1) * (props.perPage || 10) + 1);
+    return Math.min(
+        normalizedTotal.value,
+        ((props.page || 1) - 1) * (props.perPage || 10) + 1
+    );
 });
 
 const normalizedTo = computed(() => {
@@ -68,7 +71,10 @@ const normalizedTo = computed(() => {
         return Number(props.to);
     }
 
-    return Math.min(normalizedTotal.value, normalizedFrom.value + (props.perPage || 10) - 1);
+    return Math.min(
+        normalizedTotal.value,
+        normalizedFrom.value + (props.perPage || 10) - 1
+    );
 });
 
 const normalizedCurrentPage = computed(() => {
@@ -93,7 +99,9 @@ const normalizedLastPage = computed(() => {
 </script>
 
 <template>
-    <div class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between">
+    <div
+        class="flex flex-col gap-2 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between"
+    >
         <slot
             name="default"
             :from="normalizedFrom"
@@ -103,13 +111,25 @@ const normalizedLastPage = computed(() => {
             :last-page="normalizedLastPage"
         >
             <div v-if="normalizedTotal > 0">
-                {{ trans('table.showing_of', { from: normalizedFrom, to: normalizedTo, total: normalizedTotal, item: itemLabel }) }}
+                {{
+                    trans("table.showing_of", {
+                        from: normalizedFrom,
+                        to: normalizedTo,
+                        total: normalizedTotal,
+                        item: itemLabel,
+                    })
+                }}
             </div>
             <div v-else>
                 {{ emptyLabel }}
             </div>
             <div>
-                {{ trans('table.page_of', { current: normalizedCurrentPage, last: normalizedLastPage }) }}
+                {{
+                    trans("table.page_of", {
+                        current: normalizedCurrentPage,
+                        last: normalizedLastPage,
+                    })
+                }}
             </div>
         </slot>
     </div>

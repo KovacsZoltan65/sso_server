@@ -3,6 +3,7 @@
 namespace App\Data;
 
 use App\Models\Token;
+use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 
 class TokenAdminSummaryData extends Data
@@ -27,8 +28,7 @@ class TokenAdminSummaryData extends Data
         public ?string $revokedAt,
         public bool $canRevoke,
         public bool $canRevokeFamily,
-    ) {
-    }
+    ) {}
 
     public static function fromModel(Token $token, string $tokenType, bool $canRevoke = false, bool $canRevokeFamily = false): self
     {
@@ -66,8 +66,8 @@ class TokenAdminSummaryData extends Data
             suspiciousIncident: $token->security_incident_at !== null,
             familyRevoked: $token->family_revoked_at !== null,
             issuedAt: $token->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
-            expiresAt: $expiresAt?->toIso8601String(),
-            revokedAt: $revokedAt?->toIso8601String(),
+            expiresAt: $expiresAt ? Carbon::parse($expiresAt)->toIso8601String() : null,
+            revokedAt: $revokedAt ? Carbon::parse($revokedAt)->toIso8601String() : null,
             canRevoke: $canRevoke && $status === 'active',
             canRevokeFamily: $canRevokeFamily && $token->family_id !== null,
         );

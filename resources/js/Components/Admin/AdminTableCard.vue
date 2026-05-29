@@ -1,5 +1,5 @@
 <script setup>
-import Card from 'primevue/card';
+import Card from "primevue/card";
 </script>
 
 <template>
@@ -12,11 +12,16 @@ import Card from 'primevue/card';
     >
         <template #content>
             <div class="admin-table-card__content flex min-h-0 flex-1 flex-col">
-                <div class="admin-table-card__body flex min-h-0 flex-1 flex-col overflow-hidden">
+                <div
+                    class="admin-table-card__body flex min-h-0 flex-1 flex-col overflow-hidden"
+                >
                     <slot />
                 </div>
 
-                <div v-if="$slots.footer" class="admin-table-card__footer flex-none border-t border-slate-200 px-6 py-4">
+                <div
+                    v-if="$slots.footer"
+                    class="admin-table-card__footer flex-none border-t border-slate-200 px-6 py-4"
+                >
                     <slot name="footer" />
                 </div>
             </div>

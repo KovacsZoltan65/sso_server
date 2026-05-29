@@ -30,6 +30,7 @@ return [
         'client_invalid_or_inactive' => 'The provided client is invalid or inactive.',
         'redirect_uri_mismatch' => 'The redirect URI does not match the registered client redirect URIs.',
         'scope_not_allowed' => 'The requested scope [:scope] is not allowed for this client.',
+        'scope_default_missing' => 'No default scopes are configured for this client.',
         'pkce_required' => 'PKCE is required for this client.',
         'code_challenge_method_s256' => 'The code challenge method must be S256.',
     ],

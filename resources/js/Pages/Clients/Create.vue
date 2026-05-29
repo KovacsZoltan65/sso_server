@@ -23,6 +23,7 @@ const form = useForm({
     name: '',
     redirect_uris: [''],
     scopes: [],
+    default_scopes: [],
     is_active: true,
     token_policy_id: null,
 });

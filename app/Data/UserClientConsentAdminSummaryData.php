@@ -3,12 +3,13 @@
 namespace App\Data;
 
 use App\Models\UserClientConsent;
+use Illuminate\Support\Carbon;
 use Spatie\LaravelData\Data;
 
 class UserClientConsentAdminSummaryData extends Data
 {
     /**
-     * @param array<int, string> $scopeCodes
+     * @param  array<int, string>  $scopeCodes
      */
     public function __construct(
         public int $id,
@@ -26,8 +27,7 @@ class UserClientConsentAdminSummaryData extends Data
         public ?string $revokedAt,
         public ?string $revocationReason,
         public bool $canRevoke,
-    ) {
-    }
+    ) {}
 
     public static function fromModel(UserClientConsent $consent, bool $canRevoke = false): self
     {
@@ -43,8 +43,8 @@ class UserClientConsentAdminSummaryData extends Data
             trustTierSnapshot: $consent->trust_tier_snapshot,
             status: $consent->currentStatus(),
             grantedAt: $consent->granted_at->toDateTimeString(),
-            expiresAt: $consent->expires_at->toIso8601String(),
-            revokedAt: $consent->revoked_at?->toIso8601String(),
+            expiresAt: $consent->expires_at ? Carbon::parse($consent->expires_at)->toIso8601String() : null,
+            revokedAt: $consent->revoked_at ? Carbon::parse($consent->revoked_at)->toIso8601String() : null,
             revocationReason: $consent->revocation_reason,
             canRevoke: $canRevoke && ! $consent->isRevoked(),
         );

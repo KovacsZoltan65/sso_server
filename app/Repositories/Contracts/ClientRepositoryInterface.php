@@ -29,7 +29,7 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 interface ClientRepositoryInterface
 {
     /**
-     * @param AdminClientFilters $filters
+     * @param  AdminClientFilters  $filters
      */
     public function paginateForAdminIndex(
         array $filters,
@@ -40,27 +40,27 @@ interface ClientRepositoryInterface
     ): LengthAwarePaginator;
 
     /**
-     * @param ClientAttributes $attributes
+     * @param  ClientAttributes  $attributes
      */
     public function createClient(array $attributes): SsoClient;
 
     /**
-     * @param ClientAttributes $attributes
+     * @param  ClientAttributes  $attributes
      */
     public function updateClient(SsoClient $client, array $attributes): SsoClient;
 
     /**
-     * @param array<int, string> $redirectUris
+     * @param  array<int, string>  $redirectUris
      */
     public function syncRedirectUris(SsoClient $client, array $redirectUris): void;
 
     /**
-     * @param array<int, string> $scopeCodes
+     * @param  array<int, string>  $scopeCodes
      */
-    public function syncScopes(SsoClient $client, array $scopeCodes): void;
+    public function syncScopes(SsoClient $client, array $scopeCodes, array $defaultScopeCodes = []): void;
 
     /**
-     * @param ClientSecretAttributes $attributes
+     * @param  ClientSecretAttributes  $attributes
      */
     public function createSecret(SsoClient $client, array $attributes): void;
 

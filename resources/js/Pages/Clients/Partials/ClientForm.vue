@@ -4,7 +4,7 @@ import Checkbox from "primevue/checkbox";
 import Button from "primevue/button";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import { trans } from "laravel-vue-i18n";
 
 const props = defineProps({
@@ -53,6 +53,10 @@ const props = defineProps({
 const emit = defineEmits(["submit", "cancel"]);
 
 const isModalLayout = computed(() => props.layoutMode === "modal");
+const assignedScopeValues = computed(() => new Set(props.form.scopes ?? []));
+const defaultScopeOptions = computed(() =>
+    props.scopeOptions.filter((scope) => assignedScopeValues.value.has(scope.value))
+);
 
 const redirectUris = computed(() => {
     if (
@@ -79,6 +83,16 @@ const removeRedirectUri = (index) => {
         (_, currentIndex) => currentIndex !== index
     );
 };
+
+watch(
+    () => props.form.scopes,
+    () => {
+        props.form.default_scopes = (props.form.default_scopes ?? []).filter((scope) =>
+            assignedScopeValues.value.has(scope)
+        );
+    },
+    { deep: true }
+);
 </script>
 
 <template>
@@ -214,6 +228,34 @@ const removeRedirectUri = (index) => {
                     <small v-if="form.errors.scopes" class="text-red-500">{{
                         form.errors.scopes
                     }}</small>
+                </div>
+
+                <div class="grid gap-2">
+                    <label
+                        for="client-default-scopes"
+                        class="text-sm font-medium text-slate-700"
+                    >
+                        {{ trans("clients.default_scopes.label") }}
+                    </label>
+                    <GroupedCheckboxSelector
+                        v-model="form.default_scopes"
+                        :options="defaultScopeOptions"
+                        :fieldLabel="trans('clients.default_scopes.label')"
+                        :searchPlaceholder="trans('clients.default_scopes.search_placeholder')"
+                        :emptyMessage="trans('clients.default_scopes.empty_message')"
+                        :groupCountLabel="trans('clients.default_scopes.group_count')"
+                        :allowInternalScroll="!isModalLayout"
+                        :denseGrid="isModalLayout"
+                        :twoColumnGrid="!isModalLayout"
+                        :disabled="loading"
+                        data-testid="client-default-scopes"
+                    />
+                    <small class="text-slate-500">
+                        {{ trans("clients.default_scopes.help") }}
+                    </small>
+                    <small v-if="form.errors.default_scopes" class="text-red-500">
+                        {{ form.errors.default_scopes }}
+                    </small>
                 </div>
 
                 <div v-if="tokenPolicies.length" class="grid gap-2">

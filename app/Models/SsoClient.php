@@ -5,11 +5,14 @@ namespace App\Models;
 use Database\Factories\SsoClientFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Carbon;
+use Spatie\Activitylog\Models\Activity;
 
 /**
  * @property int $id
@@ -26,25 +29,26 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $trust_tier
  * @property bool $is_first_party
  * @property bool $consent_bypass_allowed
- * @property \Illuminate\Support\Carbon|null $created_at
- * @property \Illuminate\Support\Carbon|null $updated_at
- * @property-read \Illuminate\Database\Eloquent\Collection<int, RedirectUri> $redirectUris
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Scope> $scopes
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $secrets
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientSecret> $activeSecrets
- * @property-read \Illuminate\Database\Eloquent\Collection<int, ClientUserAccess> $userAccesses
- * @property-read \Illuminate\Database\Eloquent\Collection<int, UserClientConsent> $userConsents
- * @property-read \Illuminate\Database\Eloquent\Collection<int, AuthorizationCode> $authorizationCodes
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Token> $tokens
+ * @property Carbon|null $created_at
+ * @property Carbon|null $updated_at
+ * @property-read Collection<int, RedirectUri> $redirectUris
+ * @property-read Collection<int, Scope> $scopes
+ * @property-read Collection<int, ClientSecret> $secrets
+ * @property-read Collection<int, ClientSecret> $activeSecrets
+ * @property-read Collection<int, ClientUserAccess> $userAccesses
+ * @property-read Collection<int, UserClientConsent> $userConsents
+ * @property-read Collection<int, AuthorizationCode> $authorizationCodes
+ * @property-read Collection<int, Token> $tokens
  * @property-read TokenPolicy|null $tokenPolicy
  * @property-read int|null $active_secrets_count
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \Spatie\Activitylog\Models\Activity> $activities
+ * @property-read Collection<int, Activity> $activities
  * @property-read int|null $activities_count
  * @property-read int|null $authorization_codes_count
  * @property-read int|null $redirect_uris_count
  * @property-read int|null $scopes_count
  * @property-read int|null $secrets_count
  * @property-read int|null $tokens_count
+ *
  * @method static \Database\Factories\SsoClientFactory factory($count = null, $state = [])
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient newModelQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient newQuery()
@@ -62,11 +66,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereScopes($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereTokenPolicyId($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereUpdatedAt($value)
+ *
  * @property-read int|null $user_accesses_count
  * @property-read int|null $user_consents_count
+ *
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereConsentBypassAllowed($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereIsFirstParty($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereTrustTier($value)
+ *
  * @mixin \Eloquent
  */
 #[Fillable([
@@ -91,11 +98,15 @@ class SsoClient extends Model
     use HasFactory;
 
     public const CLIENT_TYPE_CONFIDENTIAL = 'confidential';
+
     public const CLIENT_TYPE_PUBLIC = 'public';
 
     public const TRUST_TIER_FIRST_PARTY_TRUSTED = 'first_party_trusted';
+
     public const TRUST_TIER_FIRST_PARTY_UNTRUSTED = 'first_party_untrusted';
+
     public const TRUST_TIER_THIRD_PARTY = 'third_party';
+
     public const TRUST_TIER_MACHINE_TO_MACHINE = 'machine_to_machine';
 
     protected $table = 'sso_clients';
@@ -174,8 +185,17 @@ class SsoClient extends Model
     public function scopes(): BelongsToMany
     {
         return $this->belongsToMany(Scope::class, 'client_scopes')
+            ->withPivot('is_default')
             ->withTimestamps()
             ->orderBy('scopes.name');
+    }
+
+    /**
+     * @return BelongsToMany<Scope, $this>
+     */
+    public function defaultScopes(): BelongsToMany
+    {
+        return $this->scopes()->wherePivot('is_default', true);
     }
 
     /**
@@ -292,4 +312,23 @@ class SsoClient extends Model
             ->all();
     }
 
+    /**
+     * Resolve the client's explicit default scope codes.
+     *
+     * @return array<int, string>
+     */
+    public function defaultScopeCodes(): array
+    {
+        $scopes = $this->relationLoaded('scopes')
+            ? $this->getRelation('scopes')
+            : $this->scopes()->get();
+
+        return $scopes
+            ->filter(fn (Scope $scope): bool => (bool) ($scope->pivot?->is_default ?? false))
+            ->pluck('code')
+            ->map(static fn (string $code): string => trim($code))
+            ->filter()
+            ->values()
+            ->all();
+    }
 }

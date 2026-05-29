@@ -43,6 +43,7 @@ const form = useForm({
     client_id: props.client.clientId ?? '',
     redirect_uris: [...(props.client.redirectUris ?? [''])],
     scopes: [...(props.client.scopes ?? [])],
+    default_scopes: [...(props.client.defaultScopes ?? [])],
     is_active: props.client.isActive ?? true,
     token_policy_id: props.client.tokenPolicyId ?? null,
 });

@@ -30,6 +30,7 @@ return [
         'client_invalid_or_inactive' => 'A megadott kliens érvénytelen vagy inaktív.',
         'redirect_uri_mismatch' => 'A redirect URI nem egyezik a regisztrált kliens redirect URI-val.',
         'scope_not_allowed' => 'A kért [:scope] scope nem engedélyezett ennél a kliensnél.',
+        'scope_default_missing' => 'Ehhez a klienshez nincs alapértelmezett scope konfigurálva.',
         'pkce_required' => 'Ehhez a klienshez kötelező a PKCE.',
         'code_challenge_method_s256' => 'A code challenge method értéke csak S256 lehet.',
     ],

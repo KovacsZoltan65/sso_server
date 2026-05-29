@@ -22,6 +22,16 @@ test('users can authenticate using the login screen', function () {
 
     $this->assertAuthenticated();
     $response->assertRedirect(route('dashboard', absolute: false));
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'auth',
+        'event' => 'auth.login.succeeded',
+        'description' => 'User logged in.',
+        'subject_id' => $user->id,
+        'subject_type' => User::class,
+        'causer_id' => $user->id,
+        'causer_type' => User::class,
+    ]);
 });
 
 test('inactive users can not authenticate using the login screen', function () {

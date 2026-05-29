@@ -31,11 +31,10 @@ class ClientUserAccessService
     public function __construct(
         private readonly ClientUserAccessRepositoryInterface $accesses,
         private readonly AuditLogService $auditLogService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $filters
+     * @param  array<string, mixed>  $filters
      * @return array<string, mixed>
      */
     public function getIndexPayload(
@@ -108,7 +107,7 @@ class ClientUserAccessService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function createAccess(array $payload): ClientUserAccess
     {
@@ -131,7 +130,7 @@ class ClientUserAccessService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      */
     public function updateAccess(ClientUserAccess $access, array $payload): ClientUserAccess
     {
@@ -168,7 +167,7 @@ class ClientUserAccessService
     }
 
     /**
-     * @param array<int, int> $ids
+     * @param  array<int, int>  $ids
      * @return array<int, int>
      */
     public function bulkDelete(array $ids): array
@@ -260,7 +259,7 @@ class ClientUserAccessService
     }
 
     /**
-     * @param array<string, mixed> $payload
+     * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
      */
     private function sanitizePayload(array $payload): array
@@ -308,8 +307,12 @@ class ClientUserAccessService
             'reason' => $reason,
             'restricted' => $restricted,
             'access' => $access,
-            'allowed_from' => $access?->allowed_from?->toIso8601String(),
-            'allowed_until' => $access?->allowed_until?->toIso8601String(),
+            'allowed_from' => $access?->allowed_from
+                ? Carbon::parse($access->allowed_from)->toIso8601String()
+                : null,
+            'allowed_until' => $access?->allowed_until
+                ? Carbon::parse($access->allowed_until)->toIso8601String()
+                : null,
         ];
     }
 
@@ -324,8 +327,12 @@ class ClientUserAccessService
             'client_access_id' => $access->id,
             'decision' => $decision,
             'status' => $access->is_active ? 'active' : 'inactive',
-            'allowed_from' => $access->allowed_from?->toIso8601String(),
-            'allowed_until' => $access->allowed_until?->toIso8601String(),
+            'allowed_from' => $access->allowed_from
+                ? Carbon::parse($access->allowed_from)->toIso8601String()
+                : null,
+            'allowed_until' => $access->allowed_until
+                ? Carbon::parse($access->allowed_until)->toIso8601String()
+                : null,
         ];
     }
 }

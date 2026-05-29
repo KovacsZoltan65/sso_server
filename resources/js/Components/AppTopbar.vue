@@ -48,7 +48,9 @@ const goToProfile = () => {
         </div>
 
         <div class="flex items-center gap-3">
+            <!-- Language Switcher -->
             <LanguageSwitcher />
+
             <div class="hidden text-right sm:block">
                 <div class="text-sm font-semibold">{{ user?.name }}</div>
                 <div class="text-xs text-slate-500">{{ user?.email }}</div>
@@ -58,6 +60,8 @@ const goToProfile = () => {
                 shape="circle"
                 class="bg-sky-100 text-sky-700"
             />
+
+            <!-- Profile Button -->
             <Button
                 icon="pi pi-user"
                 severity="secondary"
@@ -66,6 +70,8 @@ const goToProfile = () => {
                 :aria-label="trans('common.profile')"
                 @click="goToProfile"
             />
+
+            <!-- Logout Button -->
             <Button
                 icon="pi pi-sign-out"
                 severity="secondary"

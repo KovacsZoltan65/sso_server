@@ -9,7 +9,6 @@ import { useAdminListActions } from "@/Composables/useAdminListActions";
 import { useAdminSearchBehavior } from "@/Composables/useAdminSearchBehavior";
 import { Head, router, usePage } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
-import Button from "primevue/button";
 import Column from "primevue/column";
 import ConfirmDialog from "primevue/confirmdialog";
 import IconField from "primevue/iconfield";

@@ -1,8 +1,8 @@
 <script setup>
-import Button from 'primevue/button';
-import { trans } from 'laravel-vue-i18n';
-import Menu from 'primevue/menu';
-import { computed, ref } from 'vue';
+import Button from "primevue/button";
+import { trans } from "laravel-vue-i18n";
+import Menu from "primevue/menu";
+import { computed, ref } from "vue";
 
 const props = defineProps({
     items: {
@@ -25,10 +25,12 @@ const isDangerousAction = (item) => {
         return false;
     }
 
-    return item.isDangerous === true
-        || item.severity === 'danger'
-        || item.severity === 'warn'
-        || dangerousActionPattern.test(`${item.key ?? ''} ${item.label ?? ''}`);
+    return (
+        item.isDangerous === true ||
+        item.severity === "danger" ||
+        item.severity === "warn" ||
+        dangerousActionPattern.test(`${item.key ?? ""} ${item.label ?? ""}`)
+    );
 };
 
 const wrapCommand = (item) => (event) => {
@@ -49,19 +51,26 @@ const primaryItem = computed(() => {
     return normalizedItems.value.find((item) => !isDangerousAction(item)) ?? null;
 });
 
-const overflowItems = computed(() => normalizedItems.value.filter((item) => item !== primaryItem.value));
+const overflowItems = computed(() =>
+    normalizedItems.value.filter((item) => item !== primaryItem.value)
+);
 
-const menuItems = computed(() => overflowItems.value.map((item) => ({
-    ...item,
-    command: wrapCommand(item),
-})));
+const menuItems = computed(() =>
+    overflowItems.value.map((item) => ({
+        ...item,
+        command: wrapCommand(item),
+    }))
+);
 
 const primarySeverity = computed(() => {
     if (!primaryItem.value) {
-        return 'secondary';
+        return "secondary";
     }
 
-    return primaryItem.value.severity ?? (isDangerousAction(primaryItem.value) ? 'warn' : 'secondary');
+    return (
+        primaryItem.value.severity ??
+        (isDangerousAction(primaryItem.value) ? "warn" : "secondary")
+    );
 });
 
 const toggle = (event) => {
@@ -117,7 +126,8 @@ const runPrimaryAction = (event) => {
             appendTo="body"
             :pt="{
                 root: {
-                    class: 'min-w-40 rounded-xl border border-slate-200 bg-white p-1 shadow-lg',
+                    class:
+                        'min-w-40 rounded-xl border border-slate-200 bg-white p-1 shadow-lg',
                 },
                 list: {
                     class: 'flex flex-col gap-1',
@@ -126,7 +136,8 @@ const runPrimaryAction = (event) => {
                     class: 'rounded-lg',
                 },
                 itemLink: {
-                    class: 'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100',
+                    class:
+                        'flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-100',
                 },
                 itemIcon: {
                     class: 'text-slate-500',

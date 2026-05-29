@@ -2,15 +2,16 @@
 
 namespace App\Services\OAuth;
 
+use App\Data\OAuth\OAuthRememberedConsentDecisionResult;
+use App\Data\OAuth\OAuthTrustDecisionResult;
+use App\Exceptions\OAuth\OAuthConsentContextNotFoundException;
 use App\Models\AuthorizationCode;
 use App\Models\Scope;
 use App\Models\SsoClient;
 use App\Models\TokenPolicy;
 use App\Models\User;
-use App\Services\ClientUserAccessService;
 use App\Services\Audit\AuditLogService;
-use App\Data\OAuth\OAuthTrustDecisionResult;
-use App\Exceptions\OAuth\OAuthConsentContextNotFoundException;
+use App\Services\ClientUserAccessService;
 use App\Support\Localization;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -71,13 +72,12 @@ class OAuthAuthorizationService
         private readonly OAuthRememberedConsentService $rememberedConsentService,
         private readonly OidcFrontChannelLogoutService $frontChannelLogoutService,
         private readonly OidcSessionService $oidcSessionService,
-    ) {
-    }
+    ) {}
 
     /**
      * Prepare a consent screen for a validated authorize request.
      *
-     * @param AuthorizationPayload $payload
+     * @param  AuthorizationPayload  $payload
      * @return ConsentPreparationResult|AuthorizationRedirectResult
      */
     public function prepareConsent(User $user, array $payload): array
@@ -215,7 +215,7 @@ class OAuthAuthorizationService
     /**
      * Approve an authorization request and issue a redirectable authorization code.
      *
-     * @param AuthorizationPayload $payload
+     * @param  AuthorizationPayload  $payload
      * @return AuthorizationApproval
      */
     public function approve(User $user, array $payload): array
@@ -289,8 +289,7 @@ class OAuthAuthorizationService
         bool $rememberConsent = false,
         ?string $ipAddress = null,
         ?string $userAgent = null,
-    ): array
-    {
+    ): array {
         try {
             $context = $this->consentContextService->getContextByToken($consentToken);
         } catch (OAuthConsentContextNotFoundException) {
@@ -454,7 +453,7 @@ class OAuthAuthorizationService
     }
 
     /**
-     * @param array<int, string> $requestedScopes
+     * @param  array<int, string>  $requestedScopes
      * @return AuthorizationApproval
      */
     private function issueAuthorizationCode(
@@ -608,7 +607,7 @@ class OAuthAuthorizationService
             ->all();
 
         if ($requested === []) {
-            return $allowed;
+            return $this->resolveDefaultScopes($client, $user);
         }
 
         foreach ($requested as $scope) {
@@ -633,6 +632,47 @@ class OAuthAuthorizationService
         }
 
         return $requested;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function resolveDefaultScopes(SsoClient $client, ?User $user): array
+    {
+        $defaultScopes = $client->defaultScopeCodes();
+
+        if ($defaultScopes === []) {
+            $this->logAuthorizationFailure(
+                user: $user,
+                event: 'oauth.authorization.denied',
+                message: Localization::translate('api.oauth.authorization_denied'),
+                client: $client,
+                properties: [
+                    'reason' => 'scope_default_missing',
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                ],
+            );
+
+            throw ValidationException::withMessages([
+                'scope' => Localization::translate('api.oauth.scope_default_missing'),
+            ]);
+        }
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.scope.default_applied',
+            description: 'OAuth default scopes applied.',
+            subject: $client,
+            causer: $user,
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+                'default_scopes' => $defaultScopes,
+            ],
+        );
+
+        return $defaultScopes;
     }
 
     private function assertPkceRequirements(
@@ -684,7 +724,7 @@ class OAuthAuthorizationService
     }
 
     /**
-     * @param array<int, string> $requestedScopes
+     * @param  array<int, string>  $requestedScopes
      * @return array<int, array{code: string, name: string, description: string|null}>
      */
     private function buildConsentScopeView(SsoClient $client, array $requestedScopes): array
@@ -781,7 +821,7 @@ class OAuthAuthorizationService
     }
 
     /**
-     * @param array<int, string> $requestedScopes
+     * @param  array<int, string>  $requestedScopes
      */
     private function logNonceAccepted(User $user, SsoClient $client, array $requestedScopes, string $nonce): void
     {
@@ -829,13 +869,13 @@ class OAuthAuthorizationService
      * Remembered consent reuse is separate from trusted-client bypass.
      * It only refines the show_consent branch with conservative exact-match checks.
      *
-     * @param array<int, string> $requestedScopes
+     * @param  array<int, string>  $requestedScopes
      */
     private function logRememberedConsentDecision(
         User $user,
         SsoClient $client,
         array $requestedScopes,
-        \App\Data\OAuth\OAuthRememberedConsentDecisionResult $decision,
+        OAuthRememberedConsentDecisionResult $decision,
     ): void {
         $event = match ($decision->reason) {
             'remembered_consent_match' => 'oauth.remembered_consent.used',
@@ -866,7 +906,7 @@ class OAuthAuthorizationService
     /**
      * Record an auditable OAuth authorization failure without exposing sensitive values.
      *
-     * @param array<string, mixed> $properties
+     * @param  array<string, mixed>  $properties
      */
     private function logAuthorizationFailure(
         ?User $user,

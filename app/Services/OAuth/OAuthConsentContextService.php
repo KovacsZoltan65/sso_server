@@ -7,6 +7,7 @@ use App\Exceptions\OAuth\OAuthConsentContextNotFoundException;
 use App\Models\SsoClient;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Support\Localization;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Session\Session;
 use Illuminate\Validation\ValidationException;
@@ -30,11 +31,10 @@ class OAuthConsentContextService
     public function __construct(
         private readonly RedirectUriMatcher $redirectUriMatcher,
         private readonly Session $session,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param AuthorizationPayload $payload
+     * @param  AuthorizationPayload  $payload
      */
     public function createContext(User $user, array $payload): OAuthConsentContextData
     {
@@ -63,6 +63,7 @@ class OAuthConsentContextService
         $this->assertPkceRequirements($client, $payload);
 
         $createdAt = CarbonImmutable::now();
+
         return $this->storeContext(
             user: $user,
             client: $client,
@@ -73,8 +74,8 @@ class OAuthConsentContextService
     }
 
     /**
-     * @param AuthorizationPayload $payload
-     * @param array<int, string> $requestedScopes
+     * @param  AuthorizationPayload  $payload
+     * @param  array<int, string>  $requestedScopes
      */
     public function storeContext(
         User $user,
@@ -178,13 +179,21 @@ class OAuthConsentContextService
             ->all();
 
         if ($requested === []) {
-            return $allowed;
+            $defaultScopes = $client->defaultScopeCodes();
+
+            if ($defaultScopes === []) {
+                throw ValidationException::withMessages([
+                    'scope' => Localization::translate('api.oauth.scope_default_missing'),
+                ]);
+            }
+
+            return $defaultScopes;
         }
 
         foreach ($requested as $scope) {
             if (! \in_array($scope, $allowed, true)) {
                 throw ValidationException::withMessages([
-                    'scope' => \sprintf('The requested scope [%s] is not allowed for this client.', $scope),
+                    'scope' => Localization::translate('api.oauth.scope_not_allowed', ['scope' => $scope]),
                 ]);
             }
         }
@@ -193,7 +202,7 @@ class OAuthConsentContextService
     }
 
     /**
-     * @param AuthorizationPayload $payload
+     * @param  AuthorizationPayload  $payload
      */
     private function assertPkceRequirements(SsoClient $client, array $payload): void
     {

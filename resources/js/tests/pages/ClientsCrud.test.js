@@ -115,6 +115,7 @@ describe('Clients CRUD frontend', () => {
                     clientId: 'client_portal',
                     redirectUris: ['https://portal.example.com/callback'],
                     scopes: ['openid', 'email'],
+                    defaultScopes: ['openid'],
                     isActive: true,
                     tokenPolicyId: null,
                     secrets: [
@@ -150,7 +151,9 @@ describe('Clients CRUD frontend', () => {
         expect(form.name).toBe('Portal');
         expect(form.client_id).toBe('client_portal');
         expect(form.scopes).toEqual(['openid', 'email']);
+        expect(form.default_scopes).toEqual(['openid']);
         expect(wrapper.text()).toContain('Client ID');
+        expect(wrapper.text()).toContain('Alapértelmezett scope-ok');
         expect(wrapper.text()).toContain('Initial secret');
         expect(wrapper.text()).toContain('1234');
         expect(wrapper.text()).not.toContain('very-secret-value');
@@ -164,6 +167,7 @@ describe('Clients CRUD frontend', () => {
             name: '',
             redirect_uris: ['https://portal.example.com/callback'],
             scopes: [],
+            default_scopes: [],
             is_active: true,
             errors: {
                 name: 'Name is required.',
@@ -195,6 +199,7 @@ describe('Clients CRUD frontend', () => {
             name: 'Portal',
             redirect_uris: ['https://portal.example.com/callback'],
             scopes: ['openid'],
+            default_scopes: ['openid'],
             is_active: true,
             errors: {},
         };
@@ -211,11 +216,11 @@ describe('Clients CRUD frontend', () => {
         expect(wrapper.text()).toContain('Session');
         expect(wrapper.text()).toContain('OpenID');
         expect(wrapper.text()).toContain('Offline Access');
+        expect(wrapper.text()).toContain('Alapértelmezett scope-ok');
 
         const searchInput = wrapper.find('input[type="search"]');
         await searchInput.setValue('offline');
 
-        expect(wrapper.text()).not.toContain('OpenID');
         expect(wrapper.text()).toContain('Offline Access');
 
         await searchInput.setValue('');
@@ -224,6 +229,32 @@ describe('Clients CRUD frontend', () => {
         await selectAllButtons[0].trigger('click');
 
         expect(form.scopes).toEqual(['openid', 'email']);
+    });
+
+    it('limits default scope choices to assigned scopes and removes stale defaults', async () => {
+        const form = {
+            name: 'Portal',
+            redirect_uris: ['https://portal.example.com/callback'],
+            scopes: ['openid', 'email'],
+            default_scopes: ['openid', 'email'],
+            is_active: true,
+            errors: {},
+        };
+
+        const wrapper = mount(ClientForm, {
+            props: {
+                form,
+                scopeOptions,
+                tokenPolicies: [],
+            },
+        });
+
+        const checkboxes = wrapper.findAll('input[type="checkbox"]');
+        await checkboxes[0].setValue(false);
+        await nextTick();
+
+        expect(form.scopes).toEqual(['openid']);
+        expect(form.default_scopes).toEqual(['openid']);
     });
 
     it('shows the one-time secret notice from flash and handles delete errors', async () => {
@@ -295,6 +326,7 @@ describe('Clients CRUD frontend', () => {
                     clientId: 'client_portal',
                     redirectUris: ['https://portal.example.com/callback'],
                     scopes: ['openid', 'email'],
+                    defaultScopes: ['openid'],
                     isActive: true,
                     tokenPolicyId: null,
                     secrets: [

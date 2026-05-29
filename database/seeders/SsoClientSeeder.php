@@ -79,7 +79,7 @@ class SsoClientSeeder extends Seeder
     }
 
     /**
-     * @param array<int, array{uri: string, is_primary: bool}> $redirectUris
+     * @param  array<int, array{uri: string, is_primary: bool}>  $redirectUris
      */
     private function syncRedirectUris(SsoClient $client, array $redirectUris): void
     {
@@ -105,16 +105,24 @@ class SsoClientSeeder extends Seeder
     }
 
     /**
-     * @param array<int, array{name: string, code: string, description: string, is_active: bool}> $scopeDefinitions
+     * @param  array<int, array{name: string, code: string, description: string, is_active: bool}>  $scopeDefinitions
      */
     private function syncScopes(SsoClient $client, array $scopeDefinitions): void
     {
+        $defaultScopeCodes = ['openid', 'profile'];
+
         $scopeIds = collect($scopeDefinitions)
-            ->map(function (array $definition): int {
-                return Scope::query()->updateOrCreate(
+            ->mapWithKeys(function (array $definition) use ($defaultScopeCodes): array {
+                $scope = Scope::query()->updateOrCreate(
                     ['code' => $definition['code']],
                     $definition,
-                )->getKey();
+                );
+
+                return [
+                    $scope->getKey() => [
+                        'is_default' => \in_array($definition['code'], $defaultScopeCodes, true),
+                    ],
+                ];
             })
             ->all();
 

@@ -31,7 +31,8 @@ use Illuminate\Validation\ValidationException;
  *     is_first_party: bool,
  *     consent_bypass_allowed: bool,
  *     redirect_uris?: array<int, mixed>,
- *     scopes?: array<int, mixed>
+ *     scopes?: array<int, mixed>,
+ *     default_scopes?: array<int, mixed>
  * }
  * @phpstan-type ClientSecretPayload array{
  *     name?: string|null
@@ -83,13 +84,12 @@ class ClientService
         private readonly ClientRepositoryInterface $clients,
         private readonly AuditLogService $auditLogService,
         private readonly RememberedConsentInvalidationService $rememberedConsentInvalidationService,
-    ) {
-    }
+    ) {}
 
     /**
      * Build the modal-first admin index payload for SSO clients.
      *
-     * @param AdminClientFilters $filters
+     * @param  AdminClientFilters  $filters
      * @return array{
      *     rows: array<int, ClientSummaryData>,
      *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
@@ -191,7 +191,7 @@ class ClientService
     /**
      * Persist a new SSO client and return the one-time plain secret for secure display.
      *
-     * @param ClientWritePayload $payload
+     * @param  ClientWritePayload  $payload
      * @return array{client: SsoClient, plainSecret: string}
      */
     public function createClient(array $payload): array
@@ -200,6 +200,7 @@ class ClientService
             $plainSecret = Str::random(48);
             $redirectUris = $this->sanitizeUris($payload['redirect_uris'] ?? []);
             $scopeCodes = $this->sanitizeScopes($payload['scopes'] ?? []);
+            $defaultScopeCodes = $this->sanitizeDefaultScopes($payload['default_scopes'] ?? [], $scopeCodes);
 
             $client = $this->clients->createClient([
                 ...Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed']),
@@ -210,7 +211,7 @@ class ClientService
             ]);
 
             $this->clients->syncRedirectUris($client, $redirectUris);
-            $this->clients->syncScopes($client, $scopeCodes);
+            $this->clients->syncScopes($client, $scopeCodes, $defaultScopeCodes);
             $this->clients->createSecret($client, [
                 'name' => 'Initial secret',
                 'secret_hash' => Hash::make($plainSecret),
@@ -229,6 +230,7 @@ class ClientService
                     'client_public_id' => $client->client_id,
                     'redirect_uri_count' => \count($redirectUris),
                     'scope_codes' => $scopeCodes,
+                    'default_scopes' => $defaultScopeCodes,
                     'policy_id' => $client->token_policy_id,
                     'trust_tier' => $client->trust_tier,
                     'is_first_party' => (bool) $client->is_first_party,
@@ -263,13 +265,14 @@ class ClientService
     /**
      * Update an existing SSO client together with its redirect URIs and scope assignments.
      *
-     * @param ClientWritePayload $payload
+     * @param  ClientWritePayload  $payload
      */
     public function updateClient(SsoClient $client, array $payload): SsoClient
     {
         return DB::transaction(function () use ($client, $payload): SsoClient {
             $redirectUris = $this->sanitizeUris($payload['redirect_uris'] ?? []);
             $scopeCodes = $this->sanitizeScopes($payload['scopes'] ?? []);
+            $defaultScopeCodes = $this->sanitizeDefaultScopes($payload['default_scopes'] ?? [], $scopeCodes);
             $previousRedirectUris = $client->normalizedRedirectUris();
             $previousScopeCodes = $client->normalizedScopeCodes();
             $trustFieldChanges = $this->resolveRememberedConsentTrustChanges($client, $payload);
@@ -281,7 +284,7 @@ class ClientService
             ]);
 
             $this->clients->syncRedirectUris($updatedClient, $redirectUris);
-            $this->clients->syncScopes($updatedClient, $scopeCodes);
+            $this->clients->syncScopes($updatedClient, $scopeCodes, $defaultScopeCodes);
 
             $this->auditLogService->logSuccess(
                 logName: AuditLogService::LOG_ADMIN_CLIENT,
@@ -292,9 +295,10 @@ class ClientService
                 properties: [
                     'client_id' => $updatedClient->id,
                     'client_public_id' => $updatedClient->client_id,
-                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed', 'redirect_uris', 'scopes']))),
+                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed', 'redirect_uris', 'scopes', 'default_scopes']))),
                     'redirect_uri_count' => \count($redirectUris),
                     'scope_codes' => $scopeCodes,
+                    'default_scopes' => $defaultScopeCodes,
                     'policy_id' => $updatedClient->token_policy_id,
                     'trust_tier' => $updatedClient->trust_tier,
                     'is_first_party' => (bool) $updatedClient->is_first_party,
@@ -320,7 +324,7 @@ class ClientService
     /**
      * Rotate the currently active client secret and return the newly issued plain secret once.
      *
-     * @param ClientSecretPayload $payload
+     * @param  ClientSecretPayload  $payload
      * @return array{client: SsoClient, plainSecret: string}
      */
     public function rotateSecret(SsoClient $client, array $payload = []): array
@@ -439,6 +443,7 @@ class ClientService
             'redirectUris' => $client->normalizedRedirectUris(),
             'isActive' => (bool) $client->is_active,
             'scopes' => $client->normalizedScopeCodes(),
+            'defaultScopes' => $client->defaultScopeCodes(),
             'tokenPolicyId' => $client->token_policy_id,
             'trustTier' => $client->trust_tier,
             'isFirstParty' => (bool) $client->is_first_party,
@@ -463,7 +468,7 @@ class ClientService
     /**
      * Normalize redirect URIs to a unique, trimmed string list.
      *
-     * @param array<int, mixed> $uris
+     * @param  array<int, mixed>  $uris
      * @return array<int, string>
      */
     private function sanitizeUris(array $uris): array
@@ -479,7 +484,7 @@ class ClientService
     /**
      * Normalize scope codes and discard values that are not allowed by the current option set.
      *
-     * @param array<int, mixed> $scopes
+     * @param  array<int, mixed>  $scopes
      * @return array<int, string>
      */
     private function sanitizeScopes(array $scopes): array
@@ -495,7 +500,24 @@ class ClientService
     }
 
     /**
-     * @param ClientWritePayload $payload
+     * @param  array<int, mixed>  $defaultScopes
+     * @param  array<int, string>  $assignedScopes
+     * @return array<int, string>
+     */
+    private function sanitizeDefaultScopes(array $defaultScopes, array $assignedScopes): array
+    {
+        $assignedLookup = array_flip($assignedScopes);
+
+        return collect($defaultScopes)
+            ->map(fn ($scope) => trim((string) $scope))
+            ->filter(fn (string $scope) => isset($assignedLookup[$scope]))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  ClientWritePayload  $payload
      * @return array<string, array{old: mixed, new: mixed}>
      */
     private function resolveRememberedConsentTrustChanges(SsoClient $client, array $payload): array
@@ -531,8 +553,8 @@ class ClientService
     }
 
     /**
-     * @param array<int, string> $before
-     * @param array<int, string> $after
+     * @param  array<int, string>  $before
+     * @param  array<int, string>  $after
      */
     private function logRedirectUriChanges(SsoClient $client, array $before, array $after): void
     {
@@ -573,8 +595,8 @@ class ClientService
     }
 
     /**
-     * @param array<int, string> $before
-     * @param array<int, string> $after
+     * @param  array<int, string>  $before
+     * @param  array<int, string>  $after
      */
     private function logClientScopeChanges(SsoClient $client, array $before, array $after): void
     {

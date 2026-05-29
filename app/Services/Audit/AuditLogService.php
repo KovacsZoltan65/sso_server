@@ -5,7 +5,6 @@ namespace App\Services\Audit;
 use App\Data\Audit\AuditLogData;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -16,15 +15,25 @@ use InvalidArgumentException;
 class AuditLogService
 {
     public const LOG_AUTH = 'auth';
+
     public const LOG_ACCOUNT = 'account';
+
     public const LOG_OAUTH = 'oauth';
+
     public const LOG_SECURITY = 'security';
+
     public const LOG_ADMIN_CLIENT = 'admin.client';
+
     public const LOG_ADMIN_CLIENT_ACCESS = 'admin.client_access';
+
     public const LOG_ADMIN_SCOPE = 'admin.scope';
+
     public const LOG_ADMIN_TOKEN_POLICY = 'admin.token_policy';
+
     public const LOG_ADMIN_USER = 'admin.user';
+
     public const LOG_ADMIN_ROLE = 'admin.role';
+
     public const LOG_ADMIN_PERMISSION = 'admin.permission';
 
     /**
@@ -56,6 +65,7 @@ class AuditLogService
         'client_public_id',
         'consent_id',
         'scope_codes',
+        'default_scopes',
         'expires_at',
         'grant_type',
         'token_kind',
@@ -139,7 +149,7 @@ class AuditLogService
     ];
 
     /**
-     * @param AuditProperties $properties
+     * @param  AuditProperties  $properties
      */
     public function log(
         string $logName,
@@ -176,7 +186,7 @@ class AuditLogService
     }
 
     /**
-     * @param AuditProperties $properties
+     * @param  AuditProperties  $properties
      */
     public function logSuccess(
         string $logName,
@@ -200,7 +210,7 @@ class AuditLogService
     }
 
     /**
-     * @param AuditProperties $properties
+     * @param  AuditProperties  $properties
      */
     public function logFailure(
         string $logName,
@@ -224,7 +234,7 @@ class AuditLogService
     }
 
     /**
-     * @param AuditProperties $properties
+     * @param  AuditProperties  $properties
      */
     public function logSecurityEvent(
         string $event,
@@ -244,7 +254,7 @@ class AuditLogService
     }
 
     /**
-     * @param AuditProperties $properties
+     * @param  AuditProperties  $properties
      */
     public function logAdminCrud(
         string $resource,
@@ -310,7 +320,7 @@ class AuditLogService
     }
 
     /**
-     * @param AuditProperties $properties
+     * @param  AuditProperties  $properties
      * @return AuditProperties
      */
     private function sanitizeProperties(array $properties): array
@@ -346,7 +356,7 @@ class AuditLogService
     {
         return match ($key) {
             'client_id', 'consent_id', 'policy_id', 'target_user_id', 'actor_user_id', 'affected_count', 'target_role_id', 'target_permission_id', 'target_scope_id', 'user_id', 'redirect_uri_count', 'deleted_count', 'token_id', 'parent_token_id', 'replaced_by_token_id', 'client_access_id' => $this->normalizeInteger($value),
-            'scope_codes', 'updated_fields' => $this->normalizeStringList($value),
+            'scope_codes', 'default_scopes', 'updated_fields' => $this->normalizeStringList($value),
             'changed_attributes' => $this->normalizeAssociativeArray($value),
             default => $this->normalizeScalar($value),
         };

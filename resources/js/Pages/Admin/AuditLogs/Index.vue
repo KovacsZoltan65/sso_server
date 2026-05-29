@@ -7,6 +7,7 @@ import AuthenticatedLayout from "@/Layouts/AuthenticatedLayout.vue";
 import { Head, router } from "@inertiajs/vue3";
 import { FilterMatchMode } from "@primevue/core/api";
 import { trans } from "laravel-vue-i18n";
+/*
 import Button from "primevue/button";
 import Column from "primevue/column";
 import DatePicker from "primevue/datepicker";
@@ -16,6 +17,19 @@ import InputIcon from "primevue/inputicon";
 import InputText from "primevue/inputtext";
 import Select from "primevue/select";
 import Tag from "primevue/tag";
+*/
+import {
+    Button,
+    Column,
+    DatePicker,
+    Dialog,
+    InputText,
+    IconField,
+    InputIcon,
+    Select,
+    Tag,
+} from "primevue";
+
 import { computed, reactive, ref } from "vue";
 
 const props = defineProps({
@@ -53,8 +67,14 @@ const rows = computed(() => props.rows);
 const tableFilters = ref({
     search: { value: props.filters.search ?? null, matchMode: FilterMatchMode.CONTAINS },
     event: { value: props.filters.event ?? null, matchMode: FilterMatchMode.EQUALS },
-    severity: { value: props.filters.severity ?? null, matchMode: FilterMatchMode.EQUALS },
-    dateFrom: { value: props.filters.date_from ?? null, matchMode: FilterMatchMode.EQUALS },
+    severity: {
+        value: props.filters.severity ?? null,
+        matchMode: FilterMatchMode.EQUALS,
+    },
+    dateFrom: {
+        value: props.filters.date_from ?? null,
+        matchMode: FilterMatchMode.EQUALS,
+    },
     dateTo: { value: props.filters.date_to ?? null, matchMode: FilterMatchMode.EQUALS },
 });
 
@@ -156,11 +176,12 @@ const closeDetails = () => {
 
 const severityLabel = (severity) => trans(`audit_logs.severity.${severity || "info"}`);
 
-const severitySeverity = (severity) => ({
-    error: "danger",
-    warning: "warn",
-    info: "info",
-}[severity] || "secondary");
+const severitySeverity = (severity) =>
+    ({
+        error: "danger",
+        warning: "warn",
+        info: "info",
+    }[severity] || "secondary");
 
 const prettyJson = (value) => JSON.stringify(value ?? {}, null, 2);
 
@@ -172,6 +193,7 @@ const clientLabel = (row) => row.client?.label || trans("common.not_available");
     <AuthenticatedLayout>
         <Head :title="trans('audit_logs.title')" />
 
+        <!-- Részletek Dialog -->
         <Dialog
             :visible="detailVisible"
             modal
@@ -179,57 +201,111 @@ const clientLabel = (row) => row.client?.label || trans("common.not_available");
             class="w-[min(900px,95vw)]"
             @update:visible="detailVisible = $event"
         >
-            <div v-if="selectedLog" class="flex max-h-[75vh] flex-col gap-5 overflow-y-auto" data-audit-details-dialog>
+            <div
+                v-if="selectedLog"
+                class="flex max-h-[75vh] flex-col gap-5 overflow-y-auto"
+                data-audit-details-dialog
+            >
                 <div class="grid gap-3 md:grid-cols-2">
                     <div class="rounded-lg border border-slate-200 p-3">
-                        <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.event") }}</p>
-                        <p class="mt-1 break-all text-sm font-medium text-slate-900">{{ selectedLog.event }}</p>
+                        <p class="text-xs font-semibold uppercase text-slate-400">
+                            {{ trans("audit_logs.fields.event") }}
+                        </p>
+                        <p class="mt-1 break-all text-sm font-medium text-slate-900">
+                            {{ selectedLog.event }}
+                        </p>
                     </div>
                     <div class="rounded-lg border border-slate-200 p-3">
-                        <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.severity") }}</p>
-                        <Tag class="mt-1" :value="severityLabel(selectedLog.severity)" :severity="severitySeverity(selectedLog.severity)" />
+                        <p class="text-xs font-semibold uppercase text-slate-400">
+                            {{ trans("audit_logs.fields.severity") }}
+                        </p>
+                        <Tag
+                            class="mt-1"
+                            :value="severityLabel(selectedLog.severity)"
+                            :severity="severitySeverity(selectedLog.severity)"
+                        />
                     </div>
                     <div class="rounded-lg border border-slate-200 p-3">
-                        <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.actor") }}</p>
-                        <p class="mt-1 text-sm font-medium text-slate-900">{{ actorLabel(selectedLog) }}</p>
+                        <p class="text-xs font-semibold uppercase text-slate-400">
+                            {{ trans("audit_logs.fields.actor") }}
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-slate-900">
+                            {{ actorLabel(selectedLog) }}
+                        </p>
                     </div>
                     <div class="rounded-lg border border-slate-200 p-3">
-                        <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.client") }}</p>
-                        <p class="mt-1 text-sm font-medium text-slate-900">{{ clientLabel(selectedLog) }}</p>
+                        <p class="text-xs font-semibold uppercase text-slate-400">
+                            {{ trans("audit_logs.fields.client") }}
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-slate-900">
+                            {{ clientLabel(selectedLog) }}
+                        </p>
                     </div>
                     <div class="rounded-lg border border-slate-200 p-3">
-                        <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.ip_address") }}</p>
-                        <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedLog.ipAddress || trans("common.not_available") }}</p>
+                        <p class="text-xs font-semibold uppercase text-slate-400">
+                            {{ trans("audit_logs.fields.ip_address") }}
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-slate-900">
+                            {{ selectedLog.ipAddress || trans("common.not_available") }}
+                        </p>
                     </div>
                     <div class="rounded-lg border border-slate-200 p-3">
-                        <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.created_at") }}</p>
-                        <p class="mt-1 text-sm font-medium text-slate-900">{{ selectedLog.createdAt }}</p>
+                        <p class="text-xs font-semibold uppercase text-slate-400">
+                            {{ trans("audit_logs.fields.created_at") }}
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-slate-900">
+                            {{ selectedLog.createdAt }}
+                        </p>
                     </div>
                 </div>
 
                 <div class="rounded-lg border border-slate-200 p-3">
-                    <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.user_agent") }}</p>
-                    <p class="mt-1 break-words text-sm text-slate-700">{{ selectedLog.userAgent || trans("common.not_available") }}</p>
+                    <p class="text-xs font-semibold uppercase text-slate-400">
+                        {{ trans("audit_logs.fields.user_agent") }}
+                    </p>
+                    <p class="mt-1 break-words text-sm text-slate-700">
+                        {{ selectedLog.userAgent || trans("common.not_available") }}
+                    </p>
                 </div>
 
                 <div class="rounded-lg border border-slate-200 p-3">
-                    <p class="text-xs font-semibold uppercase text-slate-400">{{ trans("audit_logs.fields.description") }}</p>
-                    <p class="mt-1 break-words text-sm text-slate-700">{{ selectedLog.description || trans("common.not_available") }}</p>
+                    <p class="text-xs font-semibold uppercase text-slate-400">
+                        {{ trans("audit_logs.fields.description") }}
+                    </p>
+                    <p class="mt-1 break-words text-sm text-slate-700">
+                        {{ selectedLog.description || trans("common.not_available") }}
+                    </p>
                 </div>
 
                 <div class="grid gap-4 lg:grid-cols-2">
                     <div>
-                        <p class="mb-2 text-sm font-semibold text-slate-900">{{ trans("audit_logs.details.properties") }}</p>
-                        <pre class="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100">{{ prettyJson(selectedLog.properties) }}</pre>
+                        <p class="mb-2 text-sm font-semibold text-slate-900">
+                            {{ trans("audit_logs.details.properties") }}
+                        </p>
+                        <pre
+                            class="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100"
+                            >{{ prettyJson(selectedLog.properties) }}</pre
+                        >
                     </div>
                     <div>
-                        <p class="mb-2 text-sm font-semibold text-slate-900">{{ trans("audit_logs.details.context") }}</p>
-                        <pre class="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100">{{ prettyJson(selectedLog.context) }}</pre>
+                        <p class="mb-2 text-sm font-semibold text-slate-900">
+                            {{ trans("audit_logs.details.context") }}
+                        </p>
+                        <pre
+                            class="max-h-80 overflow-auto rounded-lg bg-slate-950 p-4 text-xs leading-5 text-slate-100"
+                            >{{ prettyJson(selectedLog.context) }}</pre
+                        >
                     </div>
                 </div>
 
                 <div class="flex justify-end">
-                    <Button :label="trans('common.close')" severity="secondary" outlined data-audit-details-close @click="closeDetails" />
+                    <Button
+                        :label="trans('common.close')"
+                        severity="secondary"
+                        outlined
+                        data-audit-details-close
+                        @click="closeDetails"
+                    />
                 </div>
             </div>
         </Dialog>
@@ -331,49 +407,88 @@ const clientLabel = (row) => row.client?.label || trans("common.not_available");
                             @page="onPage"
                             @sort="onSort"
                         >
-                            <Column field="created_at" :header="trans('audit_logs.fields.created_at')" sortable>
+                            <Column
+                                field="created_at"
+                                :header="trans('audit_logs.fields.created_at')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <span>{{ data.createdAt }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="event" :header="trans('audit_logs.fields.event')" sortable>
+                            <Column
+                                field="event"
+                                :header="trans('audit_logs.fields.event')"
+                                sortable
+                            >
                                 <template #body="{ data }">
-                                    <span class="break-all font-medium text-slate-900">{{ data.event }}</span>
+                                    <span class="break-all font-medium text-slate-900">{{
+                                        data.event
+                                    }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="severity" :header="trans('audit_logs.fields.severity')" sortable>
+                            <Column
+                                field="severity"
+                                :header="trans('audit_logs.fields.severity')"
+                                sortable
+                            >
                                 <template #body="{ data }">
-                                    <Tag :value="severityLabel(data.severity)" :severity="severitySeverity(data.severity)" />
+                                    <Tag
+                                        :value="severityLabel(data.severity)"
+                                        :severity="severitySeverity(data.severity)"
+                                    />
                                 </template>
                             </Column>
 
-                            <Column field="actor_id" :header="trans('audit_logs.fields.actor')" sortable>
+                            <Column
+                                field="actor_id"
+                                :header="trans('audit_logs.fields.actor')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <span>{{ actorLabel(data) }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="client_id" :header="trans('audit_logs.fields.client')" sortable>
+                            <Column
+                                field="client_id"
+                                :header="trans('audit_logs.fields.client')"
+                                sortable
+                            >
                                 <template #body="{ data }">
                                     <span>{{ clientLabel(data) }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="ipAddress" :header="trans('audit_logs.fields.ip_address')">
+                            <Column
+                                field="ipAddress"
+                                :header="trans('audit_logs.fields.ip_address')"
+                            >
                                 <template #body="{ data }">
-                                    <span>{{ data.ipAddress || trans("common.not_available") }}</span>
+                                    <span>{{
+                                        data.ipAddress || trans("common.not_available")
+                                    }}</span>
                                 </template>
                             </Column>
 
-                            <Column field="userAgentShort" :header="trans('audit_logs.fields.user_agent')">
+                            <Column
+                                field="userAgentShort"
+                                :header="trans('audit_logs.fields.user_agent')"
+                            >
                                 <template #body="{ data }">
-                                    <span class="block max-w-xs truncate">{{ data.userAgentShort || trans("common.not_available") }}</span>
+                                    <span class="block max-w-xs truncate">{{
+                                        data.userAgentShort ||
+                                        trans("common.not_available")
+                                    }}</span>
                                 </template>
                             </Column>
 
-                            <Column :header="trans('table.columns.actions')" :style="{ width: '10rem' }">
+                            <Column
+                                :header="trans('table.columns.actions')"
+                                :style="{ width: '10rem' }"
+                            >
                                 <template #body="{ data }">
                                     <Button
                                         :label="trans('audit_logs.actions.details')"

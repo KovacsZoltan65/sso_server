@@ -1,8 +1,6 @@
 <?php
 
-use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\AuthorizationCode;
-use App\Models\ClientSecret;
 use App\Models\Scope;
 use App\Models\SsoClient;
 use App\Models\Token;
@@ -10,9 +8,8 @@ use App\Models\TokenPolicy;
 use App\Models\User;
 use App\Models\UserClientConsent;
 use App\Services\OAuth\OAuthAuthorizationService;
-use App\Services\OAuth\OidcFrontChannelLogoutService;
 use App\Services\OAuth\OAuthRememberedConsentService;
-use Illuminate\Http\Request;
+use App\Services\OAuth\OidcFrontChannelLogoutService;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
 use Spatie\Activitylog\Models\Activity;
@@ -122,7 +119,13 @@ function oauthClient(array $overrides = []): array
         'uri_hash' => hash('sha256', 'https://portal.example.com/callback'),
         'is_primary' => true,
     ]);
-    $client->scopes()->sync(Scope::query()->whereIn('code', ['openid', 'profile'])->pluck('id')->all());
+    $client->scopes()->sync(
+        Scope::query()
+            ->whereIn('code', ['openid', 'profile'])
+            ->get(['id', 'code'])
+            ->mapWithKeys(fn (Scope $scope): array => [$scope->id => ['is_default' => true]])
+            ->all()
+    );
 
     $plainSecret = 'super-secret-value';
     $client->secrets()->create([
@@ -577,6 +580,119 @@ it('allows authorize requests without nonce when openid scope is not requested',
     $this->assertDatabaseMissing('activity_log', [
         'log_name' => 'oauth',
         'event' => 'oauth.nonce.accepted',
+    ]);
+});
+
+it('issues only explicitly requested scopes when a client has broader assignments', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_TRUSTED,
+            'is_first_party' => true,
+            'consent_bypass_allowed' => true,
+        ],
+    ]);
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+    $emailScope = Scope::factory()->create([
+        'name' => 'Email',
+        'code' => 'email',
+        'is_active' => true,
+    ]);
+    $client->scopes()->attach($emailScope->id, ['is_default' => false]);
+
+    $response = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'explicit-scope-state',
+        'nonce' => 'explicit-scope-nonce',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    $response->assertRedirect();
+    parse_str(parse_url((string) $response->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+
+    $authorizationCode = AuthorizationCode::query()
+        ->where('code_hash', hash('sha256', (string) $query['code']))
+        ->firstOrFail();
+
+    expect($authorizationCode->scopes)->toBe(['openid', 'profile']);
+});
+
+it('uses configured default scopes when the authorize request omits scope', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_TRUSTED,
+            'is_first_party' => true,
+            'consent_bypass_allowed' => true,
+        ],
+    ]);
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $response = $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'state' => 'default-scope-state',
+        'nonce' => 'default-scope-nonce',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]));
+
+    $response->assertRedirect();
+    parse_str(parse_url((string) $response->headers->get('Location'), PHP_URL_QUERY) ?: '', $query);
+
+    $authorizationCode = AuthorizationCode::query()
+        ->where('code_hash', hash('sha256', (string) $query['code']))
+        ->firstOrFail();
+
+    expect($authorizationCode->scopes)->toBe(['openid', 'profile']);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.scope.default_applied',
+        'description' => 'OAuth default scopes applied.',
+    ]);
+});
+
+it('rejects authorize requests without scope when the client has no default scopes', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+    $client->scopes()->sync(
+        Scope::query()
+            ->whereIn('code', ['openid', 'profile'])
+            ->get(['id'])
+            ->mapWithKeys(fn (Scope $scope): array => [$scope->id => ['is_default' => false]])
+            ->all()
+    );
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'state' => 'missing-default-scope-state',
+        'nonce' => 'missing-default-scope-nonce',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'scope' => 'No default scopes are configured for this client.',
+        ]);
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.authorization.denied',
+        'description' => 'OAuth authorization denied.',
     ]);
 });
 

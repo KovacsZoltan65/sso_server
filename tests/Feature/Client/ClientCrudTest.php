@@ -1,6 +1,5 @@
 <?php
 
-use App\Models\ClientSecret;
 use App\Models\Scope;
 use App\Models\SsoClient;
 use App\Models\User;
@@ -137,6 +136,7 @@ it('authorized user can store client and receives secret once', function () {
             'name' => 'Portal Client',
             'redirect_uris' => ['https://portal.example.com/callback'],
             'scopes' => ['openid', 'profile'],
+            'default_scopes' => ['openid'],
             'is_active' => true,
             'token_policy_id' => null,
             'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED,
@@ -159,6 +159,7 @@ it('authorized user can store client and receives secret once', function () {
     expect(Hash::check($clientSecret['secret'], $client->client_secret_hash))->toBeTrue();
     expect($client->normalizedRedirectUris())->toBe(['https://portal.example.com/callback']);
     expect($client->normalizedScopeCodes())->toBe(['openid', 'profile']);
+    expect($client->defaultScopeCodes())->toBe(['openid']);
     expect($client->trust_tier)->toBe(SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED);
     expect($client->is_first_party)->toBeTrue();
     expect($client->consent_bypass_allowed)->toBeFalse();
@@ -173,6 +174,7 @@ it('authorized user can store client and receives secret once', function () {
     $this->assertDatabaseHas('client_scopes', [
         'sso_client_id' => $client->id,
         'scope_id' => Scope::query()->where('code', 'openid')->value('id'),
+        'is_default' => true,
     ]);
 
     $this->assertDatabaseHas('activity_log', [
@@ -187,6 +189,26 @@ it('authorized user can store client and receives secret once', function () {
 
     expect($secretActivity->properties->toArray())->toHaveKey('secret_last_four')
         ->and($secretActivity->properties->toArray())->not->toHaveKeys(['secret', 'client_secret']);
+});
+
+it('store validation fails when default scopes are not assigned to the client', function () {
+    $user = clientManager(['clients.create']);
+
+    $this->actingAs($user)
+        ->from(route('admin.sso-clients.create'))
+        ->post(route('admin.sso-clients.store'), [
+            'name' => 'Portal Client',
+            'redirect_uris' => ['https://portal.example.com/callback'],
+            'scopes' => ['openid'],
+            'default_scopes' => ['openid', 'profile'],
+            'is_active' => true,
+            'token_policy_id' => null,
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ])
+        ->assertRedirect(route('admin.sso-clients.create'))
+        ->assertSessionHasErrors(['default_scopes']);
 });
 
 it('store validation fails for invalid client payload', function () {
@@ -223,6 +245,13 @@ it('authorized user can view client edit page without leaking secret', function 
     ]);
 
     $user = clientManager(['clients.update', 'clients.manageSecrets']);
+    $client->scopes()->sync(
+        Scope::query()
+            ->whereIn('code', ['openid', 'profile'])
+            ->get(['id', 'code'])
+            ->mapWithKeys(fn (Scope $scope): array => [$scope->id => ['is_default' => $scope->code === 'openid']])
+            ->all()
+    );
 
     $this->actingAs($user)
         ->get(route('admin.sso-clients.edit', $client))
@@ -235,6 +264,7 @@ it('authorized user can view client edit page without leaking secret', function 
             ->where('client.trustTier', SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED)
             ->where('client.isFirstParty', true)
             ->where('client.consentBypassAllowed', false)
+            ->where('client.defaultScopes', ['openid'])
             ->where('client.secrets.0.lastFour', '1234')
             ->where('canManageSecrets', true)
             ->missing('client.clientSecret')
@@ -272,6 +302,7 @@ it('authorized user can update client', function () {
             'name' => 'Portal Client Updated',
             'redirect_uris' => ['https://portal.example.com/auth/callback'],
             'scopes' => ['openid', 'email'],
+            'default_scopes' => ['email'],
             'is_active' => false,
             'token_policy_id' => null,
             'trust_tier' => SsoClient::TRUST_TIER_MACHINE_TO_MACHINE,
@@ -286,6 +317,7 @@ it('authorized user can update client', function () {
     expect($client->name)->toBe('Portal Client Updated');
     expect($client->normalizedRedirectUris())->toBe(['https://portal.example.com/auth/callback']);
     expect($client->normalizedScopeCodes())->toBe(['email', 'openid']);
+    expect($client->defaultScopeCodes())->toBe(['email']);
     expect($client->is_active)->toBeFalse();
     expect($client->trust_tier)->toBe(SsoClient::TRUST_TIER_MACHINE_TO_MACHINE);
     expect($client->is_first_party)->toBeFalse();
@@ -296,6 +328,27 @@ it('authorized user can update client', function () {
         'log_name' => 'admin.client',
         'event' => 'admin.client.updated',
     ]);
+});
+
+it('update validation fails when default scopes are not assigned to the client', function () {
+    $client = SsoClient::factory()->create();
+    $user = clientManager(['clients.update']);
+
+    $this->actingAs($user)
+        ->from(route('admin.sso-clients.edit', $client))
+        ->put(route('admin.sso-clients.update', $client), [
+            'name' => 'Portal Client',
+            'redirect_uris' => ['https://portal.example.com/callback'],
+            'scopes' => ['openid'],
+            'default_scopes' => ['profile'],
+            'is_active' => true,
+            'token_policy_id' => null,
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ])
+        ->assertRedirect(route('admin.sso-clients.edit', $client))
+        ->assertSessionHasErrors(['default_scopes']);
 });
 
 it('update validation fails for invalid client payload', function () {

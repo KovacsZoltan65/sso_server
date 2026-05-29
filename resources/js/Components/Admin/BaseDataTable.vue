@@ -3,9 +3,13 @@ defineOptions({
     inheritAttrs: false,
 });
 
-import { adminCurrentPageReportTemplate, adminPaginatorTemplate, adminRowsPerPageOptions } from '@/Constants/adminTablePagination';
-import DataTable from 'primevue/datatable';
-import { computed, useAttrs } from 'vue';
+import {
+    adminCurrentPageReportTemplate,
+    adminPaginatorTemplate,
+    adminRowsPerPageOptions,
+} from "@/Constants/adminTablePagination";
+import DataTable from "primevue/datatable";
+import { computed, useAttrs } from "vue";
 
 const props = defineProps({
     value: {
@@ -22,7 +26,7 @@ const props = defineProps({
     },
     loadingMessage: {
         type: String,
-        default: 'Loading data...',
+        default: "Loading data...",
     },
     rows: {
         type: Number,
@@ -62,7 +66,7 @@ const props = defineProps({
     },
     dataKey: {
         type: String,
-        default: 'id',
+        default: "id",
     },
     selection: {
         type: [Array, Object],
@@ -90,7 +94,7 @@ const props = defineProps({
     },
     scrollHeight: {
         type: String,
-        default: 'flex',
+        default: "flex",
     },
     stripedRows: {
         type: Boolean,
@@ -106,7 +110,7 @@ const props = defineProps({
     },
     emptyMessage: {
         type: String,
-        default: 'No records found.',
+        default: "No records found.",
     },
     rowClass: {
         type: [Function, String, Array, Object],
@@ -114,15 +118,22 @@ const props = defineProps({
     },
     tableClass: {
         type: [String, Array, Object],
-        default: '',
+        default: "",
     },
     wrapperClass: {
         type: [String, Array, Object],
-        default: '',
+        default: "",
     },
 });
 
-const emit = defineEmits(['page', 'sort', 'filter', 'row-click', 'update:filters', 'update:selection']);
+const emit = defineEmits([
+    "page",
+    "sort",
+    "filter",
+    "row-click",
+    "update:filters",
+    "update:selection",
+]);
 
 const attrs = useAttrs();
 
@@ -146,15 +157,18 @@ const normalizedFirst = computed(() => {
     return Number.isFinite(first) && first >= 0 ? first : 0;
 });
 
-const normalizedTableClass = computed(() => ['admin-datatable h-full', props.tableClass]);
-const normalizedWrapperClass = computed(() => ['base-data-table flex min-h-0 flex-1 flex-col overflow-hidden', props.wrapperClass]);
+const normalizedTableClass = computed(() => ["admin-datatable h-full", props.tableClass]);
+const normalizedWrapperClass = computed(() => [
+    "base-data-table flex min-h-0 flex-1 flex-col overflow-hidden",
+    props.wrapperClass,
+]);
 
-const emitPage = (event) => emit('page', event);
-const emitSort = (event) => emit('sort', event);
-const emitFilter = (event) => emit('filter', event);
-const emitRowClick = (event) => emit('row-click', event);
-const emitFiltersUpdate = (value) => emit('update:filters', value);
-const emitSelectionUpdate = (value) => emit('update:selection', value);
+const emitPage = (event) => emit("page", event);
+const emitSort = (event) => emit("sort", event);
+const emitFilter = (event) => emit("filter", event);
+const emitRowClick = (event) => emit("row-click", event);
+const emitFiltersUpdate = (value) => emit("update:filters", value);
+const emitSelectionUpdate = (value) => emit("update:selection", value);
 </script>
 
 <template>

@@ -25,6 +25,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('sso_client_id')->constrained('sso_clients')->cascadeOnDelete();
             $table->foreignId('scope_id')->constrained('scopes')->cascadeOnDelete();
+            $table->boolean('is_default')->default(false);
             $table->timestamps();
             $table->unique(['sso_client_id', 'scope_id']);
         });

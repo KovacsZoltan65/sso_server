@@ -2,29 +2,26 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Data\ClientUserAccessSummaryData;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\ClientUserAccessBulkDestroyRequest;
 use App\Http\Requests\Admin\ClientUserAccessIndexRequest;
 use App\Http\Requests\Admin\StoreClientUserAccessRequest;
 use App\Http\Requests\Admin\UpdateClientUserAccessRequest;
-use App\Data\ClientUserAccessSummaryData;
 use App\Models\ClientUserAccess;
 use App\Models\SsoClient;
 use App\Models\User;
 use App\Services\ClientUserAccessService;
 use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Carbon;
 
 class ClientUserAccessController extends Controller
 {
     public function __construct(
         private readonly ClientUserAccessService $accessService
     ) {}
-    
-    /**
-     * @param ClientUserAccessIndexRequest $request
-     * @return JsonResponse
-     */
+
     public function index(ClientUserAccessIndexRequest $request): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);
@@ -56,10 +53,6 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    /**
-     * @param StoreClientUserAccessRequest $request
-     * @return JsonResponse
-     */
     public function store(StoreClientUserAccessRequest $request): JsonResponse
     {
         $this->authorize('create', ClientUserAccess::class);
@@ -73,11 +66,6 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    /**
-     * @param UpdateClientUserAccessRequest $request
-     * @param ClientUserAccess $clientUserAccess
-     * @return JsonResponse
-     */
     public function update(UpdateClientUserAccessRequest $request, ClientUserAccess $clientUserAccess): JsonResponse
     {
         $this->authorize('update', $clientUserAccess);
@@ -90,10 +78,6 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    /**
-     * @param ClientUserAccess $clientUserAccess
-     * @return JsonResponse
-     */
     public function destroy(ClientUserAccess $clientUserAccess): JsonResponse
     {
         $this->authorize('delete', $clientUserAccess);
@@ -106,10 +90,6 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    /**
-     * @param ClientUserAccessBulkDestroyRequest $request
-     * @return JsonResponse
-     */
     public function bulkDestroy(ClientUserAccessBulkDestroyRequest $request): JsonResponse
     {
         $this->authorize('bulkDelete', ClientUserAccess::class);
@@ -123,10 +103,6 @@ class ClientUserAccessController extends Controller
         );
     }
 
-    /**
-     * @param SsoClient $ssoClient
-     * @return JsonResponse
-     */
     public function clientAccesses(SsoClient $ssoClient): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);
@@ -141,18 +117,18 @@ class ClientUserAccessController extends Controller
                         'user_name' => $access->user->name,
                         'user_email' => $access->user->email,
                         'is_active' => (bool) $access->is_active,
-                        'allowed_from' => $access->allowed_from?->toIso8601String(),
-                        'allowed_until' => $access->allowed_until?->toIso8601String(),
+                        'allowed_from' => $access->allowed_from
+                            ? Carbon::parse($access->allowed_from)->toIso8601String()
+                            : null,
+                        'allowed_until' => $access->allowed_until
+                            ? Carbon::parse($access->allowed_until)->toIso8601String()
+                            : null,
                     ]
                 )->values()->all(),
             ],
         );
     }
 
-    /**
-     * @param User $user
-     * @return JsonResponse
-     */
     public function userAccesses(User $user): JsonResponse
     {
         $this->authorize('viewAny', ClientUserAccess::class);
@@ -167,8 +143,12 @@ class ClientUserAccessController extends Controller
                         'client_name' => $access->client->name,
                         'client_public_id' => $access->client->client_id,
                         'is_active' => (bool) $access->is_active,
-                        'allowed_from' => $access->allowed_from?->toIso8601String(),
-                        'allowed_until' => $access->allowed_until?->toIso8601String(),
+                        'allowed_from' => $access->allowed_from
+                            ? Carbon::parse($access->allowed_from)->toIso8601String()
+                            : null,
+                        'allowed_until' => $access->allowed_until
+                            ? Carbon::parse($access->allowed_until)->toIso8601String()
+                            : null,
                     ]
                 )->values()->all(),
             ],

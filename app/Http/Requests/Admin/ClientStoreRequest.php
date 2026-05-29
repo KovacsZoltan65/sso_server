@@ -29,10 +29,17 @@ class ClientStoreRequest extends FormRequest
             ->unique()
             ->values()
             ->all();
+        $defaultScopes = collect($this->input('default_scopes', []))
+            ->map(static fn (mixed $scope): string => trim((string) $scope))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
         $this->merge([
             'redirect_uris' => $redirectUris,
             'scopes' => $scopes,
+            'default_scopes' => $defaultScopes,
         ]);
     }
 
@@ -47,11 +54,26 @@ class ClientStoreRequest extends FormRequest
             'redirect_uris.*' => ['required', 'url:http,https', 'max:2048', 'distinct:strict'],
             'scopes' => ['nullable', 'array'],
             'scopes.*' => ['string', 'distinct:strict', Rule::exists(Scope::class, 'code')->where('is_active', true)],
+            'default_scopes' => ['nullable', 'array'],
+            'default_scopes.*' => ['string', 'distinct:strict', Rule::exists(Scope::class, 'code')->where('is_active', true)],
             'is_active' => ['required', 'boolean'],
             'token_policy_id' => ['nullable', 'integer', 'min:1', 'exists:token_policies,id'],
             'trust_tier' => ['required', 'string', Rule::in(SsoClient::supportedTrustTiers())],
             'is_first_party' => ['required', 'boolean'],
             'consent_bypass_allowed' => ['required', 'boolean'],
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator): void {
+            $assignedScopes = collect($this->input('scopes', []));
+            $invalidDefaultScopes = collect($this->input('default_scopes', []))
+                ->reject(fn (string $scope): bool => $assignedScopes->contains($scope));
+
+            if ($invalidDefaultScopes->isNotEmpty()) {
+                $validator->errors()->add('default_scopes', 'Default scopes must be assigned to the client first.');
+            }
+        });
     }
 }
