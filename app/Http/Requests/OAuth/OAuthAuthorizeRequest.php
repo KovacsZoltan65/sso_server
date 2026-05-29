@@ -23,7 +23,7 @@ class OAuthAuthorizeRequest extends FormRequest
             'state' => ['nullable', 'string', 'max:1000'],
             'nonce' => ['nullable', 'string', 'max:255'],
             'code_challenge' => ['nullable', 'string', 'max:255'],
-            'code_challenge_method' => ['nullable', 'string', Rule::in(['S256'])],
+            'code_challenge_method' => ['nullable', 'string', 'max:32'],
         ];
     }
 
@@ -43,17 +43,6 @@ class OAuthAuthorizeRequest extends FormRequest
     public function withValidator($validator): void
     {
         $validator->after(function ($validator): void {
-            $challenge = $this->input('code_challenge');
-            $method = $this->input('code_challenge_method');
-
-            if ($challenge !== '' && $challenge !== null && ($method === '' || $method === null)) {
-                $validator->errors()->add('code_challenge_method', Localization::translate('validation.custom.code_challenge_method.required_with_code_challenge'));
-            }
-
-            if (($method !== '' && $method !== null) && ($challenge === '' || $challenge === null)) {
-                $validator->errors()->add('code_challenge', Localization::translate('validation.custom.code_challenge.required_with_code_challenge_method'));
-            }
-
             if ($this->scopeContainsOpenId() && trim((string) $this->input('nonce')) === '') {
                 $validator->errors()->add('nonce', Localization::translate('validation.custom.nonce.required_for_openid_scope'));
             }

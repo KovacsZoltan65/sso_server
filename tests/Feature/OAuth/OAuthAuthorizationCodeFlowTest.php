@@ -770,10 +770,22 @@ it('rejects authorize requests when the code challenge method is plain', functio
     ]))
         ->assertStatus(302)
         ->assertSessionHasErrors([
-            'code_challenge_method' => 'The selected code challenge method is invalid.',
+            'code_challenge_method' => 'The code challenge method must be S256.',
         ]);
 
     expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.authorization.denied')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'pkce_method_not_s256',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['code_verifier', 'code_challenge', 'access_token', 'refresh_token', 'client_secret', 'secret']);
 });
 
 it('rejects authorize requests when the code challenge method is missing', function () {
@@ -793,10 +805,58 @@ it('rejects authorize requests when the code challenge method is missing', funct
     ]))
         ->assertStatus(302)
         ->assertSessionHasErrors([
-            'code_challenge_method' => 'The code challenge method field is required when code challenge is present.',
+            'code_challenge_method' => 'The code challenge method must be S256.',
         ]);
 
     expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.authorization.denied')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'pkce_method_not_s256',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['code_verifier', 'code_challenge', 'access_token', 'refresh_token', 'client_secret', 'secret']);
+});
+
+it('rejects authorize requests when the code challenge method is unknown', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid profile',
+        'state' => 'unknown-method-state',
+        'nonce' => 'unknown-method-nonce',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S512',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'code_challenge_method' => 'The code challenge method must be S256.',
+        ]);
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.authorization.denied')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'pkce_method_not_s256',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['code_verifier', 'code_challenge', 'access_token', 'refresh_token', 'client_secret', 'secret']);
 });
 
 it('exchanges authorization code for tokens with valid pkce verifier', function () {
@@ -1144,7 +1204,23 @@ it('rejects token exchange when pkce verifier is invalid', function () {
     ])
         ->assertStatus(422)
         ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('data', [])
+        ->assertJsonPath('meta', [])
         ->assertJsonStructure(['errors' => ['code_verifier']]);
+
+    expect(Token::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'pkce_validation_failed',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['code_verifier', 'code_challenge', 'access_token', 'refresh_token', 'client_secret', 'secret']);
 });
 
 it('rejects token exchange when the authorization code was issued without a PKCE challenge', function () {

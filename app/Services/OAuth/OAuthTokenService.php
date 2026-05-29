@@ -3,9 +3,9 @@
 namespace App\Services\OAuth;
 
 use App\Models\AuthorizationCode;
+use App\Models\SsoClient;
 use App\Models\Token;
 use App\Models\TokenPolicy;
-use App\Models\SsoClient;
 use App\Models\User;
 use App\Repositories\Contracts\TokenRepositoryInterface;
 use App\Services\Audit\AuditLogService;
@@ -70,13 +70,12 @@ class OAuthTokenService
         private readonly OidcUserInfoService $oidcUserInfoService,
         private readonly OidcSubjectService $oidcSubjectService,
         private readonly OidcSigningKeyService $oidcSigningKeyService,
-    ) {
-    }
+    ) {}
 
     /**
      * Exchange a validated authorization code for an access and refresh token pair.
      *
-     * @param OAuthTokenPayload $payload
+     * @param  OAuthTokenPayload  $payload
      * @return TokenPair
      */
     public function exchangeAuthorizationCode(array $payload, ?string $ipAddress, ?string $userAgent): array
@@ -117,7 +116,13 @@ class OAuthTokenService
             throw ValidationException::withMessages(['code_verifier' => 'The code verifier field is required.']);
         }
 
-        $this->pkceVerifier->verify($authorizationCode->code_challenge, $authorizationCode->code_challenge_method, $verifier);
+        try {
+            $this->pkceVerifier->verify($authorizationCode->code_challenge, $authorizationCode->code_challenge_method, $verifier);
+        } catch (ValidationException $exception) {
+            $this->logGrantFailure($client, 'pkce_validation_failed');
+
+            throw $exception;
+        }
         $policy = $this->resolvePolicy($client, $authorizationCode->tokenPolicy);
 
         return DB::transaction(function () use ($authorizationCode, $client, $policy, $ipAddress, $userAgent): array {
@@ -191,7 +196,7 @@ class OAuthTokenService
     /**
      * Refresh an access token using a validated refresh token grant payload.
      *
-     * @param OAuthTokenPayload $payload
+     * @param  OAuthTokenPayload  $payload
      * @return TokenPair
      */
     public function refreshAccessToken(array $payload, ?string $ipAddress, ?string $userAgent): array
@@ -316,8 +321,7 @@ class OAuthTokenService
         ?string $grantType = null,
         ?string $ipAddress = null,
         ?string $userAgent = null,
-    ): void
-    {
+    ): void {
         if ($client->isPublic()) {
             return;
         }
@@ -402,7 +406,7 @@ class OAuthTokenService
     /**
      * Issue and persist a fresh token pair for the given client and user context.
      *
-     * @param array<int, string> $scopes
+     * @param  array<int, string>  $scopes
      * @return IssuedTokenPair
      */
     private function issueTokenPair(
@@ -466,7 +470,7 @@ class OAuthTokenService
     /**
      * Revoke an OAuth access or refresh token owned by the requesting client.
      *
-     * @param OAuthTokenPayload $payload
+     * @param  OAuthTokenPayload  $payload
      */
     public function revokeToken(array $payload): void
     {
@@ -592,7 +596,7 @@ class OAuthTokenService
     /**
      * Introspect an OAuth access or refresh token for the requesting client.
      *
-     * @param OAuthTokenPayload $payload
+     * @param  OAuthTokenPayload  $payload
      * @return IntrospectionResponse
      */
     public function introspectToken(array $payload): array
@@ -817,7 +821,7 @@ class OAuthTokenService
     }
 
     /**
-     * @param array<int, string> $scopeCodes
+     * @param  array<int, string>  $scopeCodes
      */
     private function logIssuedTokens(Token $token, SsoClient $client, string $grantType, array $scopeCodes, ?User $causer): void
     {

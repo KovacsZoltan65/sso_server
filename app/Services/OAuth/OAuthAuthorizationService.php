@@ -683,28 +683,40 @@ class OAuthAuthorizationService
         string $codeChallengeMethod,
     ): void {
         if ($policy?->pkce_required && $codeChallenge === '') {
-            $this->logAuthorizationFailure(
-                user: $user,
-                event: 'oauth.authorization.denied',
-                message: Localization::translate('api.oauth.authorization_denied'),
-                client: $client,
-                properties: [
-                    'reason' => 'pkce_required',
-                    'client_id' => $client->id,
-                    'client_public_id' => $client->client_id,
-                ],
-            );
+            $this->rejectPkceAuthorization($user, $client, 'pkce_required', 'code_challenge', Localization::translate('api.oauth.pkce_required'));
+        }
 
-            throw ValidationException::withMessages([
-                'code_challenge' => Localization::translate('api.oauth.pkce_required'),
-            ]);
+        if ($codeChallenge === '' && $codeChallengeMethod !== '') {
+            $this->rejectPkceAuthorization($user, $client, 'pkce_challenge_missing', 'code_challenge', Localization::translate('api.oauth.pkce_required'));
         }
 
         if ($codeChallenge !== '' && $codeChallengeMethod !== 'S256') {
-            throw ValidationException::withMessages([
-                'code_challenge_method' => Localization::translate('api.oauth.code_challenge_method_s256'),
-            ]);
+            $this->rejectPkceAuthorization($user, $client, 'pkce_method_not_s256', 'code_challenge_method', Localization::translate('api.oauth.code_challenge_method_s256'));
         }
+    }
+
+    private function rejectPkceAuthorization(
+        User $user,
+        SsoClient $client,
+        string $reason,
+        string $field,
+        string $message,
+    ): never {
+        $this->logAuthorizationFailure(
+            user: $user,
+            event: 'oauth.authorization.denied',
+            message: Localization::translate('api.oauth.authorization_denied'),
+            client: $client,
+            properties: [
+                'reason' => $reason,
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+            ],
+        );
+
+        throw ValidationException::withMessages([
+            $field => $message,
+        ]);
     }
 
     /**
