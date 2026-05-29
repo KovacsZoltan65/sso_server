@@ -84,8 +84,8 @@ class TokenFamilyService
                     familyId: $familyId,
                     reason: $reason,
                     trigger: $trigger,
-                    incidentDetectedAt: is_string($incidentDetectedAt) ? $incidentDetectedAt : null,
-                    incidentReason: is_string($incidentReason) ? $incidentReason : null,
+                    incidentDetectedAt: \is_string($incidentDetectedAt) ? $incidentDetectedAt : null,
+                    incidentReason: \is_string($incidentReason) ? $incidentReason : null,
                 );
 
             $properties = [

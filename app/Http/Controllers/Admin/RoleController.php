@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\RoleIndexRequest;
 use App\Http\Requests\Admin\RoleStoreRequest;
 use App\Http\Requests\Admin\RoleUpdateRequest;
 use App\Services\RoleService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -25,7 +26,7 @@ class RoleController extends Controller
     
     /**
      * @param RoleIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(RoleIndexRequest $request): Response
     {
@@ -46,7 +47,7 @@ class RoleController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function create(): Response
     {
@@ -67,12 +68,12 @@ class RoleController extends Controller
 
         return redirect()
             ->route('admin.roles.index')
-            ->with('success', __('api.roles.created'));
+            ->with('success', Localization::translate('api.roles.created'));
     }
 
     /**
      * @param Role $role
-     * @return \Inertia\Response
+     * @return Response
      */
     public function edit(Role $role): Response
     {
@@ -94,7 +95,7 @@ class RoleController extends Controller
 
         return redirect()
             ->route('admin.roles.index')
-            ->with('success', __('api.roles.updated'));
+            ->with('success', Localization::translate('api.roles.updated'));
     }
 
     /**
@@ -122,14 +123,14 @@ class RoleController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: __('api.roles.deleted'),
+                message: Localization::translate('api.roles.deleted'),
                 data: ['id' => $role->id],
             );
         }
 
         return redirect()
             ->route('admin.roles.index')
-            ->with('success', __('api.roles.deleted'));
+            ->with('success', Localization::translate('api.roles.deleted'));
     }
 
     /**
@@ -150,9 +151,9 @@ class RoleController extends Controller
         }
 
         return $this->successResponse(
-            message: __('api.roles.bulk_deleted'),
+            message: Localization::translate('api.roles.bulk_deleted'),
             data: ['ids' => $deletedIds],
-            meta: ['deletedCount' => count($deletedIds)],
+            meta: ['deletedCount' => \count($deletedIds)],
         );
     }
 }

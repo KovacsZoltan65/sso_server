@@ -178,7 +178,7 @@ class ScopeService
     {
         $scopes = $this->scopes->getByIds($ids);
 
-        if ($scopes->count() !== count($ids)) {
+        if ($scopes->count() !== \count($ids)) {
             throw new RuntimeException('One or more selected scopes could not be found.');
         }
 

@@ -16,6 +16,11 @@ use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function (): void {
+    app()->setLocale('en');
+    config()->set('app.locale', 'en');
+});
+
 it('revokes an active access token for the authenticated client', function (): void {
     $user = User::factory()->create();
 
@@ -246,14 +251,14 @@ it('rejects revoke request with invalid client credentials', function (): void {
         'token' => str_repeat('x', 40),
         'token_type_hint' => 'access_token',
     ])
-        ->assertStatus(422)
+        ->assertUnauthorized()
         ->assertExactJson([
-            'message' => 'OAuth token revoke request failed.',
+            'message' => 'Invalid client credentials.',
             'data' => [],
             'meta' => [],
             'errors' => [
-                'client_secret' => [
-                    'The provided client secret is invalid.',
+                'client' => [
+                    'Invalid client credentials.',
                 ],
             ],
         ]);

@@ -115,7 +115,7 @@ class OAuthConsentContextService
     {
         $payload = $this->allContexts()[trim($token)] ?? null;
 
-        if (! is_array($payload)) {
+        if (! \is_array($payload)) {
             throw OAuthConsentContextNotFoundException::missingOrExpired();
         }
 
@@ -135,7 +135,7 @@ class OAuthConsentContextService
         $normalizedToken = trim($token);
         $contexts = $this->allContexts();
 
-        if (! array_key_exists($normalizedToken, $contexts)) {
+        if (! \array_key_exists($normalizedToken, $contexts)) {
             return;
         }
 
@@ -161,7 +161,7 @@ class OAuthConsentContextService
     {
         $contexts = $this->session->get(self::SESSION_KEY, []);
 
-        return is_array($contexts) ? $contexts : [];
+        return \is_array($contexts) ? $contexts : [];
     }
 
     /**
@@ -182,9 +182,9 @@ class OAuthConsentContextService
         }
 
         foreach ($requested as $scope) {
-            if (! in_array($scope, $allowed, true)) {
+            if (! \in_array($scope, $allowed, true)) {
                 throw ValidationException::withMessages([
-                    'scope' => sprintf('The requested scope [%s] is not allowed for this client.', $scope),
+                    'scope' => \sprintf('The requested scope [%s] is not allowed for this client.', $scope),
                 ]);
             }
         }
@@ -203,13 +203,13 @@ class OAuthConsentContextService
 
         if ($policy?->pkce_required && $codeChallenge === '') {
             throw ValidationException::withMessages([
-                'code_challenge' => 'PKCE is required for this client.',
+                'code_challenge' => \sprintf('PKCE is required for this client.'),
             ]);
         }
 
         if ($codeChallenge !== '' && $codeChallengeMethod !== 'S256') {
             throw ValidationException::withMessages([
-                'code_challenge_method' => 'The code challenge method must be S256.',
+                'code_challenge_method' => \sprintf('The code challenge method must be S256.'),
             ]);
         }
     }

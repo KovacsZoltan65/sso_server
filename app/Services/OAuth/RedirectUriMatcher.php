@@ -10,6 +10,6 @@ class RedirectUriMatcher
     {
         $candidate = trim($redirectUri);
 
-        return in_array($candidate, $client->normalizedRedirectUris(), true);
+        return \in_array($candidate, $client->normalizedRedirectUris(), true);
     }
 }

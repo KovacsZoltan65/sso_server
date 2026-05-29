@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Support\Localization;
 use Inertia\Testing\AssertableInertia as Assert;
 
 test('profile page is displayed', function () {
@@ -32,7 +33,7 @@ test('profile information can be updated', function () {
     $response
         ->assertSessionHasNoErrors()
         ->assertRedirect('/profile')
-        ->assertSessionHas('success', __('profile.updated_summary'));
+        ->assertSessionHas('success', Localization::translate('profile.updated_summary'));
 
     $user->refresh();
 

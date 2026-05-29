@@ -20,6 +20,8 @@ use Spatie\Activitylog\Models\Activity;
 beforeEach(function (): void {
     $this->withoutVite();
 
+    app()->setLocale('en');
+    config()->set('app.locale', 'en');
     config()->set('oidc.issuer', 'https://sso-server.test');
     config()->set('oidc.id_token_ttl_seconds', 300);
     config()->set('oidc.signing.active_kid', 'test-oidc-key-1');
@@ -51,7 +53,7 @@ function decodeJwtHeaderClaims(string $jwt): array
     expect($segments)->toHaveCount(3);
 
     $header = strtr($segments[0], '-_', '+/');
-    $padding = strlen($header) % 4;
+    $padding = \strlen($header) % 4;
 
     if ($padding !== 0) {
         $header .= str_repeat('=', 4 - $padding);
@@ -75,7 +77,7 @@ function decodeJwtPayloadClaims(string $jwt): array
     expect($segments)->toHaveCount(3);
 
     $payload = strtr($segments[1], '-_', '+/');
-    $padding = strlen($payload) % 4;
+    $padding = \strlen($payload) % 4;
 
     if ($padding !== 0) {
         $payload .= str_repeat('=', 4 - $padding);
@@ -138,7 +140,7 @@ function issueAuthorizationCodeForOauthClient(User $user, SsoClient $client, arr
     $verifier = 'plain-test-verifier-123456789';
     $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
 
-    $payload = array_merge([
+    $payload = \array_merge([
         'response_type' => 'code',
         'client_id' => $client->client_id,
         'redirect_uri' => 'https://portal.example.com/callback',
@@ -771,6 +773,175 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
         ->firstOrFail();
 
     expect($issueActivity->properties->toArray())->not->toHaveKeys(['access_token', 'refresh_token', 'authorization_code']);
+});
+
+it('rejects confidential token exchange when the client has no active secret', function () {
+    [$client, , $plainSecret] = oauthClient([
+        'client' => [
+            'client_type' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
+        ],
+    ]);
+    $user = User::factory()->create();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client);
+
+    $client->secrets()->update([
+        'is_active' => false,
+        'revoked_at' => now(),
+    ]);
+
+    $this->withHeader('User-Agent', 'OAuth Test Client')
+        ->postJson(route('oauth.token'), [
+            'grant_type' => 'authorization_code',
+            'client_id' => $client->client_id,
+            'client_secret' => $plainSecret,
+            'code' => $code,
+            'redirect_uri' => 'https://portal.example.com/callback',
+            'code_verifier' => $verifier,
+        ])
+        ->assertUnauthorized()
+        ->assertExactJson([
+            'message' => 'Invalid client credentials.',
+            'data' => [],
+            'meta' => [],
+            'errors' => [
+                'client' => [
+                    'Invalid client credentials.',
+                ],
+            ],
+        ]);
+
+    expect(Token::query()->count())->toBe(0);
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.client_auth.failed',
+        'description' => 'OAuth client authentication failed.',
+    ]);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.client_auth.failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'grant_type' => 'authorization_code',
+        'ip_address' => '127.0.0.1',
+        'user_agent' => 'OAuth Test Client',
+        'reason' => 'confidential_client_no_active_secret',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['client_secret', 'secret']);
+});
+
+it('rejects confidential token exchange with an invalid secret', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'client_type' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
+        ],
+    ]);
+    $user = User::factory()->create();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => 'wrong-secret',
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertUnauthorized()
+        ->assertJsonPath('message', 'Invalid client credentials.')
+        ->assertJsonPath('errors.client.0', 'Invalid client credentials.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.client_auth.failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'grant_type' => 'authorization_code',
+        'reason' => 'confidential_client_invalid_secret',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['client_secret', 'secret']);
+});
+
+it('rejects confidential token exchange when the client secret is missing', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'client_type' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
+        ],
+    ]);
+    $user = User::factory()->create();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertUnauthorized()
+        ->assertJsonPath('message', 'Invalid client credentials.')
+        ->assertJsonPath('errors.client.0', 'Invalid client credentials.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.client_auth.failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'grant_type' => 'authorization_code',
+        'reason' => 'confidential_client_secret_missing',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['client_secret', 'secret']);
+});
+
+it('exchanges authorization code for a public client without a client secret when pkce is valid', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'client_type' => SsoClient::CLIENT_TYPE_PUBLIC,
+        ],
+    ]);
+    $user = User::factory()->create();
+
+    $client->secrets()->delete();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client);
+
+    $tokenResponse = $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ]);
+
+    $tokenResponse
+        ->assertOk()
+        ->assertJsonPath('message', 'OAuth token issued successfully.')
+        ->assertJsonPath('data.token_type', 'Bearer')
+        ->assertJsonStructure([
+            'data' => [
+                'access_token',
+                'refresh_token',
+            ],
+        ]);
+
+    expect(Token::query()->count())->toBe(1);
 });
 
 it('does not include id token in token response when openid scope is not granted', function () {

@@ -4,6 +4,7 @@ namespace App\Http\Requests\Profile;
 
 use App\Models\User;
 use App\Services\Profile\SelfServiceProfileService;
+use App\Support\Localization;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Validator;
@@ -49,7 +50,7 @@ class UpdateSelfProfileRequest extends FormRequest
                 }
 
                 foreach ($unexpectedKeys as $key) {
-                    $validator->errors()->add($key, __('validation.custom.self_service_profile.forbidden_field'));
+                    $validator->errors()->add($key, Localization::translate('validation.custom.self_service_profile.forbidden_field'));
                 }
 
                 app(SelfServiceProfileService::class)->logForbiddenMutationAttempt(

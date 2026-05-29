@@ -16,7 +16,7 @@ class RememberedConsentController extends Controller
     /**
      * @param RememberedConsentIndexRequest $request
      * @param RememberedConsentManagementService $service
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(
         RememberedConsentIndexRequest $request,

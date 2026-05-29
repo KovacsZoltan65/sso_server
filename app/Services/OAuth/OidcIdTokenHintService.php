@@ -15,7 +15,7 @@ class OidcIdTokenHintService
     {
         $claims = $this->validatedClaims($idTokenHint);
 
-        if (! is_array($claims)) {
+        if (! \is_array($claims)) {
             return null;
         }
 
@@ -47,7 +47,7 @@ class OidcIdTokenHintService
         $claims = $this->decodeJsonSegment($payloadSegment);
         $signature = $this->decodeBase64Url($signatureSegment);
 
-        if (! is_array($header) || ! is_array($claims) || $signature === null) {
+        if (! \is_array($header) || ! \is_array($claims) || $signature === null) {
             return null;
         }
 
@@ -89,7 +89,7 @@ class OidcIdTokenHintService
 
         $segments = explode('.', $normalized);
 
-        return count($segments) === 3 ? array_values($segments) : null;
+        return \count($segments) === 3 ? array_values($segments) : null;
     }
 
     /**
@@ -105,13 +105,13 @@ class OidcIdTokenHintService
 
         $payload = json_decode($decoded, true);
 
-        return is_array($payload) ? $payload : null;
+        return \is_array($payload) ? $payload : null;
     }
 
     private function decodeBase64Url(string $value): ?string
     {
         $normalized = strtr($value, '-_', '+/');
-        $padding = strlen($normalized) % 4;
+        $padding = \strlen($normalized) % 4;
 
         if ($padding > 0) {
             $normalized .= str_repeat('=', 4 - $padding);
@@ -119,6 +119,6 @@ class OidcIdTokenHintService
 
         $decoded = base64_decode($normalized, true);
 
-        return is_string($decoded) ? $decoded : null;
+        return \is_string($decoded) ? $decoded : null;
     }
 }

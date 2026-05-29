@@ -6,6 +6,7 @@ namespace App\Http\Controllers\OAuth;
 
 use App\Http\Controllers\Controller;
 use App\Services\OAuth\OAuthTokenService;
+use App\Support\Localization;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Http\JsonResponse;
@@ -20,16 +21,16 @@ class OAuthUserInfoController extends Controller
         try {
             $result = $tokenService->getUserInfo($request->bearerToken(), $request->ip(), $request->userAgent());
 
-            return $this->successResponse(__('api.oauth.userinfo.retrieved'), $result);
+            return $this->successResponse(Localization::translate('api.oauth.userinfo.retrieved'), $result);
         } catch (AuthenticationException $exception) {
             return $this->errorResponse(
-                message: __('api.oauth.authentication_failed'),
+                message: Localization::translate('api.oauth.authentication_failed'),
                 errors: ['token' => [$exception->getMessage()]],
                 status: 401,
             );
         } catch (AuthorizationException $exception) {
             return $this->errorResponse(
-                message: __('messages.forbidden'),
+                message: Localization::translate('api.oauth.userinfo.forbidden'),
                 errors: ['scope' => [$exception->getMessage()]],
                 status: 403,
             );

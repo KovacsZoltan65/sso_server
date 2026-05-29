@@ -227,7 +227,7 @@ class ClientService
                 properties: [
                     'client_id' => $client->id,
                     'client_public_id' => $client->client_id,
-                    'redirect_uri_count' => count($redirectUris),
+                    'redirect_uri_count' => \count($redirectUris),
                     'scope_codes' => $scopeCodes,
                     'policy_id' => $client->token_policy_id,
                     'trust_tier' => $client->trust_tier,
@@ -293,7 +293,7 @@ class ClientService
                     'client_id' => $updatedClient->id,
                     'client_public_id' => $updatedClient->client_id,
                     'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed', 'redirect_uris', 'scopes']))),
-                    'redirect_uri_count' => count($redirectUris),
+                    'redirect_uri_count' => \count($redirectUris),
                     'scope_codes' => $scopeCodes,
                     'policy_id' => $updatedClient->token_policy_id,
                     'trust_tier' => $updatedClient->trust_tier,
@@ -488,7 +488,7 @@ class ClientService
 
         return collect($scopes)
             ->map(fn ($scope) => trim((string) $scope))
-            ->filter(fn (string $scope) => in_array($scope, $allowed, true))
+            ->filter(fn (string $scope) => \in_array($scope, $allowed, true))
             ->unique()
             ->values()
             ->all();
@@ -510,7 +510,7 @@ class ClientService
         }
 
         if (
-            array_key_exists('consent_bypass_allowed', $payload)
+            \array_key_exists('consent_bypass_allowed', $payload)
             && (bool) $client->consent_bypass_allowed !== (bool) $payload['consent_bypass_allowed']
         ) {
             $changes['consent_bypass_allowed'] = [
@@ -550,7 +550,7 @@ class ClientService
                     'client_id' => $client->id,
                     'client_public_id' => $client->client_id,
                     'redirect_uri' => $redirectUri,
-                    'redirect_uri_count' => count($after),
+                    'redirect_uri_count' => \count($after),
                 ],
             );
         }
@@ -566,7 +566,7 @@ class ClientService
                     'client_id' => $client->id,
                     'client_public_id' => $client->client_id,
                     'redirect_uri' => $redirectUri,
-                    'redirect_uri_count' => count($after),
+                    'redirect_uri_count' => \count($after),
                 ],
             );
         }

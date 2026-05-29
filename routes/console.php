@@ -25,7 +25,7 @@ Artisan::command('oauth:invalidate-remembered-consents {--policy-version=} {--ol
         $oldVersion !== null ? trim((string) $oldVersion) : null,
     );
 
-    $this->info(sprintf(
+    $this->info(\sprintf(
         'Invalidated %d remembered consent grant(s) for policy version [%s].',
         $result['affected_count'],
         $result['policy_version'],
@@ -82,7 +82,7 @@ Artisan::command('oidc:keys:rotate {kid?} {--activate=} {--disable=}', function 
 
     if ($activateKid !== '') {
         $key = $rotationService->activateKey($activateKid);
-        $this->info(sprintf('Activated OIDC signing key [%s].', $key['kid']));
+        $this->info(\sprintf('Activated OIDC signing key [%s].', $key['kid']));
 
         return 0;
     }
@@ -96,13 +96,13 @@ Artisan::command('oidc:keys:rotate {kid?} {--activate=} {--disable=}', function 
             return 1;
         }
 
-        $this->info(sprintf('Disabled OIDC signing key [%s].', $key['kid']));
+        $this->info(\sprintf('Disabled OIDC signing key [%s].', $key['kid']));
 
         return 0;
     }
 
     $result = $rotationService->rotate(trim((string) ($this->argument('kid') ?? '')) ?: null);
-    $this->info(sprintf(
+    $this->info(\sprintf(
         'Rotated OIDC signing key from [%s] to [%s].',
         $result['previous_active_kid'] ?? 'none',
         $result['new_key']['kid'] ?? 'unknown',

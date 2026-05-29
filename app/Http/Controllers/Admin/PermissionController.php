@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\PermissionIndexRequest;
 use App\Http\Requests\Admin\PermissionStoreRequest;
 use App\Http\Requests\Admin\PermissionUpdateRequest;
 use App\Services\PermissionService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -23,7 +24,7 @@ class PermissionController extends Controller
     
     /**
      * @param PermissionIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(PermissionIndexRequest $request): Response
     {
@@ -44,7 +45,7 @@ class PermissionController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function create(): Response
     {
@@ -65,12 +66,12 @@ class PermissionController extends Controller
 
         return redirect()
             ->route('admin.permissions.index')
-            ->with('success', __('api.permissions.created'));
+            ->with('success', Localization::translate('api.permissions.created'));
     }
 
     /**
      * @param Permission $permission
-     * @return \Inertia\Response
+     * @return Response
      */
     public function edit(Permission $permission): Response
     {
@@ -94,7 +95,7 @@ class PermissionController extends Controller
 
         return redirect()
             ->route('admin.permissions.index')
-            ->with('success', __('api.permissions.updated'));
+            ->with('success', Localization::translate('api.permissions.updated'));
     }
 
     /**
@@ -122,14 +123,14 @@ class PermissionController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: __('api.permissions.deleted'),
+                message: Localization::translate('api.permissions.deleted'),
                 data: ['id' => $permission->id],
             );
         }
 
         return redirect()
             ->route('admin.permissions.index')
-            ->with('success', __('api.permissions.deleted'));
+            ->with('success', Localization::translate('api.permissions.deleted'));
     }
 
     /**
@@ -151,9 +152,9 @@ class PermissionController extends Controller
         }
 
         return $this->successResponse(
-            message: __('api.permissions.bulk_deleted'),
+            message: Localization::translate('api.permissions.bulk_deleted'),
             data: ['ids' => $deletedIds],
-            meta: ['deletedCount' => count($deletedIds)],
+            meta: ['deletedCount' => \count($deletedIds)],
         );
     }
 }

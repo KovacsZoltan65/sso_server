@@ -12,6 +12,7 @@ use App\Models\ClientUserAccess;
 use App\Models\SsoClient;
 use App\Models\User;
 use App\Services\ClientUserAccessService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 
 class ClientUserAccessController extends Controller
@@ -43,7 +44,7 @@ class ClientUserAccessController extends Controller
         );
 
         return $this->successResponse(
-            message: __('api.client_user_access.records_retrieved'),
+            message: Localization::translate('api.client_user_access.records_retrieved'),
             data: [
                 'rows' => $payload['rows'],
                 'clientOptions' => $payload['clientOptions'],
@@ -66,7 +67,7 @@ class ClientUserAccessController extends Controller
         $access = $this->accessService->createAccess($request->validated());
 
         return $this->successResponse(
-            message: __('api.client_user_access.created'),
+            message: Localization::translate('api.client_user_access.created'),
             data: ['access' => ClientUserAccessSummaryData::fromModel($access)],
             status: 201,
         );
@@ -84,7 +85,7 @@ class ClientUserAccessController extends Controller
         $updatedAccess = $this->accessService->updateAccess($clientUserAccess, $request->validated());
 
         return $this->successResponse(
-            message: __('api.client_user_access.updated'),
+            message: Localization::translate('api.client_user_access.updated'),
             data: ['id' => $updatedAccess->id],
         );
     }
@@ -100,7 +101,7 @@ class ClientUserAccessController extends Controller
         $this->accessService->deleteAccess($clientUserAccess);
 
         return $this->successResponse(
-            message: __('api.client_user_access.deleted'),
+            message: Localization::translate('api.client_user_access.deleted'),
             data: ['id' => $clientUserAccess->id],
         );
     }
@@ -116,9 +117,9 @@ class ClientUserAccessController extends Controller
         $deletedIds = $this->accessService->bulkDelete($request->validated('ids'));
 
         return $this->successResponse(
-            message: __('api.client_user_access.bulk_deleted'),
+            message: Localization::translate('api.client_user_access.bulk_deleted'),
             data: ['ids' => $deletedIds],
-            meta: ['deletedCount' => count($deletedIds)],
+            meta: ['deletedCount' => \count($deletedIds)],
         );
     }
 
@@ -131,7 +132,7 @@ class ClientUserAccessController extends Controller
         $this->authorize('viewAny', ClientUserAccess::class);
 
         return $this->successResponse(
-            message: __('api.client_user_access.client_assignments_retrieved'),
+            message: Localization::translate('api.client_user_access.client_assignments_retrieved'),
             data: [
                 'rows' => $this->accessService->listUsersForClient($ssoClient)->map(
                     fn (ClientUserAccess $access) => [
@@ -157,7 +158,7 @@ class ClientUserAccessController extends Controller
         $this->authorize('viewAny', ClientUserAccess::class);
 
         return $this->successResponse(
-            message: __('api.client_user_access.user_assignments_retrieved'),
+            message: Localization::translate('api.client_user_access.user_assignments_retrieved'),
             data: [
                 'rows' => $this->accessService->listClientsForUser($user)->map(
                     fn (ClientUserAccess $access) => [

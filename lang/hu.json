@@ -242,6 +242,7 @@
     "pages.consent.outcome_approve_generic": "Jóváhagyás után visszatérés a kérő alkalmazásba.",
     "pages.consent.outcome_deny_with_host": "Elutasítás esetén biztonságos visszatérés ide: :host jogosultságmegosztás nélkül.",
     "pages.consent.outcome_deny_generic": "Elutasítás esetén a kérés jogosultságmegosztás nélkül leáll.",
+    "pages.consent.remember_decision": "Jegyezze meg ezt a döntést ennél az alkalmazásnál és jogosultsági körnél.",
     "pages.consent.footer_note": "Mindkét döntés szerveroldali consent tokenre támaszkodik.",
     "pages.clients.items": "kliens",
     "pages.scopes.item": "scope",

@@ -15,7 +15,13 @@ class OAuthConsentApproveController extends Controller
         OAuthConsentApproveRequest $request,
         OAuthAuthorizationService $authorizationService,
     ): Response|RedirectResponse {
-        $result = $authorizationService->approveConsent($request->user(), (string) $request->validated('consent_token'));
+        $result = $authorizationService->approveConsent(
+            user: $request->user(),
+            consentToken: (string) $request->validated('consent_token'),
+            rememberConsent: $request->rememberConsent(),
+            ipAddress: $request->ip(),
+            userAgent: $request->userAgent(),
+        );
 
         if ($request->header('X-Inertia')) {
             return Inertia::location($result['redirect_url']);

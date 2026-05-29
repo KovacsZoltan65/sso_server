@@ -151,13 +151,13 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
     public function markRefreshReuseDetected(Token $token, ?string $reason = null, ?string $incidentDetectedAt = null): Token
     {
         $detectedAt = $incidentDetectedAt ? Carbon::parse($incidentDetectedAt) : now();
-        $meta = is_array($token->meta) ? $token->meta : [];
+        $meta = \is_array($token->meta) ? $token->meta : [];
 
         $token->forceFill([
             'refresh_token_reuse_detected_at' => $detectedAt,
             'security_incident_at' => $detectedAt,
             'security_incident_reason' => $reason,
-            'meta' => array_merge($meta, array_filter([
+            'meta' => \array_merge($meta, array_filter([
                 'incident_detected_at' => $detectedAt->toIso8601String(),
                 'incident_reason' => $reason,
             ])),
@@ -226,7 +226,7 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         $count = 0;
 
         $this->findFamilyTokens($familyId)->each(function (Token $token) use ($reason, $revokedAt, $trigger, $incidentAt, $incidentReason, &$count): void {
-            $meta = is_array($token->meta) ? $token->meta : [];
+            $meta = \is_array($token->meta) ? $token->meta : [];
             $isActiveBefore = $token->isAccessTokenActive() || $token->isRefreshTokenActive();
 
             $token->forceFill([
@@ -240,7 +240,7 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
                 'security_incident_reason' => $token->security_incident_reason ?? $incidentReason,
                 'access_token_revoked_reason' => $token->access_token_revoked_reason ?? $reason,
                 'refresh_token_revoked_reason' => $token->refresh_token_revoked_reason ?? $reason,
-                'meta' => array_merge($meta, array_filter([
+                'meta' => \array_merge($meta, array_filter([
                     'family_revoked_at' => $revokedAt->toIso8601String(),
                     'family_revoke_trigger' => $trigger,
                     'incident_detected_at' => $incidentAt?->toIso8601String(),

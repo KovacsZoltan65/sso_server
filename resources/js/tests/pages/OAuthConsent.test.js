@@ -1,9 +1,18 @@
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import ConsentPage from '@/Pages/OAuth/Consent.vue';
-import { getForms, getLastForm } from '@/tests/mocks/inertia';
+import { getForms, setPageProps } from '@/tests/mocks/inertia';
 
 describe('OAuth/Consent', () => {
+    beforeEach(() => {
+        setPageProps({
+            locale: {
+                current: 'en',
+                fallback: 'en',
+            },
+        });
+    });
+
     it('renders the public consent summary without exposing raw authorize internals', () => {
         const wrapper = mount(ConsentPage, {
             props: {
@@ -52,13 +61,14 @@ describe('OAuth/Consent', () => {
         expect(wrapper.text()).toContain('Profile');
         expect(wrapper.text()).toContain('Approve');
         expect(wrapper.text()).toContain('Deny');
+        expect(wrapper.text()).toContain('Remember this decision for this application and scope set.');
         expect(wrapper.text()).toContain('Approve to continue back to portal.example.com/auth/sso/callback.');
         expect(wrapper.text()).toContain('Deny to return safely to portal.example.com without sharing these permissions.');
         expect(wrapper.text()).not.toContain('secret-server-side-token');
         expect(wrapper.text()).not.toContain('code_challenge');
     });
 
-    it('posts only the consent token when approve is submitted', async () => {
+    it('posts only the consent token and explicit remember flag when approve is submitted', async () => {
         const wrapper = mount(ConsentPage, {
             props: {
                 consentToken: 'a'.repeat(64),
@@ -97,6 +107,7 @@ describe('OAuth/Consent', () => {
 
         expect(forms).toHaveLength(2);
         expect(form.consent_token).toBe('a'.repeat(64));
+        expect(form.remember_consent).toBe(false);
         expect('redirect_uri' in form).toBe(false);
         expect('client_id' in form).toBe(false);
         expect('scope' in form).toBe(false);

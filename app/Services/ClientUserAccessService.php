@@ -175,7 +175,7 @@ class ClientUserAccessService
     {
         $accesses = $this->accesses->getByIds($ids);
 
-        if ($accesses->count() !== count($ids)) {
+        if ($accesses->count() !== \count($ids)) {
             throw new RuntimeException('One or more selected access records could not be found.');
         }
 

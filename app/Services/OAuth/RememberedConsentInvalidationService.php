@@ -34,7 +34,7 @@ class RememberedConsentInvalidationService
             ];
         }
 
-        $reason = array_key_exists('trust_tier', $normalizedChanges)
+        $reason = \array_key_exists('trust_tier', $normalizedChanges)
             ? RememberedConsentRevocationReasons::TRUST_TIER_CHANGED
             : RememberedConsentRevocationReasons::CONSENT_BYPASS_POLICY_CHANGED;
 
@@ -178,7 +178,7 @@ class RememberedConsentInvalidationService
     {
         return collect($changedFields)
             ->mapWithKeys(fn (array $change, string $field) => [
-                $field => sprintf('%s -> %s', $this->stringifyValue($change['old']), $this->stringifyValue($change['new'])),
+                $field => \sprintf('%s -> %s', $this->stringifyValue($change['old']), $this->stringifyValue($change['new'])),
             ])
             ->all();
     }

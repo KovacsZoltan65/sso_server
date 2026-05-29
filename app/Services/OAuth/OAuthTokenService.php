@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Repositories\Contracts\TokenRepositoryInterface;
 use App\Services\Audit\AuditLogService;
 use App\Services\TokenFamilyService;
+use App\Support\Localization;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Support\Facades\DB;
@@ -81,7 +82,7 @@ class OAuthTokenService
     public function exchangeAuthorizationCode(array $payload, ?string $ipAddress, ?string $userAgent): array
     {
         $client = $this->resolveClient((string) $payload['client_id']);
-        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''));
+        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), 'authorization_code', $ipAddress, $userAgent);
 
         $plainCode = (string) $payload['code'];
         $authorizationCode = AuthorizationCode::query()
@@ -196,7 +197,7 @@ class OAuthTokenService
     public function refreshAccessToken(array $payload, ?string $ipAddress, ?string $userAgent): array
     {
         $client = $this->resolveClient((string) $payload['client_id']);
-        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''));
+        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), 'refresh_token', $ipAddress, $userAgent);
 
         $plainRefreshToken = (string) $payload['refresh_token'];
         $token = $this->tokenRepository->findTokenWithRelationsByRefreshHash(hash('sha256', $plainRefreshToken));
@@ -309,20 +310,53 @@ class OAuthTokenService
     /**
      * Validate the provided client secret against the currently active secret set.
      */
-    private function assertClientAuthentication(SsoClient $client, string $clientSecret): void
+    private function assertClientAuthentication(
+        SsoClient $client,
+        string $clientSecret,
+        ?string $grantType = null,
+        ?string $ipAddress = null,
+        ?string $userAgent = null,
+    ): void
     {
-        $activeSecrets = $client->activeSecrets()->get();
-
-        if ($activeSecrets->isEmpty()) {
+        if ($client->isPublic()) {
             return;
         }
 
-        foreach ($activeSecrets as $secret) {
-            if (Hash::check($clientSecret, $secret->secret_hash)) {
-                return;
+        $providedSecret = trim($clientSecret);
+
+        if ($providedSecret === '') {
+            $this->rejectClientAuthentication($client, 'confidential_client_secret_missing', $grantType, $ipAddress, $userAgent);
+        }
+
+        if (! $client->hasActiveSecrets()) {
+            $this->rejectClientAuthentication($client, 'confidential_client_no_active_secret', $grantType, $ipAddress, $userAgent);
+        }
+
+        if ($this->verifyActiveClientSecret($client, $providedSecret)) {
+            return;
+        }
+
+        $this->rejectClientAuthentication($client, 'confidential_client_invalid_secret', $grantType, $ipAddress, $userAgent);
+    }
+
+    private function verifyActiveClientSecret(SsoClient $client, string $providedSecret): bool
+    {
+        foreach ($client->activeSecrets()->get() as $secret) {
+            if (Hash::check($providedSecret, $secret->secret_hash)) {
+                return true;
             }
         }
 
+        return false;
+    }
+
+    private function rejectClientAuthentication(
+        SsoClient $client,
+        string $reason,
+        ?string $grantType,
+        ?string $ipAddress,
+        ?string $userAgent,
+    ): never {
         $this->auditLogService->logFailure(
             logName: AuditLogService::LOG_OAUTH,
             event: 'oauth.client_auth.failed',
@@ -331,11 +365,16 @@ class OAuthTokenService
             properties: [
                 'client_id' => $client->id,
                 'client_public_id' => $client->client_id,
-                'reason' => 'invalid_client_secret',
+                'grant_type' => $grantType,
+                'ip_address' => $ipAddress,
+                'user_agent' => $userAgent,
+                'reason' => $reason,
             ],
         );
 
-        throw ValidationException::withMessages(['client_secret' => 'The provided client secret is invalid.']);
+        throw ValidationException::withMessages([
+            'client' => [Localization::translate('api.oauth.invalid_client_credentials')],
+        ])->status(401);
     }
 
     /**
@@ -432,12 +471,12 @@ class OAuthTokenService
     public function revokeToken(array $payload): void
     {
         $client = $this->resolveClient((string) $payload['client_id']);
-        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''));
+        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), null, null, null);
 
         $plainToken = (string) $payload['token'];
         $tokenHash = hash('sha256', $plainToken);
         $tokenTypeHint = $this->normalizeTokenTypeHint($payload['token_type_hint'] ?? null);
-        $reason = is_string($payload['reason'] ?? null) && trim((string) $payload['reason']) !== ''
+        $reason = \is_string($payload['reason'] ?? null) && trim((string) $payload['reason']) !== ''
             ? trim((string) $payload['reason'])
             : null;
 
@@ -449,7 +488,7 @@ class OAuthTokenService
                     return;
                 }
 
-                $this->tokenRepository->revokeAccessToken($token, is_string($reason) ? $reason : null);
+                $this->tokenRepository->revokeAccessToken($token, \is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -478,7 +517,7 @@ class OAuthTokenService
                     return;
                 }
 
-                $this->tokenRepository->revokeRefreshToken($token, is_string($reason) ? $reason : null);
+                $this->tokenRepository->revokeRefreshToken($token, \is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -503,7 +542,7 @@ class OAuthTokenService
             $accessToken = $this->tokenRepository->findActiveAccessTokenByHash($tokenHash);
 
             if ($accessToken !== null && (int) $accessToken->sso_client_id === (int) $client->id) {
-                $this->tokenRepository->revokeAccessToken($accessToken, is_string($reason) ? $reason : null);
+                $this->tokenRepository->revokeAccessToken($accessToken, \is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -528,7 +567,7 @@ class OAuthTokenService
             $refreshToken = $this->tokenRepository->findActiveRefreshTokenByHash($tokenHash);
 
             if ($refreshToken !== null && (int) $refreshToken->sso_client_id === (int) $client->id) {
-                $this->tokenRepository->revokeRefreshToken($refreshToken, is_string($reason) ? $reason : null);
+                $this->tokenRepository->revokeRefreshToken($refreshToken, \is_string($reason) ? $reason : null);
 
                 $this->auditLogService->logSuccess(
                     logName: AuditLogService::LOG_OAUTH,
@@ -559,7 +598,7 @@ class OAuthTokenService
     public function introspectToken(array $payload): array
     {
         $client = $this->resolveClient((string) $payload['client_id']);
-        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''));
+        $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), null, null, null);
 
         $tokenHash = hash('sha256', (string) $payload['token']);
         $tokenTypeHint = $this->normalizeTokenTypeHint($payload['token_type_hint'] ?? null);
@@ -590,7 +629,7 @@ class OAuthTokenService
     {
         $token = $this->resolveUserInfoAccessToken($plainAccessToken);
 
-        if (! in_array('openid', $token->scopes ?? [], true)) {
+        if (! \in_array('openid', $token->scopes ?? [], true)) {
             throw new AuthorizationException('The access token does not grant the openid scope.');
         }
 

@@ -15,6 +15,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property int $id
  * @property string $name
  * @property string $client_id
+ * @property string $client_type
  * @property string $client_secret_hash
  * @property array<int, string>|null $redirect_uris
  * @property string|null $frontchannel_logout_uri
@@ -49,6 +50,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient newQuery()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient query()
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientId($value)
+ * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientType($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereClientSecretHash($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereCreatedAt($value)
  * @method static \Illuminate\Database\Eloquent\Builder<static>|SsoClient whereBackchannelLogoutUri($value)
@@ -70,6 +72,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 #[Fillable([
     'name',
     'client_id',
+    'client_type',
     'client_secret_hash',
     'redirect_uris',
     'frontchannel_logout_uri',
@@ -86,6 +89,9 @@ class SsoClient extends Model
 {
     /** @use HasFactory<SsoClientFactory> */
     use HasFactory;
+
+    public const CLIENT_TYPE_CONFIDENTIAL = 'confidential';
+    public const CLIENT_TYPE_PUBLIC = 'public';
 
     public const TRUST_TIER_FIRST_PARTY_TRUSTED = 'first_party_trusted';
     public const TRUST_TIER_FIRST_PARTY_UNTRUSTED = 'first_party_untrusted';
@@ -126,6 +132,32 @@ class SsoClient extends Model
             self::TRUST_TIER_THIRD_PARTY,
             self::TRUST_TIER_MACHINE_TO_MACHINE,
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function supportedClientTypes(): array
+    {
+        return [
+            self::CLIENT_TYPE_CONFIDENTIAL,
+            self::CLIENT_TYPE_PUBLIC,
+        ];
+    }
+
+    public function isConfidential(): bool
+    {
+        return $this->client_type === self::CLIENT_TYPE_CONFIDENTIAL;
+    }
+
+    public function isPublic(): bool
+    {
+        return $this->client_type === self::CLIENT_TYPE_PUBLIC;
+    }
+
+    public function hasActiveSecrets(): bool
+    {
+        return $this->activeSecrets()->exists();
     }
 
     /**

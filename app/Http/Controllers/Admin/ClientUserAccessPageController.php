@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\StoreClientUserAccessRequest;
 use App\Http\Requests\Admin\UpdateClientUserAccessRequest;
 use App\Models\ClientUserAccess;
 use App\Services\ClientUserAccessService;
+use App\Support\Localization;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +22,7 @@ class ClientUserAccessPageController extends Controller
 
     /**
      * @param ClientUserAccessIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(ClientUserAccessIndexRequest $request): Response
     {
@@ -44,7 +45,7 @@ class ClientUserAccessPageController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function create(): Response
     {
@@ -65,12 +66,12 @@ class ClientUserAccessPageController extends Controller
 
         return redirect()
             ->route('admin.client-user-access.index')
-            ->with('success', __('api.client_user_access.created'));
+            ->with('success', Localization::translate('api.client_user_access.created'));
     }
 
     /**
      * @param ClientUserAccess $clientUserAccess
-     * @return \Inertia\Response
+     * @return Response
      */
     public function edit(ClientUserAccess $clientUserAccess): Response
     {
@@ -94,6 +95,6 @@ class ClientUserAccessPageController extends Controller
 
         return redirect()
             ->route('admin.client-user-access.index')
-            ->with('success', __('api.client_user_access.updated'));
+            ->with('success', Localization::translate('api.client_user_access.updated'));
     }
 }

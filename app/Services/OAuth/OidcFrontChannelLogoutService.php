@@ -72,7 +72,7 @@ class OidcFrontChannelLogoutService
     {
         $participants = $session->get(self::SESSION_KEY, []);
 
-        return is_array($participants) ? $participants : [];
+        return \is_array($participants) ? $participants : [];
     }
 
     /**
@@ -117,7 +117,7 @@ class OidcFrontChannelLogoutService
 
     public function forgetParticipatingClients(Session $session, ?\App\Models\User $user = null): void
     {
-        $count = count($this->participatingClients($session));
+        $count = \count($this->participatingClients($session));
 
         $session->forget(self::SESSION_KEY);
         $this->oidcSessionService->clearSidParticipations($session, $user);

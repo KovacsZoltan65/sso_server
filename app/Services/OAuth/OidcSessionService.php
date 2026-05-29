@@ -101,7 +101,7 @@ class OidcSessionService
 
     public function clearSidParticipations(Session $session, ?User $user = null): int
     {
-        $count = count($this->sids($session));
+        $count = \count($this->sids($session));
 
         $session->forget(self::SESSION_KEY);
 
@@ -129,7 +129,7 @@ class OidcSessionService
     {
         $sids = $session->get(self::SESSION_KEY, []);
 
-        return is_array($sids) ? $sids : [];
+        return \is_array($sids) ? $sids : [];
     }
 
     private function newSid(SsoClient $client, ?User $user): string

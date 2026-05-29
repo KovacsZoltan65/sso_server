@@ -51,7 +51,7 @@ class RoleSummaryData extends Data
             name: $role->name,
             guardName: $role->guard_name,
             permissions: $permissions,
-            permissionsCount: (int) ($role->permissions_count ?? count($permissions)),
+            permissionsCount: (int) ($role->permissions_count ?? \count($permissions)),
             usersCount: (int) ($role->users_count ?? 0),
             createdAt: $role->created_at?->toDateTimeString() ?? now()->toDateTimeString(),
             canDelete: $canDelete,

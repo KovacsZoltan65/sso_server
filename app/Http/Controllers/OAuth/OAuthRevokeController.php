@@ -7,6 +7,7 @@ namespace App\Http\Controllers\OAuth;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\OAuth\OAuthRevokeRequest;
 use App\Services\OAuth\OAuthTokenService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Validation\ValidationException;
 
@@ -19,15 +20,19 @@ class OAuthRevokeController extends Controller
         try {
             $tokenService->revokeToken($request->validated());
         } catch (ValidationException $exception) {
+            $isClientAuthenticationFailure = $exception->status === 401;
+
             return $this->errorResponse(
-                message: __('api.oauth.revoke.request_failed'),
+                message: $isClientAuthenticationFailure
+                    ? Localization::translate('api.oauth.invalid_client_credentials')
+                    : Localization::translate('api.oauth.revoke.request_failed'),
                 errors: $exception->errors(),
                 status: $exception->status,
             );
         }
 
         return $this->successResponse(
-            message: __('api.tokens.revoked'),
+            message: Localization::translate('api.tokens.revoked'),
             data: null,
         );
     }

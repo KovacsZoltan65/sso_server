@@ -137,7 +137,7 @@ class ScopeRepository extends Repository implements ScopeRepositoryInterface
             ->where('is_active', true)
             ->orderBy('code')
             ->pluck('code')
-            ->filter(static fn (mixed $code): bool => is_string($code) && trim($code) !== '')
+            ->filter(static fn (mixed $code): bool => \is_string($code) && trim($code) !== '')
             ->values()
             ->all();
 

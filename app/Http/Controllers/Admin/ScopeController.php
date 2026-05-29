@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\ScopeStoreRequest;
 use App\Http\Requests\Admin\ScopeUpdateRequest;
 use App\Models\Scope;
 use App\Services\ScopeService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -23,7 +24,7 @@ class ScopeController extends Controller
     
     /**
      * @param ScopeIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(ScopeIndexRequest $request): Response
     {
@@ -46,7 +47,7 @@ class ScopeController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function create(): Response
     {
@@ -67,12 +68,12 @@ class ScopeController extends Controller
 
         return redirect()
             ->route('admin.scopes.index')
-            ->with('success', __('api.scopes.created'));
+            ->with('success', Localization::translate('api.scopes.created'));
     }
 
     /**
      * @param Scope $scope
-     * @return \Inertia\Response
+     * @return Response
      */
     public function edit(Scope $scope): Response
     {
@@ -99,7 +100,7 @@ class ScopeController extends Controller
 
         return redirect()
             ->route('admin.scopes.index')
-            ->with('success', __('api.scopes.updated'));
+            ->with('success', Localization::translate('api.scopes.updated'));
     }
 
     /**
@@ -127,14 +128,14 @@ class ScopeController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: __('api.scopes.deleted'),
+                message: Localization::translate('api.scopes.deleted'),
                 data: ['id' => $scope->id],
             );
         }
 
         return redirect()
             ->route('admin.scopes.index')
-            ->with('success', __('api.scopes.deleted'));
+            ->with('success', Localization::translate('api.scopes.deleted'));
     }
 
     /**
@@ -155,9 +156,9 @@ class ScopeController extends Controller
         }
 
         return $this->successResponse(
-            message: __('api.scopes.bulk_deleted'),
+            message: Localization::translate('api.scopes.bulk_deleted'),
             data: ['ids' => $deletedIds],
-            meta: ['deletedCount' => count($deletedIds)],
+            meta: ['deletedCount' => \count($deletedIds)],
         );
     }
 }

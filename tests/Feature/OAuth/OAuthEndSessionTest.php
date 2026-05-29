@@ -89,7 +89,7 @@ function logoutIdTokenHint(\App\Models\SsoClient $client, User $user, TokenPolic
 function decodeBase64UrlSegment(string $segment): string
 {
     $normalized = strtr($segment, '-_', '+/');
-    $padding = strlen($normalized) % 4;
+    $padding = \strlen($normalized) % 4;
 
     if ($padding !== 0) {
         $normalized .= str_repeat('=', 4 - $padding);
@@ -191,11 +191,11 @@ it('dispatches a signed back-channel logout token to registered participants', f
         $verified = app(OidcSigningKeyService::class)->verify(
             $encodedHeader.'.'.$encodedClaims,
             $signature,
-            is_array($header) ? (string) ($header['kid'] ?? '') : null,
+            \is_array($header) ? (string) ($header['kid'] ?? '') : null,
         );
 
-        return is_array($header)
-            && is_array($claims)
+        return \is_array($header)
+            && \is_array($claims)
             && ($header['kid'] ?? null) === 'logout-test-key-1'
             && ($header['alg'] ?? null) === 'RS256'
             && ($claims['iss'] ?? null) === 'https://sso-server.test'

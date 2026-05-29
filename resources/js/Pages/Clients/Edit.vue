@@ -4,6 +4,7 @@ import PageHeader from '@/Components/PageHeader.vue';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import ClientForm from '@/Pages/Clients/Partials/ClientForm.vue';
 import { Head, router, useForm, usePage } from '@inertiajs/vue3';
+import { trans } from 'laravel-vue-i18n';
 import Button from 'primevue/button';
 import ConfirmDialog from 'primevue/confirmdialog';
 import InputText from 'primevue/inputtext';

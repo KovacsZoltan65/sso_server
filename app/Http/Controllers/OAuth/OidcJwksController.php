@@ -18,7 +18,7 @@ class OidcJwksController extends Controller
             event: 'oauth.jwks.served_multikey',
             description: 'OIDC multi-key JWKS served.',
             properties: [
-                'key_count' => count($jwks['keys'] ?? []),
+                'key_count' => \count($jwks['keys'] ?? []),
                 'status' => 'served',
             ],
         );

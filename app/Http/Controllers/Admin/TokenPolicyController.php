@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\TokenPolicyStoreRequest;
 use App\Http\Requests\Admin\TokenPolicyUpdateRequest;
 use App\Models\TokenPolicy;
 use App\Services\TokenPolicyService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -23,7 +24,7 @@ class TokenPolicyController extends Controller
     
     /**
      * @param TokenPolicyIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(TokenPolicyIndexRequest $request): Response
     {
@@ -44,7 +45,7 @@ class TokenPolicyController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function create(): Response
     {
@@ -65,12 +66,12 @@ class TokenPolicyController extends Controller
 
         return redirect()
             ->route('admin.token-policies.index')
-            ->with('success', __('api.token_policies.created'));
+            ->with('success', Localization::translate('api.token_policies.created'));
     }
 
     /**
      * @param TokenPolicy $tokenPolicy
-     * @return \Inertia\Response
+     * @return Response
      */
     public function edit(TokenPolicy $tokenPolicy): Response
     {
@@ -92,7 +93,7 @@ class TokenPolicyController extends Controller
 
         return redirect()
             ->route('admin.token-policies.index')
-            ->with('success', __('api.token_policies.updated'));
+            ->with('success', Localization::translate('api.token_policies.updated'));
     }
 
     /**
@@ -116,12 +117,12 @@ class TokenPolicyController extends Controller
         }
 
         if (request()->expectsJson()) {
-            return $this->successResponse(__('api.token_policies.deleted'));
+            return $this->successResponse(Localization::translate('api.token_policies.deleted'));
         }
 
         return redirect()
             ->route('admin.token-policies.index')
-            ->with('success', __('api.token_policies.deleted'));
+            ->with('success', Localization::translate('api.token_policies.deleted'));
     }
 
     /**
@@ -139,7 +140,7 @@ class TokenPolicyController extends Controller
         }
 
         return $this->successResponse(
-            message: __('api.token_policies.bulk_deleted'),
+            message: Localization::translate('api.token_policies.bulk_deleted'),
             meta: $result['meta'],
         );
     }

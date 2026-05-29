@@ -11,7 +11,7 @@ use Inertia\Response;
 class PlaceholderPageController extends Controller
 {
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function roles(): Response
     {
@@ -19,7 +19,7 @@ class PlaceholderPageController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function permissions(): Response
     {
@@ -27,7 +27,7 @@ class PlaceholderPageController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function clients(): Response
     {
@@ -35,7 +35,7 @@ class PlaceholderPageController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function scopes(): Response
     {
@@ -43,7 +43,7 @@ class PlaceholderPageController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function tokenPolicies(): Response
     {
@@ -51,7 +51,7 @@ class PlaceholderPageController extends Controller
     }
 
     /**
-     * @return \Inertia\Response
+     * @return Response
      */
     public function auditLogs(): Response
     {
@@ -62,7 +62,7 @@ class PlaceholderPageController extends Controller
 
     /**
      * @param string $key
-     * @return \Inertia\Response
+     * @return Response
      */
     private function render(string $key): Response
     {

@@ -31,7 +31,7 @@ class OidcKeyRotationService
         $keys = $this->readRegistryForMutation();
 
         if ($this->findKeyIndex($keys, $kid) !== null) {
-            throw new RuntimeException(sprintf('OIDC signing key [%s] already exists.', $kid));
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] already exists.', $kid));
         }
 
         $directory = $this->normalizeDirectory($directory ?: config('oidc.signing.key_directory'));
@@ -55,7 +55,7 @@ class OidcKeyRotationService
 
         $details = openssl_pkey_get_details($resource);
 
-        if (! is_array($details) || ! is_string($details['key'] ?? null)) {
+        if (! \is_array($details) || ! \is_string($details['key'] ?? null)) {
             throw new RuntimeException('OIDC signing public key export failed.');
         }
 
@@ -104,17 +104,17 @@ class OidcKeyRotationService
         $targetIndex = $this->findKeyIndex($keys, $kid);
 
         if ($targetIndex === null) {
-            throw new RuntimeException(sprintf('OIDC signing key [%s] is not configured.', $kid));
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] is not configured.', $kid));
         }
 
         $target = $keys[$targetIndex];
 
         if (($target['status'] ?? null) === OidcSigningKeyService::STATUS_DISABLED) {
-            throw new RuntimeException(sprintf('OIDC signing key [%s] is disabled and cannot be activated.', $kid));
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] is disabled and cannot be activated.', $kid));
         }
 
         if (trim((string) ($target['private_key_path'] ?? '')) === '') {
-            throw new RuntimeException(sprintf('OIDC signing key [%s] cannot be activated without a private key path.', $kid));
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] cannot be activated without a private key path.', $kid));
         }
 
         $previousActiveKid = null;
@@ -198,7 +198,7 @@ class OidcKeyRotationService
                 ],
             );
 
-            throw new RuntimeException(sprintf('OIDC signing key [%s] cannot be disabled: %s.', $kid, $eligibility['reason']));
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] cannot be disabled: %s.', $kid, $eligibility['reason']));
         }
 
         return $this->transitionKey($kid, OidcSigningKeyService::STATUS_RETIRING, OidcSigningKeyService::STATUS_DISABLED, 'oauth.keys.disabled_after_grace', 'OIDC signing key disabled after grace period.');
@@ -241,13 +241,13 @@ class OidcKeyRotationService
         $targetIndex = $this->findKeyIndex($keys, $kid);
 
         if ($targetIndex === null) {
-            throw new RuntimeException(sprintf('OIDC signing key [%s] is not configured.', $kid));
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] is not configured.', $kid));
         }
 
         $currentStatus = (string) ($keys[$targetIndex]['status'] ?? '');
 
         if ($currentStatus !== $fromStatus && $currentStatus !== $toStatus) {
-            throw new RuntimeException(sprintf('OIDC signing key [%s] cannot transition from [%s] to [%s].', $kid, $currentStatus, $toStatus));
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] cannot transition from [%s] to [%s].', $kid, $currentStatus, $toStatus));
         }
 
         $keys[$targetIndex]['status'] = $toStatus;
@@ -304,7 +304,7 @@ class OidcKeyRotationService
 
         $payload = json_encode(['keys' => array_values($keys)], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 
-        if (! is_string($payload)) {
+        if (! \is_string($payload)) {
             throw new RuntimeException('OIDC signing key registry encoding failed.');
         }
 
@@ -395,7 +395,7 @@ class OidcKeyRotationService
     {
         $configured = $this->normalizeOptionalPath(config('oidc.signing.openssl_config_path'));
 
-        if ($configured !== null && is_file($configured)) {
+        if ($configured !== null && \is_file($configured)) {
             return $configured;
         }
 
@@ -409,7 +409,7 @@ class OidcKeyRotationService
         foreach ($candidates as $candidate) {
             $path = $this->normalizeOptionalPath($candidate);
 
-            if ($path !== null && is_file($path)) {
+            if ($path !== null && \is_file($path)) {
                 return $path;
             }
         }
@@ -419,7 +419,7 @@ class OidcKeyRotationService
 
     private function normalizeOptionalPath(mixed $path): ?string
     {
-        if (! is_string($path)) {
+        if (! \is_string($path)) {
             return null;
         }
 

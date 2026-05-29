@@ -3,9 +3,12 @@
 return [
     'oauth' => [
         'authorization_denied' => 'OAuth authorization denied.',
+        'access_denied' => 'Access to this client was denied.',
         'authentication_failed' => 'Authentication failed.',
+        'invalid_client_credentials' => 'Invalid client credentials.',
         'userinfo' => [
             'retrieved' => 'User info retrieved successfully.',
+            'forbidden' => 'User info request forbidden.',
         ],
         'token' => [
             'issued' => 'OAuth token issued successfully.',

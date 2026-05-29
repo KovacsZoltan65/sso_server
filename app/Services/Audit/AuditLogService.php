@@ -56,6 +56,7 @@ class AuditLogService
         'client_public_id',
         'consent_id',
         'scope_codes',
+        'expires_at',
         'grant_type',
         'token_kind',
         'updated_fields',
@@ -261,12 +262,12 @@ class AuditLogService
             'user' => self::LOG_ADMIN_USER,
             'role' => self::LOG_ADMIN_ROLE,
             'permission' => self::LOG_ADMIN_PERMISSION,
-            default => throw new InvalidArgumentException(sprintf('Unsupported admin audit resource [%s].', $resource)),
+            default => throw new InvalidArgumentException(\sprintf('Unsupported admin audit resource [%s].', $resource)),
         };
 
         $this->log(
             logName: $logName,
-            event: sprintf('admin.%s.%s', $resource, $action),
+            event: \sprintf('admin.%s.%s', $resource, $action),
             description: $description,
             subject: $subject,
             causer: $causer,
@@ -290,8 +291,8 @@ class AuditLogService
     {
         $normalized = trim($logName);
 
-        if (! in_array($normalized, $this->allowedLogNames, true)) {
-            throw new InvalidArgumentException(sprintf('Unsupported audit log name [%s].', $logName));
+        if (! \in_array($normalized, $this->allowedLogNames, true)) {
+            throw new InvalidArgumentException(\sprintf('Unsupported audit log name [%s].', $logName));
         }
 
         return $normalized;
@@ -302,7 +303,7 @@ class AuditLogService
         $normalized = trim($event);
 
         if (! preg_match('/^[a-z]+(?:\.[a-z0-9_]+){2,}$/', $normalized)) {
-            throw new InvalidArgumentException(sprintf('Invalid audit event [%s].', $event));
+            throw new InvalidArgumentException(\sprintf('Invalid audit event [%s].', $event));
         }
 
         return $normalized;
@@ -317,16 +318,16 @@ class AuditLogService
         $sanitized = [];
 
         foreach ($properties as $key => $value) {
-            if (! is_string($key)) {
+            if (! \is_string($key)) {
                 continue;
             }
 
             if (in_array($key, $this->sensitivePropertyKeys, true)) {
-                throw new InvalidArgumentException(sprintf('Sensitive audit property [%s] is not allowed.', $key));
+                throw new InvalidArgumentException(\sprintf('Sensitive audit property [%s] is not allowed.', $key));
             }
 
-            if (! in_array($key, $this->allowedPropertyKeys, true)) {
-                throw new InvalidArgumentException(sprintf('Unsupported audit property [%s].', $key));
+            if (! \in_array($key, $this->allowedPropertyKeys, true)) {
+                throw new InvalidArgumentException(\sprintf('Unsupported audit property [%s].', $key));
             }
 
             $normalizedValue = $this->normalizePropertyValue($key, $value);
@@ -365,7 +366,7 @@ class AuditLogService
      */
     private function normalizeStringList(mixed $value): ?array
     {
-        if (! is_array($value)) {
+        if (! \is_array($value)) {
             return null;
         }
 
@@ -384,18 +385,18 @@ class AuditLogService
      */
     private function normalizeAssociativeArray(mixed $value): ?array
     {
-        if (! is_array($value)) {
+        if (! \is_array($value)) {
             return null;
         }
 
         $normalized = [];
 
         foreach ($value as $key => $item) {
-            if (! is_string($key)) {
+            if (! \is_string($key)) {
                 continue;
             }
 
-            if (is_array($item)) {
+            if (\is_array($item)) {
                 $normalizedList = $this->normalizeStringList($item);
 
                 if ($normalizedList !== null) {
@@ -417,11 +418,11 @@ class AuditLogService
             return null;
         }
 
-        if (is_bool($value) || is_int($value)) {
+        if (\is_bool($value) || \is_int($value)) {
             return $value;
         }
 
-        if (is_float($value)) {
+        if (\is_float($value)) {
             return (string) $value;
         }
 

@@ -217,7 +217,7 @@ class TokenPolicyService
 
         return [
             'meta' => [
-                'deletedCount' => count($ids),
+                'deletedCount' => \count($ids),
             ],
         ];
     }

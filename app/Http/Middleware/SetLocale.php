@@ -24,7 +24,7 @@ class SetLocale
             $sessionLocale = $request->session()->get('locale');
         }
 
-        $locale = in_array($sessionLocale, $availableLocales, true)
+        $locale = \in_array($sessionLocale, $availableLocales, true)
             ? $sessionLocale
             : $fallbackLocale;
 

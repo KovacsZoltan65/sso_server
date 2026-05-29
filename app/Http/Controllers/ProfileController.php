@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\Profile\UpdateSelfProfileRequest;
 use App\Services\Profile\SelfServiceProfileService;
+use App\Support\Localization;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class ProfileController extends Controller
     /**
      * Display the user's profile form.
      * @param Request $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function edit(Request $request): Response
     {
@@ -41,7 +42,11 @@ class ProfileController extends Controller
     {
         $this->profileService->updateProfile($request->user(), $request->validated(), $request);
 
-        return Redirect::route('profile.edit')->with('success', __('profile.updated_summary'));
+        $message = Localization::translate('profile.updated_summary');
+
+        return Redirect::route('profile.edit')
+            ->with('status', $message)
+            ->with('success', $message);
     }
 
     /**

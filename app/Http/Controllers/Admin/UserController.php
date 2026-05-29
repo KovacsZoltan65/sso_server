@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\UserIndexRequest;
 use App\Http\Requests\Admin\UserStoreRequest;
 use App\Http\Requests\Admin\UserUpdateRequest;
 use App\Models\User;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use App\Services\UserService;
 use Illuminate\Http\RedirectResponse;
@@ -23,7 +24,7 @@ class UserController extends Controller
     
     /**
      * @param UserIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(UserIndexRequest $request): Response
     {
@@ -56,7 +57,7 @@ class UserController extends Controller
 
         $this->userService->createUser($request->validated());
 
-        return back()->with('success', __('api.users.created'));
+        return back()->with('success', Localization::translate('api.users.created'));
     }
 
     /**
@@ -70,7 +71,7 @@ class UserController extends Controller
 
         $this->userService->updateUser($user, $request->validated());
 
-        return back()->with('success', __('api.users.updated'));
+        return back()->with('success', Localization::translate('api.users.updated'));
     }
 
     /**
@@ -91,7 +92,7 @@ class UserController extends Controller
         }
 
         return $this->successResponse(
-            message: __('api.users.deleted'),
+            message: Localization::translate('api.users.deleted'),
             data: ['id' => $user->id],
         );
     }
@@ -117,9 +118,9 @@ class UserController extends Controller
         }
 
         return $this->successResponse(
-            message: __('api.users.bulk_deleted'),
+            message: Localization::translate('api.users.bulk_deleted'),
             data: ['ids' => $deletedIds],
-            meta: ['deletedCount' => count($deletedIds)],
+            meta: ['deletedCount' => \count($deletedIds)],
         );
     }
 }

@@ -68,7 +68,7 @@ class OidcSigningKeyService
         $activeKid = $this->configuredActiveKid($configuredKeys);
 
         if ($activeKid !== '' && $activeKid !== $activeKey['kid']) {
-            throw new RuntimeException(sprintf(
+            throw new RuntimeException(\sprintf(
                 'OIDC signing active_kid [%s] does not match lifecycle active key [%s].',
                 $activeKid,
                 $activeKey['kid'],
@@ -99,7 +99,7 @@ class OidcSigningKeyService
     {
         return array_values(array_filter(
             $this->configuredKeys(),
-            static fn (array $key): bool => in_array($key['status'], self::verificationStatuses(), true),
+            static fn (array $key): bool => \in_array($key['status'], self::verificationStatuses(), true),
         ));
     }
 
@@ -220,7 +220,7 @@ class OidcSigningKeyService
 
             $retiringSince = $key['retiring_since'] ?? null;
 
-            if (! is_string($retiringSince) || trim($retiringSince) === '') {
+            if (! \is_string($retiringSince) || trim($retiringSince) === '') {
                 return null;
             }
 
@@ -272,7 +272,7 @@ class OidcSigningKeyService
             }
         }
 
-        throw new RuntimeException(sprintf('OIDC signing key [%s] is not configured.', $normalizedKid));
+        throw new RuntimeException(\sprintf('OIDC signing key [%s] is not configured.', $normalizedKid));
     }
 
     /**
@@ -291,7 +291,7 @@ class OidcSigningKeyService
         $details = $this->publicKeyDetails($signingKey);
         $rsa = $details['rsa'] ?? null;
 
-        if (! is_array($rsa) || ! isset($rsa['n'], $rsa['e'])) {
+        if (! \is_array($rsa) || ! isset($rsa['n'], $rsa['e'])) {
             throw new RuntimeException('OIDC signing public key must be an RSA key.');
         }
 
@@ -392,7 +392,7 @@ class OidcSigningKeyService
     {
         $configured = $this->configuredRegistryKeys();
 
-        if ((! is_array($configured) || $configured === [])
+        if ((! \is_array($configured) || $configured === [])
             && (config('oidc.signing.kid') !== null || config('oidc.signing.public_key_path') !== null)
         ) {
             $configured = [[
@@ -405,7 +405,7 @@ class OidcSigningKeyService
             ]];
         }
 
-        if (! is_array($configured) || $configured === []) {
+        if (! \is_array($configured) || $configured === []) {
             throw new RuntimeException('OIDC signing key configuration is missing.');
         }
 
@@ -413,8 +413,8 @@ class OidcSigningKeyService
         $seenKids = [];
 
         foreach ($configured as $index => $key) {
-            if (! is_array($key)) {
-                throw new RuntimeException(sprintf('OIDC signing key definition at index [%d] is invalid.', $index));
+            if (! \is_array($key)) {
+                throw new RuntimeException(\sprintf('OIDC signing key definition at index [%d] is invalid.', $index));
             }
 
             $kid = trim((string) ($key['kid'] ?? ''));
@@ -424,19 +424,19 @@ class OidcSigningKeyService
             $status = $this->normalizeStatus($key, $kid);
 
             if ($kid === '') {
-                throw new RuntimeException(sprintf('OIDC signing key definition at index [%d] is missing kid.', $index));
+                throw new RuntimeException(\sprintf('OIDC signing key definition at index [%d] is missing kid.', $index));
             }
 
             if (isset($seenKids[$kid])) {
-                throw new RuntimeException(sprintf('OIDC signing kid [%s] is duplicated.', $kid));
+                throw new RuntimeException(\sprintf('OIDC signing kid [%s] is duplicated.', $kid));
             }
 
             if ($alg !== 'RS256') {
-                throw new RuntimeException(sprintf('Unsupported OIDC signing algorithm [%s].', $alg));
+                throw new RuntimeException(\sprintf('Unsupported OIDC signing algorithm [%s].', $alg));
             }
 
             if ($publicKeyPath === null) {
-                throw new RuntimeException(sprintf('OIDC signing key [%s] is missing a public key path.', $kid));
+                throw new RuntimeException(\sprintf('OIDC signing key [%s] is missing a public key path.', $kid));
             }
 
             $keys[] = [
@@ -444,7 +444,7 @@ class OidcSigningKeyService
                 'alg' => $alg,
                 'private_key_path' => $privateKeyPath,
                 'public_key_path' => $publicKeyPath,
-                'published' => in_array($status, self::verificationStatuses(), true),
+                'published' => \in_array($status, self::verificationStatuses(), true),
                 'active' => (bool) ($key['active'] ?? false),
                 'status' => $status,
                 'activated_at' => $this->normalizeTimestamp($key['activated_at'] ?? null),
@@ -466,7 +466,7 @@ class OidcSigningKeyService
         $activeKid = $this->configuredActiveKid($keys);
 
         if ($activeKid !== '' && $activeKid !== $activeKeys[0]['kid']) {
-            throw new RuntimeException(sprintf(
+            throw new RuntimeException(\sprintf(
                 'OIDC signing active_kid [%s] does not match lifecycle active key [%s].',
                 $activeKid,
                 $activeKeys[0]['kid'],
@@ -483,19 +483,19 @@ class OidcSigningKeyService
         if ($this->usesExternalRegistry()) {
             $json = file_get_contents($registryPath);
 
-            if (! is_string($json) || trim($json) === '') {
+            if (! \is_string($json) || trim($json) === '') {
                 throw new RuntimeException('OIDC signing key registry file is unreadable.');
             }
 
             $decoded = json_decode($json, true);
 
-            if (! is_array($decoded)) {
+            if (! \is_array($decoded)) {
                 throw new RuntimeException('OIDC signing key registry file is invalid JSON.');
             }
 
             $keys = $decoded['keys'] ?? $decoded;
 
-            if (! is_array($keys)) {
+            if (! \is_array($keys)) {
                 throw new RuntimeException('OIDC signing key registry file does not contain a keys array.');
             }
 
@@ -504,7 +504,7 @@ class OidcSigningKeyService
 
         $configured = config('oidc.signing.keys', []);
 
-        return is_array($configured) ? $configured : [];
+        return \is_array($configured) ? $configured : [];
     }
 
     private function normalizeStatus(array $key, string $kid): string
@@ -524,8 +524,8 @@ class OidcSigningKeyService
             }
         }
 
-        if (! in_array($status, self::lifecycleStatuses(), true)) {
-            throw new RuntimeException(sprintf('OIDC signing key [%s] has invalid lifecycle status [%s].', $kid, $status));
+        if (! \in_array($status, self::lifecycleStatuses(), true)) {
+            throw new RuntimeException(\sprintf('OIDC signing key [%s] has invalid lifecycle status [%s].', $kid, $status));
         }
 
         return $status;
@@ -538,7 +538,7 @@ class OidcSigningKeyService
 
     private function normalizeTimestamp(mixed $value): ?string
     {
-        if (! is_string($value)) {
+        if (! \is_string($value)) {
             return null;
         }
 
@@ -551,7 +551,7 @@ class OidcSigningKeyService
         try {
             return Carbon::parse($value)->toIso8601String();
         } catch (\Throwable) {
-            throw new RuntimeException(sprintf('OIDC signing key lifecycle timestamp [%s] is invalid.', $value));
+            throw new RuntimeException(\sprintf('OIDC signing key lifecycle timestamp [%s] is invalid.', $value));
         }
     }
 
@@ -579,13 +579,13 @@ class OidcSigningKeyService
     {
         $path = $key['private_key_path'];
 
-        if (! is_string($path) || $path === '' || ! is_file($path)) {
+        if (! \is_string($path) || $path === '' || ! \is_file($path)) {
             throw new RuntimeException('OIDC signing private key path is missing or invalid.');
         }
 
         $pem = file_get_contents($path);
 
-        if (! is_string($pem) || trim($pem) === '') {
+        if (! \is_string($pem) || trim($pem) === '') {
             throw new RuntimeException('OIDC signing private key file is unreadable.');
         }
 
@@ -599,7 +599,7 @@ class OidcSigningKeyService
         try {
             $details = openssl_pkey_get_details($publicKey);
 
-            if (! is_array($details)) {
+            if (! \is_array($details)) {
                 throw new RuntimeException('OIDC signing public key details are unavailable.');
             }
 
@@ -613,13 +613,13 @@ class OidcSigningKeyService
     {
         $path = $key['public_key_path'];
 
-        if (! is_string($path) || $path === '' || ! is_file($path)) {
+        if (! \is_string($path) || $path === '' || ! \is_file($path)) {
             throw new RuntimeException('OIDC signing public key path is missing or invalid.');
         }
 
         $pem = file_get_contents($path);
 
-        if (! is_string($pem) || trim($pem) === '') {
+        if (! \is_string($pem) || trim($pem) === '') {
             throw new RuntimeException('OIDC signing public key file is unreadable.');
         }
 
@@ -634,7 +634,7 @@ class OidcSigningKeyService
 
     private function normalizePath(mixed $path): ?string
     {
-        if (! is_string($path)) {
+        if (! \is_string($path)) {
             return null;
         }
 
@@ -662,7 +662,7 @@ class OidcSigningKeyService
         $configuredRegistry = config('oidc.signing.keys', []);
         $activeKid = trim((string) config('oidc.signing.active_kid', ''));
 
-        if ((! is_array($configuredRegistry) || $configuredRegistry === []) && config('oidc.signing.kid') !== null) {
+        if ((! \is_array($configuredRegistry) || $configuredRegistry === []) && config('oidc.signing.kid') !== null) {
             return trim((string) config('oidc.signing.kid', ''));
         }
 
@@ -683,7 +683,7 @@ class OidcSigningKeyService
     {
         $registryPath = $this->normalizePath(config('oidc.signing.registry_path'));
 
-        return is_string($registryPath) && is_file($registryPath);
+        return \is_string($registryPath) && \is_file($registryPath);
     }
 
     private function base64UrlEncode(string $value): string

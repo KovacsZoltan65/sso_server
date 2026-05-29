@@ -167,7 +167,7 @@ class PermissionService
     {
         $permissions = $this->permissions->getByIds($ids);
 
-        if ($permissions->count() !== count($ids)) {
+        if ($permissions->count() !== \count($ids)) {
             throw new RuntimeException('One or more selected permissions could not be found.');
         }
 

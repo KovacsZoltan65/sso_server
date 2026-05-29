@@ -51,7 +51,7 @@ return new class extends Migration
             $updatedAt = $client->updated_at ?? now();
 
             $redirectUris = json_decode((string) ($client->redirect_uris ?? '[]'), true);
-            if (is_array($redirectUris)) {
+            if (\is_array($redirectUris)) {
                 $seenUris = [];
                 foreach (array_values($redirectUris) as $index => $uri) {
                     $normalizedUri = trim((string) $uri);
@@ -72,7 +72,7 @@ return new class extends Migration
             }
 
             $scopeCodes = json_decode((string) ($client->scopes ?? '[]'), true);
-            if (is_array($scopeCodes)) {
+            if (\is_array($scopeCodes)) {
                 $seenScopes = [];
                 foreach ($scopeCodes as $scopeCode) {
                     $normalizedScopeCode = trim((string) $scopeCode);

@@ -19,6 +19,7 @@ class SsoClientFactory extends Factory
         return [
             'name' => fake()->company(),
             'client_id' => 'client_'.Str::lower(Str::random(24)),
+            'client_type' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
             'client_secret_hash' => Hash::make(Str::random(48)),
             'redirect_uris' => [
                 fake()->url(),

@@ -66,7 +66,7 @@ class OidcIdTokenService
             $claims['sid'] = $sid;
         }
 
-        return array_merge(
+        return \array_merge(
             $claims,
             $this->claimPolicyService->idTokenIdentityClaimsForAuthorizationCode($authorizationCode, $subject),
         );

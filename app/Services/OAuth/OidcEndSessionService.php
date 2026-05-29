@@ -69,8 +69,8 @@ class OidcEndSessionService
                 'client_id' => $client?->id,
                 'client_public_id' => $client?->client_id,
                 'redirect_uri' => $redirectUri,
-                'frontchannel_target_count' => count($frontChannelTargets),
-                'backchannel_target_count' => count($backChannelTargets),
+                'frontchannel_target_count' => \count($frontChannelTargets),
+                'backchannel_target_count' => \count($backChannelTargets),
                 'status' => 'completed',
             ],
         );
@@ -119,8 +119,8 @@ class OidcEndSessionService
                 subject: $client,
                 causer: null,
                 properties: [
-                    'frontchannel_target_count' => count($frontChannelTargets),
-                    'backchannel_target_count' => count($backChannelTargets),
+                    'frontchannel_target_count' => \count($frontChannelTargets),
+                    'backchannel_target_count' => \count($backChannelTargets),
                     'status' => 'completed_provider_side',
                 ],
             );
@@ -185,7 +185,7 @@ class OidcEndSessionService
 
     private function normalizeString(mixed $value): ?string
     {
-        if (! is_string($value)) {
+        if (! \is_string($value)) {
             return null;
         }
 

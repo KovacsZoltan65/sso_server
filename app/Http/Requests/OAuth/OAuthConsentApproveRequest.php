@@ -15,7 +15,13 @@ class OAuthConsentApproveRequest extends FormRequest
     {
         return [
             'consent_token' => ['required', 'string', 'size:64', 'regex:/^[a-f0-9]+$/'],
+            'remember_consent' => ['sometimes', 'boolean'],
         ];
+    }
+
+    public function rememberConsent(): bool
+    {
+        return $this->boolean('remember_consent');
     }
 
     protected function prepareForValidation(): void

@@ -8,6 +8,7 @@ use App\Http\Requests\Admin\RevokeTokenRequest;
 use App\Http\Requests\Admin\TokenIndexRequest;
 use App\Models\Token;
 use App\Services\TokenManagementService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Inertia\Inertia;
@@ -21,7 +22,7 @@ class TokenController extends Controller
     
     /**
      * @param TokenIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(TokenIndexRequest $request): Response
     {
@@ -61,7 +62,7 @@ class TokenController extends Controller
         );
 
         return $this->successResponse(
-            message: __('api.tokens.revoked'),
+            message: Localization::translate('api.tokens.revoked'),
             data: ['id' => $token->id],
         );
     }
@@ -81,16 +82,16 @@ class TokenController extends Controller
             );
         } catch (ModelNotFoundException) {
             return $this->errorResponse(
-                message: __('api.tokens.family_not_found'),
-                errors: ['family_id' => [__('api.tokens.family_not_found')]],
+                message: Localization::translate('api.tokens.family_not_found'),
+                errors: ['family_id' => [Localization::translate('api.tokens.family_not_found')]],
                 status: 404,
             );
         }
 
         return $this->successResponse(
             message: $result['already_revoked']
-                ? __('api.tokens.family_already_revoked')
-                : __('api.tokens.family_revoked'),
+                ? Localization::translate('api.tokens.family_already_revoked')
+                : Localization::translate('api.tokens.family_revoked'),
             data: $result,
         );
     }

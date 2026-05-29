@@ -18,6 +18,8 @@ uses(RefreshDatabase::class);
 
 beforeEach(function (): void {
     $this->withoutVite();
+    app()->setLocale('en');
+    config()->set('app.locale', 'en');
     config()->set('oidc.issuer', 'https://sso-server.test');
     config()->set('oidc.id_token_ttl_seconds', 300);
     config()->set('oidc.signing.alg', 'RS256');

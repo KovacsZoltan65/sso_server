@@ -193,7 +193,7 @@ class UserService
     {
         $users = $this->users->getByIds($ids);
 
-        if ($users->count() !== count($ids)) {
+        if ($users->count() !== \count($ids)) {
             throw new RuntimeException('One or more selected users could not be found.');
         }
 
@@ -228,7 +228,7 @@ class UserService
 
     public function isProtectedUser(User $user): bool
     {
-        return in_array($user->email, $this->protectedUserEmails, true)
+        return \in_array($user->email, $this->protectedUserEmails, true)
             || $user->hasRole('superadmin');
     }
 

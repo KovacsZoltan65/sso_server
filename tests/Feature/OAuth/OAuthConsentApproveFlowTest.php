@@ -56,7 +56,7 @@ function consentApproveClient(array $policyOverrides = []): SsoClient
 
 function consentAuthorizeParams(SsoClient $client, array $overrides = []): array
 {
-    return array_merge([
+    return \array_merge([
         'response_type' => 'code',
         'client_id' => $client->client_id,
         'redirect_uri' => 'https://portal.example.com/callback',
@@ -78,7 +78,7 @@ function prepareConsentTokenFor(User $user, SsoClient $client, array $overrides 
     return (string) $response->viewData('page')['props']['consentToken'];
 }
 
-it('approves a valid consent token and redirects back with code and state', function (): void {
+it('approves a valid consent token without automatically remembering the decision', function (): void {
     $client = consentApproveClient();
     $user = User::factory()->create();
     $token = prepareConsentTokenFor($user, $client);
@@ -105,11 +105,7 @@ it('approves a valid consent token and redirects back with code and state', func
         'nonce' => 'approve-nonce',
     ]);
 
-    $grant = UserClientConsent::query()->where('user_id', $user->id)->where('client_id', $client->id)->first();
-
-    expect($grant)->not->toBeNull()
-        ->and($grant?->granted_scope_codes)->toBe(['openid', 'profile'])
-        ->and($grant?->revoked_at)->toBeNull();
+    expect(UserClientConsent::query()->where('user_id', $user->id)->where('client_id', $client->id)->count())->toBe(0);
 
     expect(session('oauth.consent_contexts', []))->not->toHaveKey($token);
     $this->assertDatabaseHas('activity_log', [
@@ -117,7 +113,85 @@ it('approves a valid consent token and redirects back with code and state', func
         'event' => 'oauth.consent.approved',
         'description' => 'OAuth consent approved.',
     ]);
+    $this->assertDatabaseMissing('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.consent.remembered',
+    ]);
 });
+
+it('stores remembered consent only when explicitly requested', function (): void {
+    $client = consentApproveClient();
+    $user = User::factory()->create();
+    $token = prepareConsentTokenFor($user, $client);
+
+    $response = $this->actingAs($user)->post(route('oauth.authorize.approve'), [
+        'consent_token' => $token,
+        'remember_consent' => true,
+    ]);
+
+    $response->assertRedirect();
+    $location = $response->headers->get('Location');
+
+    parse_str(parse_url($location, PHP_URL_QUERY) ?: '', $query);
+
+    expect($query['code'] ?? null)->not->toBeNull();
+
+    $grant = UserClientConsent::query()->where('user_id', $user->id)->where('client_id', $client->id)->first();
+
+    expect($grant)->not->toBeNull()
+        ->and($grant?->granted_scope_codes)->toBe(['openid', 'profile'])
+        ->and($grant?->revoked_at)->toBeNull()
+        ->and($grant?->expires_at)->not->toBeNull();
+
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.consent.approved',
+        'description' => 'OAuth consent approved.',
+    ]);
+    $this->assertDatabaseHas('activity_log', [
+        'log_name' => 'oauth',
+        'event' => 'oauth.consent.remembered',
+        'description' => 'OAuth consent remembered.',
+    ]);
+});
+
+it('handles remember_consent boolean compatibility explicitly', function (mixed $submittedValue, bool $shouldRemember): void {
+    $client = consentApproveClient();
+    $user = User::factory()->create();
+    $token = prepareConsentTokenFor($user, $client);
+
+    $payload = ['consent_token' => $token];
+
+    if ($submittedValue !== '__missing') {
+        $payload['remember_consent'] = $submittedValue;
+    }
+
+    $this->actingAs($user)
+        ->post(route('oauth.authorize.approve'), $payload)
+        ->assertRedirect();
+
+    expect(AuthorizationCode::query()->count())->toBe(1)
+        ->and(UserClientConsent::query()->where('user_id', $user->id)->where('client_id', $client->id)->count())
+        ->toBe($shouldRemember ? 1 : 0);
+
+    if ($shouldRemember) {
+        $this->assertDatabaseHas('activity_log', [
+            'log_name' => 'oauth',
+            'event' => 'oauth.consent.remembered',
+        ]);
+    } else {
+        $this->assertDatabaseMissing('activity_log', [
+            'log_name' => 'oauth',
+            'event' => 'oauth.consent.remembered',
+        ]);
+    }
+})->with([
+    'missing' => ['__missing', false],
+    'string zero' => ['0', false],
+    'boolean false' => [false, false],
+    'string one' => ['1', true],
+    'boolean true' => [true, true],
+]);
 
 it('omits state from the callback when the original authorize request had none', function (): void {
     $client = consentApproveClient();

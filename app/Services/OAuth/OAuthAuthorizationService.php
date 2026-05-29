@@ -11,6 +11,7 @@ use App\Services\ClientUserAccessService;
 use App\Services\Audit\AuditLogService;
 use App\Data\OAuth\OAuthTrustDecisionResult;
 use App\Exceptions\OAuth\OAuthConsentContextNotFoundException;
+use App\Support\Localization;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -102,7 +103,7 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: __('api.oauth.authorization_denied'),
+                message: Localization::translate('api.oauth.authorization_denied'),
                 client: $client,
                 properties: [
                     'reason' => (string) $accessDecision['reason'],
@@ -116,12 +117,14 @@ class OAuthAuthorizationService
                 ],
             );
 
+            $accessDeniedDescription = Localization::translate('api.oauth.access_denied');
+
             return [
                 'type' => 'redirect',
                 'redirect_url' => $this->buildAuthorizationErrorRedirect(
                     redirectUri: $redirectUri,
                     error: 'access_denied',
-                    description: __('messages.forbidden'),
+                    description: $accessDeniedDescription,
                     state: Arr::get($payload, 'state'),
                 ),
             ];
@@ -158,7 +161,7 @@ class OAuthAuthorizationService
                 'redirect_url' => $this->buildAuthorizationErrorRedirect(
                     redirectUri: $redirectUri,
                     error: 'access_denied',
-                    description: __('messages.forbidden'),
+                    description: Localization::translate('api.oauth.access_denied'),
                     state: Arr::get($payload, 'state'),
                 ),
             ];
@@ -203,8 +206,8 @@ class OAuthAuthorizationService
             'client' => $this->buildConsentClientView($client, $redirectUri),
             'scopes' => $this->buildConsentScopeView($client, $requestedScopes),
             'summary' => [
-                'title' => sprintf('%s is requesting access to your account.', $this->resolveClientDisplayName($client)),
-                'description' => __('api.oauth.consent.review_description'),
+                'title' => \sprintf('%s is requesting access to your account.', $this->resolveClientDisplayName($client)),
+                'description' => Localization::translate('api.oauth.consent.review_description'),
             ],
         ];
     }
@@ -235,7 +238,7 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: __('api.oauth.authorization_denied'),
+                message: Localization::translate('api.oauth.authorization_denied'),
                 client: $client,
                 properties: [
                     'reason' => (string) $accessDecision['reason'],
@@ -253,7 +256,7 @@ class OAuthAuthorizationService
                 'redirect_url' => $this->buildAuthorizationErrorRedirect(
                     redirectUri: $redirectUri,
                     error: 'access_denied',
-                    description: __('messages.forbidden'),
+                    description: Localization::translate('api.oauth.access_denied'),
                     state: Arr::get($payload, 'state'),
                 ),
                 'code' => null,
@@ -280,13 +283,19 @@ class OAuthAuthorizationService
      *
      * @return AuthorizationApproval
      */
-    public function approveConsent(User $user, string $consentToken): array
+    public function approveConsent(
+        User $user,
+        string $consentToken,
+        bool $rememberConsent = false,
+        ?string $ipAddress = null,
+        ?string $userAgent = null,
+    ): array
     {
         try {
             $context = $this->consentContextService->getContextByToken($consentToken);
         } catch (OAuthConsentContextNotFoundException) {
             throw ValidationException::withMessages([
-                'consent_token' => __('api.oauth.consent.token_invalid'),
+                'consent_token' => Localization::translate('api.oauth.consent.token_invalid'),
             ]);
         }
 
@@ -294,7 +303,7 @@ class OAuthAuthorizationService
             $this->consentContextService->invalidateContext($consentToken);
 
             throw ValidationException::withMessages([
-                'consent_token' => __('api.oauth.consent.token_user_mismatch'),
+                'consent_token' => Localization::translate('api.oauth.consent.token_user_mismatch'),
             ]);
         }
 
@@ -310,13 +319,13 @@ class OAuthAuthorizationService
             $this->consentContextService->invalidateContext($consentToken);
 
             throw ValidationException::withMessages([
-                'consent_token' => __('api.oauth.consent.token_client_invalid'),
+                'consent_token' => Localization::translate('api.oauth.consent.token_client_invalid'),
             ]);
         }
 
         $policy = $this->resolvePolicy($client);
 
-        $result = DB::transaction(function () use ($client, $user, $policy, $context): array {
+        $result = DB::transaction(function () use ($client, $user, $policy, $context, $rememberConsent, $ipAddress, $userAgent): array {
             $result = $this->issueAuthorizationCode(
                 client: $client,
                 user: $user,
@@ -329,13 +338,6 @@ class OAuthAuthorizationService
                 codeChallengeMethod: $context->codeChallengeMethod ?? '',
             );
 
-            $this->rememberedConsentService->storeApprovedConsent(
-                user: $user,
-                client: $client,
-                scopeCodes: $context->requestedScopes,
-                redirectUri: $context->redirectUri,
-            );
-
             $this->auditLogService->logSuccess(
                 logName: AuditLogService::LOG_OAUTH,
                 event: 'oauth.consent.approved',
@@ -346,8 +348,37 @@ class OAuthAuthorizationService
                     'client_id' => $client->id,
                     'client_public_id' => $client->client_id,
                     'scope_codes' => $context->requestedScopes,
+                    'ip_address' => $ipAddress,
+                    'user_agent' => $userAgent,
                 ],
             );
+
+            if ($rememberConsent === true) {
+                $rememberedConsent = $this->rememberedConsentService->storeApprovedConsent(
+                    user: $user,
+                    client: $client,
+                    scopeCodes: $context->requestedScopes,
+                    redirectUri: $context->redirectUri,
+                );
+
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_OAUTH,
+                    event: 'oauth.consent.remembered',
+                    description: 'OAuth consent remembered.',
+                    subject: $rememberedConsent,
+                    causer: $user,
+                    properties: [
+                        'user_id' => $user->id,
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
+                        'consent_id' => $rememberedConsent->id,
+                        'scope_codes' => $context->requestedScopes,
+                        'expires_at' => $rememberedConsent->expires_at?->toIso8601String(),
+                        'ip_address' => $ipAddress,
+                        'user_agent' => $userAgent,
+                    ],
+                );
+            }
 
             return $result;
         });
@@ -368,7 +399,7 @@ class OAuthAuthorizationService
             $context = $this->consentContextService->getContextByToken($consentToken);
         } catch (OAuthConsentContextNotFoundException) {
             throw ValidationException::withMessages([
-                'consent_token' => __('api.oauth.consent.token_invalid'),
+                'consent_token' => Localization::translate('api.oauth.consent.token_invalid'),
             ]);
         }
 
@@ -376,14 +407,14 @@ class OAuthAuthorizationService
             $this->consentContextService->invalidateContext($consentToken);
 
             throw ValidationException::withMessages([
-                'consent_token' => __('api.oauth.consent.token_user_mismatch'),
+                'consent_token' => Localization::translate('api.oauth.consent.token_user_mismatch'),
             ]);
         }
 
         $redirectUrl = $this->buildAuthorizationErrorRedirect(
             redirectUri: $context->redirectUri,
             error: 'access_denied',
-            description: __('messages.forbidden'),
+            description: Localization::translate('api.oauth.access_denied'),
             state: $context->state,
         );
 
@@ -438,7 +469,7 @@ class OAuthAuthorizationService
         string $codeChallengeMethod,
     ): array {
         $plainCode = Str::random(64);
-        $sid = in_array('openid', $requestedScopes, true)
+        $sid = \in_array('openid', $requestedScopes, true)
             ? $this->oidcSessionService->issueSidForClientSession($client, $user)
             : null;
 
@@ -470,7 +501,7 @@ class OAuthAuthorizationService
                     'scope_codes' => $requestedScopes,
                     'redirect_uri' => $redirectUri,
                     'has_nonce' => $nonce !== null && $nonce !== '',
-                    'scope_contains_openid' => in_array('openid', $requestedScopes, true),
+                    'scope_contains_openid' => \in_array('openid', $requestedScopes, true),
                 ],
             );
 
@@ -530,7 +561,7 @@ class OAuthAuthorizationService
         $this->logAuthorizationFailure(
             user: $user,
             event: 'oauth.authorization.denied',
-            message: __('api.oauth.authorization_denied'),
+            message: Localization::translate('api.oauth.authorization_denied'),
             properties: [
                 'client_public_id' => (string) $payload['client_id'],
                 'reason' => 'invalid_client',
@@ -538,7 +569,7 @@ class OAuthAuthorizationService
         );
 
         throw ValidationException::withMessages([
-            'client_id' => __('api.oauth.client_invalid_or_inactive'),
+            'client_id' => Localization::translate('api.oauth.client_invalid_or_inactive'),
         ]);
     }
 
@@ -551,7 +582,7 @@ class OAuthAuthorizationService
         $this->logAuthorizationFailure(
             user: $user,
             event: 'oauth.authorization.denied',
-            message: __('api.oauth.authorization_denied'),
+            message: Localization::translate('api.oauth.authorization_denied'),
             client: $client,
             properties: [
                 'reason' => 'redirect_uri_mismatch',
@@ -562,7 +593,7 @@ class OAuthAuthorizationService
         );
 
         throw ValidationException::withMessages([
-            'redirect_uri' => __('api.oauth.redirect_uri_mismatch'),
+            'redirect_uri' => Localization::translate('api.oauth.redirect_uri_mismatch'),
         ]);
     }
 
@@ -581,11 +612,11 @@ class OAuthAuthorizationService
         }
 
         foreach ($requested as $scope) {
-            if (! in_array($scope, $allowed, true)) {
+            if (! \in_array($scope, $allowed, true)) {
                 $this->logAuthorizationFailure(
                     user: $user,
                     event: 'oauth.authorization.denied',
-                    message: __('api.oauth.authorization_denied'),
+                    message: Localization::translate('api.oauth.authorization_denied'),
                     client: $client,
                     properties: [
                         'reason' => 'scope_not_allowed',
@@ -596,7 +627,7 @@ class OAuthAuthorizationService
                 );
 
                 throw ValidationException::withMessages([
-                    'scope' => sprintf('The requested scope [%s] is not allowed for this client.', $scope),
+                    'scope' => Localization::translate('api.oauth.scope_not_allowed', ['scope' => $scope]),
                 ]);
             }
         }
@@ -615,7 +646,7 @@ class OAuthAuthorizationService
             $this->logAuthorizationFailure(
                 user: $user,
                 event: 'oauth.authorization.denied',
-                message: __('api.oauth.authorization_denied'),
+                message: Localization::translate('api.oauth.authorization_denied'),
                 client: $client,
                 properties: [
                     'reason' => 'pkce_required',
@@ -625,13 +656,13 @@ class OAuthAuthorizationService
             );
 
             throw ValidationException::withMessages([
-                'code_challenge' => __('api.oauth.pkce_required'),
+                'code_challenge' => Localization::translate('api.oauth.pkce_required'),
             ]);
         }
 
         if ($codeChallenge !== '' && $codeChallengeMethod !== 'S256') {
             throw ValidationException::withMessages([
-                'code_challenge_method' => __('api.oauth.code_challenge_method_s256'),
+                'code_challenge_method' => Localization::translate('api.oauth.code_challenge_method_s256'),
             ]);
         }
     }
@@ -690,14 +721,14 @@ class OAuthAuthorizationService
     private function buildConsentClientView(SsoClient $client, string $redirectUri): array
     {
         $parsedRedirectUri = parse_url($redirectUri);
-        $originHost = is_array($parsedRedirectUri) ? ($parsedRedirectUri['host'] ?? null) : null;
-        $returnPath = is_array($parsedRedirectUri) ? ($parsedRedirectUri['path'] ?? null) : null;
+        $originHost = \is_array($parsedRedirectUri) ? ($parsedRedirectUri['host'] ?? null) : null;
+        $returnPath = \is_array($parsedRedirectUri) ? ($parsedRedirectUri['path'] ?? null) : null;
 
         return [
             'name' => $this->resolveClientDisplayName($client),
             'description' => $this->resolveClientDescription($client),
-            'originHost' => is_string($originHost) && trim($originHost) !== '' ? strtolower(trim($originHost)) : null,
-            'returnPath' => is_string($returnPath) && trim($returnPath) !== '' ? trim($returnPath) : null,
+            'originHost' => \is_string($originHost) && trim($originHost) !== '' ? strtolower(trim($originHost)) : null,
+            'returnPath' => \is_string($returnPath) && trim($returnPath) !== '' ? trim($returnPath) : null,
             'trustLabel' => $this->resolveConsentTrustLabel($client),
             'trustDescription' => $this->resolveConsentTrustDescription($client),
         ];
@@ -754,7 +785,7 @@ class OAuthAuthorizationService
      */
     private function logNonceAccepted(User $user, SsoClient $client, array $requestedScopes, string $nonce): void
     {
-        if (! in_array('openid', $requestedScopes, true)) {
+        if (! \in_array('openid', $requestedScopes, true)) {
             return;
         }
 
@@ -778,7 +809,7 @@ class OAuthAuthorizationService
     {
         $this->auditLogService->logSuccess(
             logName: AuditLogService::LOG_OAUTH,
-            event: sprintf('oauth.trust_decision.%s', $decision->decision->value),
+            event: \sprintf('oauth.trust_decision.%s', $decision->decision->value),
             description: 'OAuth trust policy decision evaluated.',
             subject: $client,
             causer: $user,

@@ -3,6 +3,7 @@ import PublicAuthLayout from '@/Layouts/PublicAuthLayout.vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import { trans } from 'laravel-vue-i18n';
 import Button from 'primevue/button';
+import Checkbox from 'primevue/checkbox';
 
 const props = defineProps({
     consentToken: {
@@ -34,6 +35,7 @@ const outcomeCopy = {
 
 const approveForm = useForm({
     consent_token: props.consentToken,
+    remember_consent: false,
 });
 
 const denyForm = useForm({
@@ -122,6 +124,10 @@ const submitDeny = () => {
             <div class="grid gap-3 sm:grid-cols-2">
                 <form @submit.prevent="submitApprove">
                     <p class="mb-2 text-xs leading-5 text-slate-500">{{ outcomeCopy.approve }}</p>
+                    <label class="mb-4 flex items-start gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-700">
+                        <Checkbox v-model="approveForm.remember_consent" binary input-id="remember-consent" />
+                        <span>{{ trans('pages.consent.remember_decision') }}</span>
+                    </label>
                     <Button
                         type="submit"
                         :label="trans('actions.approve')"

@@ -7,7 +7,7 @@ import Card from "primevue/card";
 import Timeline from "primevue/timeline";
 import Tag from "primevue/tag";
 import { computed } from "vue";
-import { trans } from "laravel-vue-i18n/*";
+import { trans } from "laravel-vue-i18n";
 
 const props = defineProps({
     page: {

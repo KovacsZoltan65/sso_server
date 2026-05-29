@@ -49,7 +49,7 @@ function consentClient(array $policyOverrides = [], array $clientOverrides = [])
 
 function consentPayload(SsoClient $client, array $overrides = []): array
 {
-    return array_merge([
+    return \array_merge([
         'response_type' => 'code',
         'client_id' => $client->client_id,
         'redirect_uri' => 'https://portal.example.com/callback',

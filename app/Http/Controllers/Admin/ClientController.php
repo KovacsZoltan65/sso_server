@@ -11,6 +11,7 @@ use App\Http\Requests\Admin\ClientUpdateRequest;
 use App\Models\ClientSecret;
 use App\Models\SsoClient;
 use App\Services\ClientService;
+use App\Support\Localization;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Inertia\Inertia;
@@ -25,7 +26,7 @@ class ClientController extends Controller
     /**
      * Rendereld a kliens indexoldalát az aktuális szűrő-, rendezési és tördelési hasznos adattartalommal.
      * @param ClientIndexRequest $request
-     * @return \Inertia\Response
+     * @return Response
      */
     public function index(ClientIndexRequest $request): Response
     {
@@ -71,7 +72,7 @@ class ClientController extends Controller
 
         return redirect()
             ->route('admin.sso-clients.index')
-            ->with('success', __('api.clients.created'))
+            ->with('success', Localization::translate('api.clients.created'))
             ->with('clientSecret', [
                 'clientId' => $result['client']->client_id,
                 'secret' => $result['plainSecret'],
@@ -81,7 +82,7 @@ class ClientController extends Controller
     /**
      * Rendereld az ügyfél szerkesztési oldalát és a titkoskezelési metaadatait.
      * @param SsoClient $ssoClient
-     * @return \Inertia\Response
+     * @return Response
      */
     public function edit(SsoClient $ssoClient): Response
     {
@@ -106,7 +107,7 @@ class ClientController extends Controller
 
         return redirect()
             ->route('admin.sso-clients.index')
-            ->with('success', __('api.clients.updated'));
+            ->with('success', Localization::translate('api.clients.updated'));
     }
 
     /**
@@ -125,7 +126,7 @@ class ClientController extends Controller
 
         return redirect()
             ->route('admin.sso-clients.edit', $ssoClient)
-            ->with('success', __('api.clients.secret_rotated'))
+            ->with('success', Localization::translate('api.clients.secret_rotated'))
             ->with('clientSecret', [
                 'clientId' => $result['client']->client_id,
                 'secret' => $result['plainSecret'],
@@ -150,14 +151,14 @@ class ClientController extends Controller
 
         if ($request->expectsJson()) {
             return $this->successResponse(
-                message: __('api.clients.secret_revoked'),
+                message: Localization::translate('api.clients.secret_revoked'),
                 data: ['id' => $clientSecret->id],
             );
         }
 
         return redirect()
             ->route('admin.sso-clients.edit', $ssoClient)
-            ->with('success', __('api.clients.secret_revoked'));
+            ->with('success', Localization::translate('api.clients.secret_revoked'));
     }
 
     /**
@@ -173,13 +174,13 @@ class ClientController extends Controller
 
         if (request()->expectsJson()) {
             return $this->successResponse(
-                message: __('api.clients.deleted'),
+                message: Localization::translate('api.clients.deleted'),
                 data: ['id' => $ssoClient->id],
             );
         }
 
         return redirect()
             ->route('admin.sso-clients.index')
-            ->with('success', __('api.clients.deleted'));
+            ->with('success', Localization::translate('api.clients.deleted'));
     }
 }

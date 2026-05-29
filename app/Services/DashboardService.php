@@ -36,8 +36,8 @@ class DashboardService
                 ])
                 ->all(),
             'permissionGroups' => [
-                'core' => count(\App\Support\SsoPermissions::grouped()['core']),
-                'sso' => count(\App\Support\SsoPermissions::grouped()['sso']),
+                'core' => \count(\App\Support\SsoPermissions::grouped()['core']),
+                'sso' => \count(\App\Support\SsoPermissions::grouped()['sso']),
             ],
         ];
     }

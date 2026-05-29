@@ -113,7 +113,7 @@ class AuthorizationCode extends Model
 
     public function requiresIdentityNonceValidation(): bool
     {
-        return in_array('openid', $this->scopes ?? [], true);
+        return \in_array('openid', $this->scopes ?? [], true);
     }
 
     /**

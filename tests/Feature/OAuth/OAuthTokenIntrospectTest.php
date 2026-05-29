@@ -15,6 +15,11 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
+beforeEach(function (): void {
+    app()->setLocale('en');
+    config()->set('app.locale', 'en');
+});
+
 it('introspects an active access token for the authenticated client', function (): void {
     $user = User::factory()->create();
     $policy = TokenPolicy::factory()->create(['is_active' => true]);
@@ -303,14 +308,14 @@ it('rejects introspection with invalid client credentials', function (): void {
         'token' => str_repeat('x', 40),
         'token_type_hint' => 'access_token',
     ])
-        ->assertStatus(422)
+        ->assertUnauthorized()
         ->assertExactJson([
-            'message' => 'Token introspection failed.',
+            'message' => 'Invalid client credentials.',
             'data' => [],
             'meta' => [],
             'errors' => [
-                'client_secret' => [
-                    'The provided client secret is invalid.',
+                'client' => [
+                    'Invalid client credentials.',
                 ],
             ],
         ]);

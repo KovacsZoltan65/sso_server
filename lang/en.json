@@ -242,6 +242,7 @@
     "pages.consent.outcome_approve_generic": "Approve to continue back to the requesting application.",
     "pages.consent.outcome_deny_with_host": "Deny to return safely to :host without sharing these permissions.",
     "pages.consent.outcome_deny_generic": "Deny to stop this request without sharing these permissions.",
+    "pages.consent.remember_decision": "Remember this decision for this application and scope set.",
     "pages.consent.footer_note": "Both decisions rely on the server-side consent token.",
     "pages.clients.items": "clients",
     "pages.scopes.item": "scope",

@@ -264,7 +264,7 @@ class RoleService
     {
         $roles = $this->roles->getByIds($ids);
 
-        if ($roles->count() !== count($ids)) {
+        if ($roles->count() !== \count($ids)) {
             throw new RuntimeException('One or more selected roles could not be found.');
         }
 

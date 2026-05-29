@@ -32,7 +32,7 @@ class OAuthTrustDecisionService
             );
         }
 
-        if (! in_array($trustTier, SsoClient::supportedTrustTiers(), true)) {
+        if (! \in_array($trustTier, SsoClient::supportedTrustTiers(), true)) {
             return new OAuthTrustDecisionResult(
                 decision: OAuthTrustDecision::ShowConsent,
                 reason: 'unknown_trust_tier',

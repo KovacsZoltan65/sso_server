@@ -3,9 +3,12 @@
 return [
     'oauth' => [
         'authorization_denied' => 'OAuth autorizáció elutasítva.',
+        'access_denied' => 'A klienshez való hozzáférés elutasítva.',
         'authentication_failed' => 'Hitelesítés sikertelen.',
+        'invalid_client_credentials' => 'Invalid client credentials.',
         'userinfo' => [
             'retrieved' => 'A felhasználói adatok lekérése sikeres.',
+            'forbidden' => 'A userinfo kérés nem engedélyezett.',
         ],
         'token' => [
             'issued' => 'OAuth token sikeresen kiadva.',
