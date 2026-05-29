@@ -19,7 +19,9 @@ use App\Policies\TokenPolicyPolicy;
 use App\Policies\UserPolicy;
 use App\Policies\UserClientConsentPolicy;
 use App\Repositories\ClientUserAccessRepository;
+use App\Repositories\AuditLogRepository;
 use App\Repositories\ClientRepository;
+use App\Repositories\Contracts\AuditLogRepositoryInterface;
 use App\Repositories\Contracts\ClientUserAccessRepositoryInterface;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
@@ -47,6 +49,7 @@ use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use App\Repositories\Contracts\TokenRepositoryInterface;
 use App\Repositories\TokenRepository;
+use Spatie\Activitylog\Models\Activity;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -64,6 +67,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(TokenPolicyRepositoryInterface::class, TokenPolicyRepository::class);
         $this->app->bind(TokenRepositoryInterface::class, TokenRepository::class);
         $this->app->bind(UserClientConsentRepositoryInterface::class, UserClientConsentRepository::class);
+        $this->app->bind(AuditLogRepositoryInterface::class, AuditLogRepository::class);
     }
 
     /**
@@ -81,6 +85,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(TokenPolicy::class, TokenPolicyPolicy::class);
         Gate::policy(UserClientConsent::class, UserClientConsentPolicy::class);
         Gate::policy(AuditLogPage::class, AuditLogPolicy::class);
+        Gate::policy(Activity::class, AuditLogPolicy::class);
 
         Inertia::share([
             'errors' => function () {

@@ -1,10 +1,10 @@
 <?php
 
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\AuditLogController;
 use App\Http\Controllers\Admin\ClientController;
 use App\Http\Controllers\Admin\ClientUserAccessPageController;
 use App\Http\Controllers\Admin\PermissionController;
-use App\Http\Controllers\Admin\PlaceholderPageController;
 use App\Http\Controllers\Admin\RememberedConsentController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\ScopeController;
@@ -127,9 +127,9 @@ Route::middleware(['auth'])->group(function () {
             Route::post('/{consent}/revoke', 'revoke')->name('revoke');
         });
 
-        // PlaceholderPageController routes
-        Route::controller(PlaceholderPageController::class)->prefix('audit-logs')->name('audit-logs.')->group(function () {
-            Route::get('/', 'auditLogs')->name('index');
+        // Audit logs routes
+        Route::controller(AuditLogController::class)->prefix('audit-logs')->name('audit-logs.')->group(function () {
+            Route::get('/', 'index')->name('index');
         });
     });
 

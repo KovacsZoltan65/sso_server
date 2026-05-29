@@ -549,6 +549,7 @@ vi.mock('primevue/card', () => ({ default: CardStub }));
 vi.mock('primevue/checkbox', () => ({ default: CheckboxStub }));
 vi.mock('primevue/column', () => ({ default: ColumnStub }));
 vi.mock('primevue/datatable', () => ({ default: DataTableStub }));
+vi.mock('primevue/datepicker', () => ({ default: makeFieldComponent('input') }));
 vi.mock('primevue/iconfield', () => ({ default: passthroughStub }));
 vi.mock('primevue/inputicon', () => ({ default: passthroughStub }));
 vi.mock('primevue/inputnumber', () => ({ default: makeFieldComponent('input') }));
