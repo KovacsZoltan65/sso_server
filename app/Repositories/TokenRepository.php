@@ -6,8 +6,8 @@ namespace App\Repositories;
 
 use App\Models\Token;
 use App\Repositories\Contracts\TokenRepositoryInterface;
-use Illuminate\Support\Carbon;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Prettus\Repository\Eloquent\Repository;
 
@@ -100,6 +100,19 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
             ->newQuery()
             ->with(['client', 'user', 'tokenPolicy', 'parentToken', 'replacedByToken'])
             ->where('refresh_token_hash', $tokenHash)
+            ->first();
+
+        return $token;
+    }
+
+    public function findTokenWithRelationsByRefreshHashForUpdate(string $tokenHash): ?Token
+    {
+        /** @var Token|null $token */
+        $token = $this->getModel()
+            ->newQuery()
+            ->with(['client', 'user', 'tokenPolicy', 'parentToken', 'replacedByToken'])
+            ->where('refresh_token_hash', $tokenHash)
+            ->lockForUpdate()
             ->first();
 
         return $token;

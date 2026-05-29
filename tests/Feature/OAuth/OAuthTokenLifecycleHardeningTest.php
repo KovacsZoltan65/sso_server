@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Models\AuthorizationCode;
 use App\Models\ClientSecret;
 use App\Models\Scope;
 use App\Models\SsoClient;
@@ -172,6 +171,8 @@ it('detects refresh token reuse, revokes the family, and audits the incident', f
         'refresh_token' => $firstPair['refresh_token'],
     ])->assertOk()->json('data');
 
+    $tokenCountBeforeReuse = Token::query()->count();
+
     $this->postJson(route('oauth.token'), [
         'grant_type' => 'refresh_token',
         'client_id' => $client->client_id,
@@ -185,7 +186,8 @@ it('detects refresh token reuse, revokes the family, and audits the incident', f
     $oldToken = Token::query()->where('refresh_token_hash', hash('sha256', $firstPair['refresh_token']))->firstOrFail();
     $newToken = Token::query()->where('refresh_token_hash', hash('sha256', $secondPair['refresh_token']))->firstOrFail();
 
-    expect($oldToken->refresh_token_reuse_detected_at)->not->toBeNull()
+    expect(Token::query()->count())->toBe($tokenCountBeforeReuse)
+        ->and($oldToken->refresh_token_reuse_detected_at)->not->toBeNull()
         ->and($oldToken->security_incident_at)->not->toBeNull()
         ->and($oldToken->security_incident_reason)->toBe('refresh_reuse_detected')
         ->and($oldToken->family_revoked_at)->not->toBeNull()
@@ -196,13 +198,55 @@ it('detects refresh token reuse, revokes the family, and audits the incident', f
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
-        'event' => 'oauth.refresh_token.suspicious_reuse_detected',
+        'event' => 'oauth.refresh_token.reuse_detected',
     ]);
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
         'event' => 'oauth.token.family_revoke_completed',
     ]);
+
+    $reuseActivity = Activity::query()
+        ->where('event', 'oauth.refresh_token.reuse_detected')
+        ->latest()
+        ->firstOrFail();
+
+    expect($reuseActivity->properties->toArray())
+        ->not->toHaveKeys(['refresh_token', 'access_token', 'token', 'client_secret', 'secret'])
+        ->and($reuseActivity->properties->toArray())
+        ->not->toContain($firstPair['refresh_token'])
+        ->and($reuseActivity->properties['reason'])->toBe('refresh_reuse_detected');
+});
+
+it('allows the newly rotated refresh token to continue the refresh chain before reuse is detected', function (): void {
+    [$client, , $plainSecret] = strictOauthClient();
+    $user = User::factory()->create();
+
+    $firstPair = issueAuthorizationCodeTokenPair($client, $plainSecret, $user);
+
+    $secondPair = $this->postJson(route('oauth.token'), [
+        'grant_type' => 'refresh_token',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'refresh_token' => $firstPair['refresh_token'],
+    ])->assertOk()->json('data');
+
+    $thirdPair = $this->postJson(route('oauth.token'), [
+        'grant_type' => 'refresh_token',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'refresh_token' => $secondPair['refresh_token'],
+    ])->assertOk()->json('data');
+
+    $secondToken = Token::query()->where('refresh_token_hash', hash('sha256', $secondPair['refresh_token']))->firstOrFail();
+    $thirdToken = Token::query()->where('refresh_token_hash', hash('sha256', $thirdPair['refresh_token']))->firstOrFail();
+
+    expect($thirdPair['refresh_token'])->not->toBe($secondPair['refresh_token'])
+        ->and($secondToken->refresh_token_revoked_reason)->toBe('rotated')
+        ->and($secondToken->replaced_by_token_id)->toBe($thirdToken->id)
+        ->and($thirdToken->parent_token_id)->toBe($secondToken->id)
+        ->and($thirdToken->family_id)->toBe($secondToken->family_id)
+        ->and($thirdToken->isRefreshTokenActive())->toBeTrue();
 });
 
 it('revoked refresh tokens cannot be used to mint a new token pair', function (): void {

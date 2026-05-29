@@ -22,6 +22,8 @@ interface TokenRepositoryInterface
 
     public function findTokenWithRelationsByRefreshHash(string $tokenHash): ?Token;
 
+    public function findTokenWithRelationsByRefreshHashForUpdate(string $tokenHash): ?Token;
+
     public function createTokenPair(array $attributes): Token;
 
     public function updateToken(Token $token, array $attributes): Token;

@@ -204,26 +204,36 @@ class OAuthTokenService
         $client = $this->resolveClient((string) $payload['client_id']);
         $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), 'refresh_token', $ipAddress, $userAgent);
 
-        $plainRefreshToken = (string) $payload['refresh_token'];
-        $token = $this->tokenRepository->findTokenWithRelationsByRefreshHash(hash('sha256', $plainRefreshToken));
+        $refreshTokenHash = hash('sha256', (string) $payload['refresh_token']);
+        $reusedToken = null;
+        $grantFailureReason = null;
+        $grantFailureMessages = null;
 
-        if ($token === null || $token->sso_client_id !== $client->id) {
-            $this->logGrantFailure($client, 'invalid_refresh_token');
-            throw ValidationException::withMessages(['refresh_token' => 'The provided refresh token is invalid.']);
-        }
+        $issuedPayload = DB::transaction(function () use ($refreshTokenHash, $client, $ipAddress, $userAgent, &$reusedToken, &$grantFailureReason, &$grantFailureMessages): ?array {
+            $token = $this->tokenRepository->findTokenWithRelationsByRefreshHashForUpdate($refreshTokenHash);
 
-        if ($token->refresh_token_expires_at === null || $token->refresh_token_expires_at->isPast()) {
-            $this->logGrantFailure($client, 'refresh_token_inactive');
-            throw ValidationException::withMessages(['refresh_token' => 'The refresh token is expired or revoked.']);
-        }
+            if ($token === null || $token->sso_client_id !== $client->id) {
+                $grantFailureReason = 'invalid_refresh_token';
+                $grantFailureMessages = ['refresh_token' => 'The provided refresh token is invalid.'];
 
-        $policy = $this->resolvePolicy($client, $token->tokenPolicy);
+                return null;
+            }
 
-        if (! $token->isRefreshTokenActive()) {
-            $this->handleRefreshTokenReuse($token, $client);
-        }
+            if ($token->refresh_token_expires_at === null || $token->refresh_token_expires_at->isPast()) {
+                $grantFailureReason = 'refresh_token_inactive';
+                $grantFailureMessages = ['refresh_token' => 'The refresh token is expired or revoked.'];
 
-        return DB::transaction(function () use ($token, $client, $policy, $ipAddress, $userAgent): array {
+                return null;
+            }
+
+            $policy = $this->resolvePolicy($client, $token->tokenPolicy);
+
+            if (! $token->isRefreshTokenActive()) {
+                $reusedToken = $token;
+
+                return null;
+            }
+
             $issued = $this->issueTokenPair(
                 client: $client,
                 userId: $token->user_id,
@@ -285,10 +295,32 @@ class OAuthTokenService
 
             return $issued['payload'];
         });
+
+        if ($reusedToken instanceof Token) {
+            $this->handleRefreshTokenReuse($reusedToken, $client);
+        }
+
+        if ($grantFailureReason !== null && \is_array($grantFailureMessages)) {
+            $this->logGrantFailure($client, $grantFailureReason);
+
+            throw ValidationException::withMessages($grantFailureMessages);
+        }
+
+        if ($issuedPayload === null) {
+            $this->logGrantFailure($client, 'invalid_refresh_token');
+
+            throw ValidationException::withMessages([
+                'refresh_token' => 'The refresh token is invalid.',
+            ]);
+        }
+
+        return $issuedPayload;
     }
 
     /**
      * Resolve an active confidential or public client by OAuth client identifier.
+     * @param string $clientId
+     * @return SsoClient
      */
     private function resolveClient(string $clientId): SsoClient
     {
@@ -314,6 +346,13 @@ class OAuthTokenService
 
     /**
      * Validate the provided client secret against the currently active secret set.
+     * @param SsoClient $client
+     * @param string $clientSecret
+     * @param string|null $grantType
+      * @param string|null $ipAddress
+      * @param string|null $userAgent
+      * @return void
+      * @throws AuthenticationException
      */
     private function assertClientAuthentication(
         SsoClient $client,
@@ -343,6 +382,12 @@ class OAuthTokenService
         $this->rejectClientAuthentication($client, 'confidential_client_invalid_secret', $grantType, $ipAddress, $userAgent);
     }
 
+    /**
+     * Summary of verifyActiveClientSecret
+     * @param SsoClient $client
+     * @param string $providedSecret
+     * @return bool
+     */
     private function verifyActiveClientSecret(SsoClient $client, string $providedSecret): bool
     {
         foreach ($client->activeSecrets()->get() as $secret) {
@@ -354,6 +399,16 @@ class OAuthTokenService
         return false;
     }
 
+    /**
+     * Handle the detection of a refresh token reuse event by revoking the entire token family and logging an appropriate security incident.
+     * @param SsoClient $client
+     * @param string $reason
+     * @param string|null $grantType
+     * @param string|null $ipAddress
+     * @param string|null $userAgent
+     * @return void
+     * 
+     */
     private function rejectClientAuthentication(
         SsoClient $client,
         string $reason,
@@ -383,6 +438,10 @@ class OAuthTokenService
 
     /**
      * Resolve the token policy explicitly attached to the request client or fall back to the active default.
+     * @param SsoClient $client
+     * @param TokenPolicy|null $policy
+     * @return TokenPolicy
+     * Throws ValidationException
      */
     private function resolvePolicy(SsoClient $client, ?TokenPolicy $policy = null): TokenPolicy
     {
@@ -406,7 +465,15 @@ class OAuthTokenService
     /**
      * Issue and persist a fresh token pair for the given client and user context.
      *
+     * @param SsoClient $client
+     * @param int $userId
+     * @param TokenPolicy $policy
      * @param  array<int, string>  $scopes
+     * @param int|null $authorizationCodeId
+     * @param int|null $parentTokenId
+     * @param string $familyId
+     * @param string|null $ipAddress
+     * @param string|null $userAgent
      * @return IssuedTokenPair
      */
     private function issueTokenPair(

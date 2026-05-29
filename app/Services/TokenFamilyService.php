@@ -24,11 +24,10 @@ class TokenFamilyService
     public function __construct(
         private readonly TokenRepositoryInterface $tokens,
         private readonly AuditLogService $auditLogService,
-    ) {
-    }
+    ) {}
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      * @return FamilyRevokeResult
      */
     public function revokeFamily(string $familyId, string $reason, ?User $actor = null, array $context = []): array
@@ -36,7 +35,7 @@ class TokenFamilyService
         $tokens = $this->tokens->findFamilyTokens($familyId);
 
         if ($tokens->isEmpty()) {
-            throw (new ModelNotFoundException())->setModel(Token::class, [$familyId]);
+            throw (new ModelNotFoundException)->setModel(Token::class, [$familyId]);
         }
 
         /** @var Token $representative */
@@ -134,7 +133,7 @@ class TokenFamilyService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      */
     public function handleSuspiciousRefreshReuse(Token $refreshToken, array $context = []): void
     {
@@ -157,8 +156,8 @@ class TokenFamilyService
 
         $this->auditLogService->logFailure(
             logName: AuditLogService::LOG_OAUTH,
-            event: 'oauth.refresh_token.suspicious_reuse_detected',
-            description: 'OAuth suspicious refresh token reuse detected.',
+            event: 'oauth.refresh_token.reuse_detected',
+            description: 'OAuth refresh token reuse detected.',
             subject: $refreshToken->client,
             causer: $refreshToken->user,
             properties: [
@@ -181,7 +180,7 @@ class TokenFamilyService
     }
 
     /**
-     * @param array<string, mixed> $context
+     * @param  array<string, mixed>  $context
      * @return array<string, mixed>
      */
     public function buildFamilyIncidentContext(Token $token, array $context = []): array
