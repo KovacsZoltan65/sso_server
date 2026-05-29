@@ -20,7 +20,7 @@ class OAuthTokenRequest extends FormRequest
             'client_secret' => ['nullable', 'string', 'max:255'],
             'code' => ['required_if:grant_type,authorization_code', 'nullable', 'string', 'max:255'],
             'redirect_uri' => ['required_if:grant_type,authorization_code', 'nullable', 'url', 'max:4000'],
-            'code_verifier' => ['required_if:grant_type,authorization_code', 'nullable', 'string', 'max:255'],
+            'code_verifier' => ['nullable', 'string', 'max:255'],
             'refresh_token' => ['required_if:grant_type,refresh_token', 'nullable', 'string', 'max:255'],
             'scope' => ['nullable', 'string', 'max:1000'],
         ];

@@ -1,9 +1,10 @@
 <?php
 
 namespace App\Providers;
+
 use App\Models\ClientUserAccess;
-use App\Models\SsoClient;
 use App\Models\Scope;
+use App\Models\SsoClient;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
@@ -16,40 +17,42 @@ use App\Policies\RolePolicy;
 use App\Policies\ScopePolicy;
 use App\Policies\TokenModelPolicy;
 use App\Policies\TokenPolicyPolicy;
-use App\Policies\UserPolicy;
 use App\Policies\UserClientConsentPolicy;
-use App\Repositories\ClientUserAccessRepository;
+use App\Policies\UserPolicy;
 use App\Repositories\AuditLogRepository;
+use App\Repositories\AuthorizationCodeRepository;
 use App\Repositories\ClientRepository;
+use App\Repositories\ClientUserAccessRepository;
 use App\Repositories\Contracts\AuditLogRepositoryInterface;
-use App\Repositories\Contracts\ClientUserAccessRepositoryInterface;
+use App\Repositories\Contracts\AuthorizationCodeRepositoryInterface;
 use App\Repositories\Contracts\ClientRepositoryInterface;
+use App\Repositories\Contracts\ClientUserAccessRepositoryInterface;
 use App\Repositories\Contracts\PermissionRepositoryInterface;
 use App\Repositories\Contracts\RoleRepositoryInterface;
 use App\Repositories\Contracts\ScopeRepositoryInterface;
 use App\Repositories\Contracts\TokenPolicyRepositoryInterface;
-use App\Repositories\Contracts\UserRepositoryInterface;
+use App\Repositories\Contracts\TokenRepositoryInterface;
 use App\Repositories\Contracts\UserClientConsentRepositoryInterface;
+use App\Repositories\Contracts\UserRepositoryInterface;
 use App\Repositories\PermissionRepository;
 use App\Repositories\RoleRepository;
 use App\Repositories\ScopeRepository;
 use App\Repositories\TokenPolicyRepository;
-use App\Repositories\UserRepository;
+use App\Repositories\TokenRepository;
 use App\Repositories\UserClientConsentRepository;
+use App\Repositories\UserRepository;
+use App\Support\AuditLogPage;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Vite;
-use App\Support\AuditLogPage;
 use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
+use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
-use App\Repositories\Contracts\TokenRepositoryInterface;
-use App\Repositories\TokenRepository;
-use Spatie\Activitylog\Models\Activity;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -66,6 +69,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(ScopeRepositoryInterface::class, ScopeRepository::class);
         $this->app->bind(TokenPolicyRepositoryInterface::class, TokenPolicyRepository::class);
         $this->app->bind(TokenRepositoryInterface::class, TokenRepository::class);
+        $this->app->bind(AuthorizationCodeRepositoryInterface::class, AuthorizationCodeRepository::class);
         $this->app->bind(UserClientConsentRepositoryInterface::class, UserClientConsentRepository::class);
         $this->app->bind(AuditLogRepositoryInterface::class, AuditLogRepository::class);
     }
@@ -102,7 +106,7 @@ class AppServiceProvider extends ServiceProvider
             ],
         ]);
 
-        Inertia::share('flash', fn () => ['message' => Session::get('message'),] );
+        Inertia::share('flash', fn () => ['message' => Session::get('message')]);
 
         Inertia::share('csrf_token', fn () => csrf_token());
 

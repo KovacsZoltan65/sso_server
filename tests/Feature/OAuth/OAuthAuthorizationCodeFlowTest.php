@@ -1223,6 +1223,38 @@ it('rejects token exchange when pkce verifier is invalid', function () {
     ])->not->toHaveKeys(['code_verifier', 'code_challenge', 'access_token', 'refresh_token', 'client_secret', 'secret']);
 });
 
+it('rejects token exchange when pkce verifier is missing and audits the failure safely', function () {
+    [$client, , $plainSecret] = oauthClient();
+    $user = User::factory()->create();
+
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client, ['state' => null]);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.code_verifier.0', 'The code verifier field is required.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'missing_code_verifier',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['code_verifier', 'code_challenge', 'authorization_code', 'access_token', 'refresh_token', 'client_secret', 'secret']);
+});
+
 it('rejects token exchange when the authorization code was issued without a PKCE challenge', function () {
     [$client, , $plainSecret] = oauthClient([
         'policy' => [
@@ -1309,6 +1341,8 @@ it('rejects replay when the same authorization code is exchanged twice', functio
         'code_verifier' => $verifier,
     ])->assertOk();
 
+    $tokenCountAfterFirstExchange = Token::query()->count();
+
     $this->postJson(route('oauth.token'), [
         'grant_type' => 'authorization_code',
         'client_id' => $client->client_id,
@@ -1321,11 +1355,105 @@ it('rejects replay when the same authorization code is exchanged twice', functio
         ->assertJsonPath('message', 'OAuth token request failed.')
         ->assertJsonPath('errors.code.0', 'The authorization code is expired, revoked, or already used.');
 
+    expect(Token::query()->count())->toBe($tokenCountAfterFirstExchange);
+
+    $reuseActivity = Activity::query()
+        ->where('event', 'oauth.authorization_code.reuse_detected')
+        ->latest()
+        ->firstOrFail();
+
+    expect($reuseActivity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'grant_type' => 'authorization_code',
+        'reason' => 'authorization_code_reuse_detected',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'access_token', 'refresh_token', 'client_secret', 'secret'])
+        ->and($reuseActivity->properties->toArray())
+        ->not->toContain($code);
+
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'oauth',
         'event' => 'oauth.token.grant_failed',
         'description' => 'OAuth token grant failed.',
     ]);
+});
+
+it('rejects token exchange when authorization code belongs to another client', function () {
+    [$codeOwnerClient] = oauthClient();
+    [$requestingClient, , $requestingClientSecret] = oauthClient();
+    $user = User::factory()->create();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $codeOwnerClient, ['state' => 'client-mismatch-state']);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $requestingClient->client_id,
+        'client_secret' => $requestingClientSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.code.0', 'The authorization code does not belong to this client.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $requestingClient->id,
+        'client_public_id' => $requestingClient->client_id,
+        'reason' => 'authorization_code_client_mismatch',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'access_token', 'refresh_token', 'client_secret', 'secret'])
+        ->and($activity->properties->toArray())
+        ->not->toContain($code);
+});
+
+it('rejects token exchange when redirect uri does not match the authorization request', function () {
+    [$client, , $plainSecret] = oauthClient();
+    $user = User::factory()->create();
+
+    $client->redirectUris()->create([
+        'uri' => 'https://portal.example.com/alternate-callback',
+        'uri_hash' => hash('sha256', 'https://portal.example.com/alternate-callback'),
+        'is_primary' => false,
+    ]);
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client, ['state' => 'redirect-mismatch-state']);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/alternate-callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.redirect_uri.0', 'The redirect URI does not match the authorization request.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'redirect_uri_mismatch',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'access_token', 'refresh_token', 'client_secret', 'secret'])
+        ->and($activity->properties->toArray())
+        ->not->toContain($code);
 });
 
 it('rejects token exchange for an expired authorization code', function () {

@@ -7,6 +7,7 @@ use App\Models\SsoClient;
 use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Repositories\Contracts\AuthorizationCodeRepositoryInterface;
 use App\Repositories\Contracts\TokenRepositoryInterface;
 use App\Services\Audit\AuditLogService;
 use App\Services\TokenFamilyService;
@@ -63,6 +64,7 @@ class OAuthTokenService
     public function __construct(
         private readonly RedirectUriMatcher $redirectUriMatcher,
         private readonly PkceVerifier $pkceVerifier,
+        private readonly AuthorizationCodeRepositoryInterface $authorizationCodeRepository,
         private readonly TokenRepositoryInterface $tokenRepository,
         private readonly AuditLogService $auditLogService,
         private readonly TokenFamilyService $tokenFamilyService,
@@ -83,50 +85,78 @@ class OAuthTokenService
         $client = $this->resolveClient((string) $payload['client_id']);
         $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), 'authorization_code', $ipAddress, $userAgent);
 
-        $plainCode = (string) $payload['code'];
-        $authorizationCode = AuthorizationCode::query()
-            ->with(['client', 'tokenPolicy', 'user'])
-            ->where('code_hash', hash('sha256', $plainCode))
-            ->first();
-
-        if ($authorizationCode === null) {
-            $this->logGrantFailure($client, 'invalid_authorization_code');
-            throw ValidationException::withMessages(['code' => 'The provided authorization code is invalid.']);
-        }
-
-        if ($authorizationCode->sso_client_id !== $client->id) {
-            $this->logGrantFailure($client, 'authorization_code_client_mismatch');
-            throw ValidationException::withMessages(['code' => 'The authorization code does not belong to this client.']);
-        }
-
-        if ($authorizationCode->consumed_at !== null || $authorizationCode->revoked_at !== null || $authorizationCode->expires_at->isPast()) {
-            $this->logGrantFailure($client, 'authorization_code_inactive');
-            throw ValidationException::withMessages(['code' => 'The authorization code is expired, revoked, or already used.']);
-        }
-
+        $codeHash = hash('sha256', (string) $payload['code']);
         $redirectUri = trim((string) $payload['redirect_uri']);
-        if (! $this->redirectUriMatcher->matches($client, $redirectUri) || ! hash_equals($authorizationCode->redirect_uri, $redirectUri)) {
-            $this->logGrantFailure($client, 'redirect_uri_mismatch');
-            throw ValidationException::withMessages(['redirect_uri' => 'The redirect URI does not match the authorization request.']);
-        }
-
         $verifier = trim((string) ($payload['code_verifier'] ?? ''));
-        if ($verifier === '') {
-            $this->logGrantFailure($client, 'missing_code_verifier');
-            throw ValidationException::withMessages(['code_verifier' => 'The code verifier field is required.']);
-        }
+        $grantFailureReason = null;
+        $grantFailureMessages = null;
+        $reusedAuthorizationCode = null;
 
-        try {
-            $this->pkceVerifier->verify($authorizationCode->code_challenge, $authorizationCode->code_challenge_method, $verifier);
-        } catch (ValidationException $exception) {
-            $this->logGrantFailure($client, 'pkce_validation_failed');
+        $issuedPayload = DB::transaction(function () use (
+            $codeHash,
+            $redirectUri,
+            $verifier,
+            $client,
+            $ipAddress,
+            $userAgent,
+            &$grantFailureReason,
+            &$grantFailureMessages,
+            &$reusedAuthorizationCode
+        ): ?array {
+            $authorizationCode = $this->authorizationCodeRepository->findWithRelationsByCodeHashForUpdate($codeHash);
 
-            throw $exception;
-        }
-        $policy = $this->resolvePolicy($client, $authorizationCode->tokenPolicy);
+            if ($authorizationCode === null) {
+                $grantFailureReason = 'invalid_authorization_code';
+                $grantFailureMessages = ['code' => 'The provided authorization code is invalid.'];
 
-        return DB::transaction(function () use ($authorizationCode, $client, $policy, $ipAddress, $userAgent): array {
-            $authorizationCode->forceFill(['consumed_at' => now()])->save();
+                return null;
+            }
+
+            if ($authorizationCode->sso_client_id !== $client->id) {
+                $grantFailureReason = 'authorization_code_client_mismatch';
+                $grantFailureMessages = ['code' => 'The authorization code does not belong to this client.'];
+
+                return null;
+            }
+
+            if ($authorizationCode->consumed_at !== null || $authorizationCode->revoked_at !== null || $authorizationCode->expires_at->isPast()) {
+                $grantFailureReason = $authorizationCode->consumed_at !== null || $authorizationCode->revoked_at !== null
+                    ? 'authorization_code_reuse_detected'
+                    : 'authorization_code_inactive';
+                $grantFailureMessages = ['code' => 'The authorization code is expired, revoked, or already used.'];
+
+                if ($grantFailureReason === 'authorization_code_reuse_detected') {
+                    $reusedAuthorizationCode = $authorizationCode;
+                }
+
+                return null;
+            }
+
+            if (! $this->redirectUriMatcher->matches($client, $redirectUri) || ! hash_equals($authorizationCode->redirect_uri, $redirectUri)) {
+                $grantFailureReason = 'redirect_uri_mismatch';
+                $grantFailureMessages = ['redirect_uri' => 'The redirect URI does not match the authorization request.'];
+
+                return null;
+            }
+
+            if ($verifier === '') {
+                $grantFailureReason = 'missing_code_verifier';
+                $grantFailureMessages = ['code_verifier' => 'The code verifier field is required.'];
+
+                return null;
+            }
+
+            try {
+                $this->pkceVerifier->verify($authorizationCode->code_challenge, $authorizationCode->code_challenge_method, $verifier);
+            } catch (ValidationException $exception) {
+                $grantFailureReason = 'pkce_validation_failed';
+                $grantFailureMessages = $exception->errors();
+
+                return null;
+            }
+
+            $policy = $this->resolvePolicy($client, $authorizationCode->tokenPolicy);
+            $authorizationCode = $this->authorizationCodeRepository->consume($authorizationCode);
 
             $issued = $this->issueTokenPair(
                 client: $client,
@@ -191,6 +221,26 @@ class OAuthTokenService
 
             return $payload;
         });
+
+        if ($reusedAuthorizationCode instanceof AuthorizationCode) {
+            $this->logAuthorizationCodeReuse($reusedAuthorizationCode, $client);
+        }
+
+        if ($grantFailureReason !== null && \is_array($grantFailureMessages)) {
+            $this->logGrantFailure($client, $grantFailureReason);
+
+            throw ValidationException::withMessages($grantFailureMessages);
+        }
+
+        if ($issuedPayload === null) {
+            $this->logGrantFailure($client, 'invalid_authorization_code');
+
+            throw ValidationException::withMessages([
+                'code' => 'The provided authorization code is invalid.',
+            ]);
+        }
+
+        return $issuedPayload;
     }
 
     /**
@@ -319,8 +369,6 @@ class OAuthTokenService
 
     /**
      * Resolve an active confidential or public client by OAuth client identifier.
-     * @param string $clientId
-     * @return SsoClient
      */
     private function resolveClient(string $clientId): SsoClient
     {
@@ -346,13 +394,8 @@ class OAuthTokenService
 
     /**
      * Validate the provided client secret against the currently active secret set.
-     * @param SsoClient $client
-     * @param string $clientSecret
-     * @param string|null $grantType
-      * @param string|null $ipAddress
-      * @param string|null $userAgent
-      * @return void
-      * @throws AuthenticationException
+     *
+     * @throws AuthenticationException
      */
     private function assertClientAuthentication(
         SsoClient $client,
@@ -384,9 +427,6 @@ class OAuthTokenService
 
     /**
      * Summary of verifyActiveClientSecret
-     * @param SsoClient $client
-     * @param string $providedSecret
-     * @return bool
      */
     private function verifyActiveClientSecret(SsoClient $client, string $providedSecret): bool
     {
@@ -401,13 +441,8 @@ class OAuthTokenService
 
     /**
      * Handle the detection of a refresh token reuse event by revoking the entire token family and logging an appropriate security incident.
-     * @param SsoClient $client
-     * @param string $reason
-     * @param string|null $grantType
-     * @param string|null $ipAddress
-     * @param string|null $userAgent
+     *
      * @return void
-     * 
      */
     private function rejectClientAuthentication(
         SsoClient $client,
@@ -438,10 +473,9 @@ class OAuthTokenService
 
     /**
      * Resolve the token policy explicitly attached to the request client or fall back to the active default.
-     * @param SsoClient $client
-     * @param TokenPolicy|null $policy
+     *
      * @return TokenPolicy
-     * Throws ValidationException
+     *                     Throws ValidationException
      */
     private function resolvePolicy(SsoClient $client, ?TokenPolicy $policy = null): TokenPolicy
     {
@@ -465,15 +499,7 @@ class OAuthTokenService
     /**
      * Issue and persist a fresh token pair for the given client and user context.
      *
-     * @param SsoClient $client
-     * @param int $userId
-     * @param TokenPolicy $policy
      * @param  array<int, string>  $scopes
-     * @param int|null $authorizationCodeId
-     * @param int|null $parentTokenId
-     * @param string $familyId
-     * @param string|null $ipAddress
-     * @param string|null $userAgent
      * @return IssuedTokenPair
      */
     private function issueTokenPair(
@@ -872,6 +898,25 @@ class OAuthTokenService
     /**
      * Record a token grant failure event for auditing and abuse investigation.
      */
+    private function logAuthorizationCodeReuse(AuthorizationCode $authorizationCode, SsoClient $client): void
+    {
+        $this->auditLogService->logFailure(
+            logName: AuditLogService::LOG_OAUTH,
+            event: 'oauth.authorization_code.reuse_detected',
+            description: 'OAuth authorization code reuse detected.',
+            subject: $client,
+            causer: $authorizationCode->user,
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+                'user_id' => $authorizationCode->user_id,
+                'authorization_code_id' => $authorizationCode->id,
+                'grant_type' => 'authorization_code',
+                'reason' => 'authorization_code_reuse_detected',
+            ],
+        );
+    }
+
     private function logGrantFailure(SsoClient $client, string $reason): void
     {
         $this->auditLogService->logFailure(

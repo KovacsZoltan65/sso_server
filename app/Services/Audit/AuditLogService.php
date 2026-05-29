@@ -120,6 +120,7 @@ class AuditLogService
         'allowed_from',
         'allowed_until',
         'token_id',
+        'authorization_code_id',
         'family_id',
         'parent_token_id',
         'replaced_by_token_id',
@@ -355,7 +356,7 @@ class AuditLogService
     private function normalizePropertyValue(string $key, mixed $value): mixed
     {
         return match ($key) {
-            'client_id', 'consent_id', 'policy_id', 'target_user_id', 'actor_user_id', 'affected_count', 'target_role_id', 'target_permission_id', 'target_scope_id', 'user_id', 'redirect_uri_count', 'deleted_count', 'token_id', 'parent_token_id', 'replaced_by_token_id', 'client_access_id' => $this->normalizeInteger($value),
+            'client_id', 'consent_id', 'policy_id', 'target_user_id', 'actor_user_id', 'affected_count', 'target_role_id', 'target_permission_id', 'target_scope_id', 'user_id', 'redirect_uri_count', 'deleted_count', 'token_id', 'authorization_code_id', 'parent_token_id', 'replaced_by_token_id', 'client_access_id' => $this->normalizeInteger($value),
             'scope_codes', 'default_scopes', 'updated_fields' => $this->normalizeStringList($value),
             'changed_attributes' => $this->normalizeAssociativeArray($value),
             default => $this->normalizeScalar($value),
