@@ -158,6 +158,96 @@ it('rotates a refresh token into a new token pair and links the chain', function
     ]);
 });
 
+it('rejects refresh token requests that include a scope parameter', function (): void {
+    [$client, , $plainSecret] = strictOauthClient();
+    $user = User::factory()->create();
+
+    $firstPair = issueAuthorizationCodeTokenPair($client, $plainSecret, $user);
+    $tokenCountBeforeRefresh = Token::query()->count();
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'refresh_token',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'refresh_token' => $firstPair['refresh_token'],
+        'scope' => 'openid profile email',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.scope.0', 'The scope parameter is not supported for this grant type.');
+
+    expect(Token::query()->count())->toBe($tokenCountBeforeRefresh);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'scope_parameter_not_allowed',
+        'grant_type' => 'refresh_token',
+        'affected_count' => 3,
+        'result' => 'failure',
+    ])->not->toHaveKeys(['refresh_token', 'access_token', 'token', 'client_secret', 'secret']);
+});
+
+it('keeps refresh token scope fixed to the original token scope set', function (): void {
+    [$client, , $plainSecret] = strictOauthClient();
+    $user = User::factory()->create();
+
+    $firstPair = issueAuthorizationCodeTokenPair($client, $plainSecret, $user);
+
+    $secondPair = $this->postJson(route('oauth.token'), [
+        'grant_type' => 'refresh_token',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'refresh_token' => $firstPair['refresh_token'],
+    ])->assertOk()->json('data');
+
+    $replacementToken = Token::query()
+        ->where('refresh_token_hash', hash('sha256', $secondPair['refresh_token']))
+        ->firstOrFail();
+
+    expect($secondPair['scope'])->toBe('openid profile')
+        ->and($replacementToken->scopes)->toBe(['openid', 'profile']);
+});
+
+it('rejects refresh when the original scope grant is no longer assigned to the client', function (): void {
+    [$client, , $plainSecret] = strictOauthClient();
+    $user = User::factory()->create();
+
+    $firstPair = issueAuthorizationCodeTokenPair($client, $plainSecret, $user);
+    $client->scopes()->sync(Scope::query()->where('code', 'openid')->pluck('id')->all());
+    $tokenCountBeforeRefresh = Token::query()->count();
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'refresh_token',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'refresh_token' => $firstPair['refresh_token'],
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.scope.0', 'The requested scope is not allowed for this client.');
+
+    expect(Token::query()->count())->toBe($tokenCountBeforeRefresh);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'scope_grant_no_longer_allowed',
+        'grant_type' => 'refresh_token',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['refresh_token', 'access_token', 'token', 'client_secret', 'secret']);
+});
+
 it('detects refresh token reuse, revokes the family, and audits the incident', function (): void {
     [$client, , $plainSecret] = strictOauthClient();
     $user = User::factory()->create();

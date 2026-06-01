@@ -19,6 +19,17 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
+ * OAuth authorization flow üzleti logikáját vezérlő szolgáltatás.
+ *
+ * Ez az osztály felel az authorize endpoint fő döntési pontjaiért:
+ * - kliens és redirect URI ellenőrzés
+ * - scope feloldás és default scope kezelés
+ * - PKCE és OIDC nonce validáció
+ * - felhasználó-kliens hozzáférési döntés
+ * - trust policy és remembered consent kiértékelés
+ * - authorization code kiadás
+ * - consent döntések auditálása
+ *
  * @phpstan-type AuthorizationPayload array{
  *     client_id: string,
  *     redirect_uri: string,
@@ -75,7 +86,16 @@ class OAuthAuthorizationService
     ) {}
 
     /**
-     * Prepare a consent screen for a validated authorize request.
+     * Előkészíti az OAuth consent döntést egy validált authorization request alapján.
+     *
+     * A metódus célja, hogy eldöntse:
+     * - azonnal kiadható-e authorization code
+     * - el kell-e utasítani a kérést
+     * - vagy felhasználói consent képernyőt kell megjeleníteni
+     *
+     * A döntés során figyelembe veszi a kliens állapotát, redirect URI-t,
+     * scope-okat, PKCE szabályokat, felhasználói hozzáférést, trust policy-t
+     * és korábban megjegyzett consent döntéseket.
      *
      * @param  AuthorizationPayload  $payload
      * @return ConsentPreparationResult|AuthorizationRedirectResult
@@ -83,7 +103,7 @@ class OAuthAuthorizationService
     public function prepareConsent(User $user, array $payload): array
     {
         $client = $this->resolveActiveClientOrFail($user, $payload);
-        $redirectUri = trim((string) $payload['redirect_uri']);
+        $redirectUri = (string) $payload['redirect_uri'];
 
         $this->assertRedirectUriMatches($user, $client, $redirectUri);
 
@@ -213,7 +233,10 @@ class OAuthAuthorizationService
     }
 
     /**
-     * Approve an authorization request and issue a redirectable authorization code.
+     * Jóváhagy egy authorization requestet és kiadja az authorization code-ot.
+     *
+     * Ez a metódus közvetlen jóváhagyási útvonalra használható, ahol a consent
+     * döntés már megtörtént vagy nem szükséges külön consent context alapján.
      *
      * @param  AuthorizationPayload  $payload
      * @return AuthorizationApproval
@@ -221,7 +244,7 @@ class OAuthAuthorizationService
     public function approve(User $user, array $payload): array
     {
         $client = $this->resolveActiveClientOrFail($user, $payload);
-        $redirectUri = trim((string) $payload['redirect_uri']);
+        $redirectUri = (string) $payload['redirect_uri'];
         $this->assertRedirectUriMatches($user, $client, $redirectUri);
         $requestedScopes = $this->resolveScopes($client, (string) ($payload['scope'] ?? ''), $user);
         $policy = $this->resolvePolicy($client);
@@ -279,7 +302,14 @@ class OAuthAuthorizationService
     }
 
     /**
-     * Approve a consent decision using the server-side consent context token.
+     * Consent token alapján jóváhagyja a felhasználó consent döntését.
+     *
+     * A consent context szerveroldali tokennel védi az authorization requestet,
+     * így a kliensoldal nem módosíthatja utólag a jóváhagyott scope-okat,
+     * redirect URI-t vagy PKCE/OIDC paramétereket.
+     *
+     * A remember consent opció csak sikeres jóváhagyás után tárolódik,
+     * és audit eseményként is rögzül.
      *
      * @return AuthorizationApproval
      */
@@ -388,7 +418,11 @@ class OAuthAuthorizationService
     }
 
     /**
-     * Deny a consent decision using the server-side consent context token.
+     * Consent token alapján elutasítja az authorization requestet.
+     *
+     * Az elutasítás OAuth-kompatibilis redirecttel tér vissza a klienshez,
+     * miközben a szerveroldali consent context érvénytelenítésre kerül,
+     * hogy ugyanaz a döntési token ne legyen újra felhasználható.
      *
      * @return ConsentDecisionResult
      */
@@ -437,6 +471,13 @@ class OAuthAuthorizationService
         ];
     }
 
+    /**
+     * OAuth hibaválaszt épít visszairányításhoz.
+     *
+     * A kliens az authorize flow hibáit redirecten keresztül kapja vissza,
+     * ezért a hiba, opcionális leírás és state paraméter a redirect URI
+     * query részébe kerül.
+     */
     private function buildAuthorizationErrorRedirect(
         string $redirectUri,
         string $error,
@@ -453,6 +494,13 @@ class OAuthAuthorizationService
     }
 
     /**
+     * Authorization code-ot ad ki a jóváhagyott OAuth kéréshez.
+     *
+     * A nyers code csak a redirect válaszban jelenik meg, az adatbázisban
+     * kizárólag hash formában tárolódik. OIDC kérés esetén sid is kapcsolódik
+     * a kliens munkamenethez, hogy front-channel logout során követhető legyen
+     * a résztvevő kliens.
+     *
      * @param  array<int, string>  $requestedScopes
      * @return AuthorizationApproval
      */
@@ -540,9 +588,12 @@ class OAuthAuthorizationService
     }
 
     /**
-     * Resolve the requested scopes and reject any scope that is not assigned to the client.
+     * Aktív OAuth klienst keres a publikus client_id alapján.
      *
-     * @return array<int, string>
+     * Inaktív vagy ismeretlen klienssel nem indulhat authorization flow.
+     * A hibát auditáljuk, de érzékeny kliensadatot nem szivárogtatunk vissza.
+     *
+     * @param  AuthorizationPayload  $payload
      */
     private function resolveActiveClientOrFail(User $user, array $payload): SsoClient
     {
@@ -572,6 +623,12 @@ class OAuthAuthorizationService
         ]);
     }
 
+    /**
+     * Ellenőrzi, hogy a kért redirect URI pontosan megfelel-e a kliens konfigurációjának.
+     *
+     * Ez az authorize flow egyik legfontosabb védelmi pontja, mert hibás vagy
+     * manipulált redirect URI authorization code kiszivárgáshoz vezethetne.
+     */
     private function assertRedirectUriMatches(User $user, SsoClient $client, string $redirectUri): void
     {
         if ($this->redirectUriMatcher->matches($client, $redirectUri)) {
@@ -596,6 +653,15 @@ class OAuthAuthorizationService
         ]);
     }
 
+    /**
+     * Feloldja és ellenőrzi az authorization requestben kért scope-okat.
+     *
+     * Explicit scope kérés esetén minden scope-nak szerepelnie kell a klienshez
+     * rendelt engedélyezett scope-listában. Üres scope kérésnél kizárólag a
+     * kliens default scope-jai alkalmazhatók.
+     *
+     * @return array<int, string>
+     */
     private function resolveScopes(SsoClient $client, string $scopeString, ?User $user = null): array
     {
         $allowed = $client->normalizedScopeCodes();
@@ -635,6 +701,11 @@ class OAuthAuthorizationService
     }
 
     /**
+     * Alkalmazza a kliens default scope-jait explicit scope kérés hiányában.
+     *
+     * Default scope nélkül nem adunk ki authorization code-ot, mert az üres
+     * scope implicit és nehezen auditálható jogosultsági döntést eredményezne.
+     *
      * @return array<int, string>
      */
     private function resolveDefaultScopes(SsoClient $client, ?User $user): array
@@ -675,6 +746,13 @@ class OAuthAuthorizationService
         return $defaultScopes;
     }
 
+    /**
+     * Ellenőrzi a PKCE követelményeket az authorization requestben.
+     *
+     * Ha a token policy PKCE-t ír elő, code challenge nélkül nem indulhat
+     * authorization flow. Challenge megadása esetén csak S256 elfogadott,
+     * hogy a plain vagy gyengébb PKCE használat ne gyengítse a flow-t.
+     */
     private function assertPkceRequirements(
         User $user,
         SsoClient $client,
@@ -682,7 +760,7 @@ class OAuthAuthorizationService
         string $codeChallenge,
         string $codeChallengeMethod,
     ): void {
-        if ($policy?->pkce_required && $codeChallenge === '') {
+        if (($client->isPublic() || $policy?->pkce_required) && $codeChallenge === '') {
             $this->rejectPkceAuthorization($user, $client, 'pkce_required', 'code_challenge', Localization::translate('api.oauth.pkce_required'));
         }
 
@@ -695,6 +773,12 @@ class OAuthAuthorizationService
         }
     }
 
+    /**
+     * Elutasítja a PKCE szempontból nem biztonságos authorization requestet.
+     *
+     * A visszautasítás auditálva történik, hogy később látható legyen,
+     * klienshiba vagy lehetséges visszaélési kísérlet okozta-e a hibát.
+     */
     private function rejectPkceAuthorization(
         User $user,
         SsoClient $client,
@@ -720,22 +804,59 @@ class OAuthAuthorizationService
     }
 
     /**
-     * Resolve the active token policy attached to the client or the current default policy.
+     * Meghatározza a kliensre érvényes aktív token policy-t.
+     *
+     * Ha a klienshez konkrét policy tartozik, azt használjuk. Ennek hiányában
+     * az aktuális aktív default policy érvényesül, így központi szabályokkal
+     * kezelhető a tokenek élettartama és PKCE követelménye.
      */
     private function resolvePolicy(SsoClient $client): ?TokenPolicy
     {
         if ($client->relationLoaded('tokenPolicy') && $client->tokenPolicy !== null) {
-            return $client->tokenPolicy;
+            return $this->assertPolicyAllowedForClientType($client, $client->tokenPolicy);
         }
 
-        return TokenPolicy::query()
+        $policy = TokenPolicy::query()
             ->when($client->token_policy_id !== null, fn ($query) => $query->whereKey($client->token_policy_id))
             ->when($client->token_policy_id === null, fn ($query) => $query->where('is_default', true))
             ->where('is_active', true)
             ->first();
+
+        return $policy instanceof TokenPolicy
+            ? $this->assertPolicyAllowedForClientType($client, $policy)
+            : null;
+    }
+
+    private function assertPolicyAllowedForClientType(SsoClient $client, TokenPolicy $policy): TokenPolicy
+    {
+        if ($client->isPublic() && ! $policy->pkce_required) {
+            $this->logAuthorizationFailure(
+                user: null,
+                event: 'oauth.authorization.denied',
+                message: Localization::translate('api.oauth.authorization_denied'),
+                client: $client,
+                properties: [
+                    'reason' => 'public_client_policy_requires_pkce',
+                    'client_id' => $client->id,
+                    'client_public_id' => $client->client_id,
+                    'policy_id' => $policy->id,
+                ],
+            );
+
+            throw ValidationException::withMessages([
+                'client_id' => 'Public clients must use a token policy where PKCE is required.',
+            ]);
+        }
+
+        return $policy;
     }
 
     /**
+     * Felépíti a consent képernyőn megjelenő scope listát.
+     *
+     * A felhasználó nem technikai scope kódokat, hanem érthető neveket
+     * és leírásokat kap, hogy tudatos consent döntést hozhasson.
+     *
      * @param  array<int, string>  $requestedScopes
      * @return array<int, array{code: string, name: string, description: string|null}>
      */
@@ -761,6 +882,11 @@ class OAuthAuthorizationService
     }
 
     /**
+     * Felépíti a consent képernyő kliensinformációs blokkját.
+     *
+     * A cél, hogy a felhasználó lássa, melyik alkalmazás kér hozzáférést,
+     * milyen visszatérési célra irányít, és milyen trust besorolással rendelkezik.
+     *
      * @return array{
      *     name: string,
      *     description: string,
@@ -786,6 +912,12 @@ class OAuthAuthorizationService
         ];
     }
 
+    /**
+     * Meghatározza a kliens consent képernyőn megjelenő nevét.
+     *
+     * Ha nincs emberbarát név megadva, a publikus client_id marad fallback,
+     * hogy a felhasználó akkor is azonosítani tudja a kérelmező alkalmazást.
+     */
     private function resolveClientDisplayName(SsoClient $client): string
     {
         $name = $this->normalizeNullableString($client->name);
@@ -793,6 +925,12 @@ class OAuthAuthorizationService
         return $name ?? $client->client_id;
     }
 
+    /**
+     * Emberbarát trust címkét ad a kliens bizalmi besorolásához.
+     *
+     * Ez segíti a consent képernyőn a kockázatérzet és a döntési kontextus
+     * megértését anélkül, hogy belső enum értékeket jelenítenénk meg.
+     */
     private function resolveConsentTrustLabel(SsoClient $client): string
     {
         return match ($client->trust_tier) {
@@ -803,6 +941,12 @@ class OAuthAuthorizationService
         };
     }
 
+    /**
+     * Rövid magyarázatot ad a kliens trust besorolásához.
+     *
+     * A felhasználó így nem csak egy címkét lát, hanem azt is,
+     * hogy a besorolás milyen consent és biztonsági következménnyel jár.
+     */
     private function resolveConsentTrustDescription(SsoClient $client): string
     {
         return match ($client->trust_tier) {
@@ -813,18 +957,36 @@ class OAuthAuthorizationService
         };
     }
 
+    /**
+     * Meghatározza a consent képernyőn megjelenő kliensleírást.
+     *
+     * Leírás hiányában biztonságos, általános szöveget adunk vissza,
+     * hogy a consent felület ne maradjon üres vagy félreérthető.
+     */
     private function resolveClientDescription(SsoClient $client): string
     {
         return $this->normalizeNullableString($client->getAttribute('description'))
             ?? 'This application is requesting permission to access your account through the identity provider.';
     }
 
+    /**
+     * Emberbarát scope nevet állít elő a consent képernyőhöz.
+     *
+     * Ha a scope törzsadatban nincs külön név, a technikai scope kódból
+     * olvasható fallback címke készül.
+     */
     private function resolveScopeDisplayName(string $scopeCode, ?Scope $scope): string
     {
         return $this->normalizeNullableString($scope?->name)
             ?? Str::headline(str_replace(['.', '-', '_', ':'], ' ', $scopeCode));
     }
 
+    /**
+     * Egységesen normalizálja az opcionális szöveges mezőket.
+     *
+     * Az üres stringeket nullként kezeljük, hogy a megjelenítési és fallback
+     * logika ne különböztesse meg az üres és hiányzó értékeket.
+     */
     private function normalizeNullableString(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));
@@ -833,6 +995,11 @@ class OAuthAuthorizationService
     }
 
     /**
+     * Auditálja, hogy OIDC authorization request esetén nonce érkezett.
+     *
+     * A nonce az ID token replay protection fontos eleme, ezért az openid
+     * scope-hoz kapcsolódó nonce állapot külön audit eseményként követhető.
+     *
      * @param  array<int, string>  $requestedScopes
      */
     private function logNonceAccepted(User $user, SsoClient $client, array $requestedScopes, string $nonce): void
@@ -857,6 +1024,12 @@ class OAuthAuthorizationService
         );
     }
 
+    /**
+     * Auditálja a trust policy alapján meghozott authorization döntést.
+     *
+     * A trust döntés külön auditálása megmutatja, hogy miért lett consent
+     * kihagyva, megjelenítve vagy miért lett a kérés elutasítva.
+     */
     private function logTrustDecision(User $user, SsoClient $client, OAuthTrustDecisionResult $decision): void
     {
         $this->auditLogService->logSuccess(
@@ -878,8 +1051,11 @@ class OAuthAuthorizationService
     }
 
     /**
-     * Remembered consent reuse is separate from trusted-client bypass.
-     * It only refines the show_consent branch with conservative exact-match checks.
+     * Auditálja a megjegyzett consent újrahasználhatósági döntését.
+     *
+     * A remembered consent nem azonos a trusted-client bypass-szal:
+     * csak akkor használható, ha a korábbi döntés konzervatív, pontos
+     * egyezési feltételei teljesülnek.
      *
      * @param  array<int, string>  $requestedScopes
      */
@@ -916,7 +1092,11 @@ class OAuthAuthorizationService
     }
 
     /**
-     * Record an auditable OAuth authorization failure without exposing sensitive values.
+     * Auditálható OAuth authorization hibát rögzít érzékeny értékek nélkül.
+     *
+     * A központi helper egységesíti a sikertelen authorization eseményeket,
+     * így később könnyebb incidenseket, klienshibákat vagy konfigurációs
+     * problémákat visszakeresni.
      *
      * @param  array<string, mixed>  $properties
      */

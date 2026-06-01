@@ -32,6 +32,21 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    clientTypeOptions: {
+        type: Array,
+        default: () => [
+            {
+                label: "Confidential",
+                value: "confidential",
+                helper: "Server-side client that can safely use a client secret.",
+            },
+            {
+                label: "Public",
+                value: "public",
+                helper: "Browser, mobile, or desktop client. PKCE is required and no secret is generated.",
+            },
+        ],
+    },
     showActions: {
         type: Boolean,
         default: false,
@@ -54,6 +69,15 @@ const emit = defineEmits(["submit", "cancel"]);
 
 const isModalLayout = computed(() => props.layoutMode === "modal");
 const assignedScopeValues = computed(() => new Set(props.form.scopes ?? []));
+const isPublicClient = computed(() => props.form.client_type === "public");
+const selectedTokenPolicy = computed(() =>
+    props.tokenPolicies.find(
+        (policy) => String(policy.id) === String(props.form.token_policy_id)
+    )
+);
+const selectedPublicPolicyRequiresPkce = computed(() =>
+    !isPublicClient.value || !selectedTokenPolicy.value || selectedTokenPolicy.value.pkceRequired === true
+);
 const defaultScopeOptions = computed(() =>
     props.scopeOptions.filter((scope) => assignedScopeValues.value.has(scope.value))
 );
@@ -210,6 +234,30 @@ watch(
                 ]"
             >
                 <div class="grid gap-2">
+                    <label for="client-type" class="text-sm font-medium text-slate-700">
+                        Client type
+                    </label>
+                    <Select
+                        id="client-type"
+                        v-model="form.client_type"
+                        :options="clientTypeOptions"
+                        optionLabel="label"
+                        optionValue="value"
+                        :disabled="loading"
+                        class="w-full"
+                    />
+                    <small
+                        v-if="isPublicClient"
+                        class="rounded-2xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900"
+                    >
+                        Public clients cannot safely store secrets. PKCE is required.
+                    </small>
+                    <small v-if="form.errors.client_type" class="text-red-500">
+                        {{ form.errors.client_type }}
+                    </small>
+                </div>
+
+                <div class="grid gap-2">
                     <label for="client-scopes" class="text-sm font-medium text-slate-700"
                         >Scopes</label
                     >
@@ -275,6 +323,12 @@ watch(
                         :disabled="loading"
                         class="w-full"
                     />
+                    <small
+                        v-if="!selectedPublicPolicyRequiresPkce"
+                        class="text-amber-700"
+                    >
+                        Public clients must use a token policy where PKCE is required.
+                    </small>
                     <small v-if="form.errors.token_policy_id" class="text-red-500">
                         {{ form.errors.token_policy_id }}
                     </small>
@@ -302,12 +356,27 @@ watch(
                 </div>
 
                 <div
-                    class="rounded-2xl border border-sky-100 bg-sky-50 px-4 py-3 text-sm text-sky-900"
+                    :class="[
+                        'rounded-2xl border px-4 py-3 text-sm',
+                        isPublicClient
+                            ? 'border-amber-200 bg-amber-50 text-amber-950'
+                            : 'border-sky-100 bg-sky-50 text-sky-900',
+                    ]"
                 >
                     <div class="font-medium">Secret handling</div>
-                    <p class="mt-1 leading-6 text-sky-800">
+                    <p
+                        :class="[
+                            'mt-1 leading-6',
+                            isPublicClient ? 'text-amber-900' : 'text-sky-800',
+                        ]"
+                    >
+                        <template v-if="isPublicClient">
+                            No client secret is generated for public clients. Use PKCE for authorization code exchange.
+                        </template>
+                        <template v-else>
                         The client secret is generated automatically during create and
                         shown exactly once after success.
+                        </template>
                     </p>
                 </div>
             </div>

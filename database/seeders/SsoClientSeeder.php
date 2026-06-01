@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Models\Scope;
 use App\Models\SsoClient;
+use App\Models\TokenPolicy;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -15,7 +16,9 @@ class SsoClientSeeder extends Seeder
     {
         $plainSecret = null;
 
-        DB::transaction(function () use (&$plainSecret): void {
+        $client_id = "portal-client";
+
+        DB::transaction(function () use (&$plainSecret, $client_id): void {
             $redirectUris = [
                 [
                     'uri' => trim('http://sso-client.test/auth/sso/callback'),
@@ -29,8 +32,8 @@ class SsoClientSeeder extends Seeder
             $scopeDefinitions = $this->scopeDefinitions();
             $scopeCodes = collect($scopeDefinitions)->pluck('code')->values()->all();
             $existingClient = SsoClient::query()
-                ->where('client_id', 'portal-client')
-                ->with('activeSecrets')
+                ->where('client_id', $client_id)
+                ->with(['activeSecrets'])
                 ->first();
 
             if ($existingClient === null || $existingClient->activeSecrets->isEmpty()) {
@@ -38,7 +41,7 @@ class SsoClientSeeder extends Seeder
             }
 
             $client = SsoClient::query()->updateOrCreate(
-                ['client_id' => 'portal-client'],
+                ['client_id' => $client_id],
                 [
                     'name' => 'Portal Client',
                     'client_secret_hash' => $existingClient?->client_secret_hash ?: Hash::make($plainSecret ?? Str::random(64)),
@@ -70,12 +73,157 @@ class SsoClientSeeder extends Seeder
             }
         });
 
+        $this->command?->info('========================================');
         $this->command?->info('Portal client created.');
-        $this->command?->warn('Client ID: portal-client');
+        $this->command?->info('========================================');
+        $this->command?->warn("Client ID: {$client_id}");
 
         if ($plainSecret !== null) {
-            $this->command?->warn('Client Secret: '.$plainSecret);
+            $this->command?->warn("Client Secret: {$plainSecret}");
         }
+
+        $this->seedCsharpAspNetDemoClient();
+    }
+
+    private function seedCsharpAspNetDemoClient(): void
+    {
+        $clientId = 'csharp-aspnet-demo';
+        $redirectUri = 'http://localhost:5023/auth/callback';
+        $plainSecret = null;
+        $assignedScopes = [];
+        $created = false;
+
+        $existingClient = SsoClient::query()
+            ->where('client_id', $clientId)
+            ->with(['scopes'])
+            ->first();
+
+        if ($existingClient !== null) {
+            $assignedScopes = $this->orderedDemoScopeCodes($existingClient->normalizedScopeCodes());
+
+            $this->command?->info('C# ASP.NET Demo Client already exists.');
+            $this->writeCsharpAspNetDemoClientSummary($existingClient, $redirectUri, $assignedScopes);
+
+            return;
+        }
+
+        $tokenPolicy = $this->defaultConfidentialTokenPolicy();
+
+        if ($tokenPolicy === null) {
+            $this->command?->warn('No active default confidential token policy found for the C# ASP.NET Demo client.');
+        }
+
+        DB::transaction(function () use ($clientId, $redirectUri, $tokenPolicy, &$plainSecret, &$assignedScopes, &$created): void {
+            $scopeIds = Scope::query()
+                ->whereIn('code', ['openid', 'profile', 'email'])
+                ->pluck('id', 'code');
+
+            $assignedScopes = $this->orderedDemoScopeCodes($scopeIds->keys()->all());
+
+            $plainSecret = Str::random(96);
+
+            /*
+             * Preconfigured confidential OAuth client for:
+             * sso-dotnet-demos/csharp/SsoAspNetCSharpDemo
+             *
+             * Redirect URI: http://localhost:5023/auth/callback
+             * Client type: confidential
+             */
+            $client = SsoClient::query()->create([
+                'name' => 'C# ASP.NET Demo',
+                'client_id' => $clientId,
+                'client_type' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
+                'client_secret_hash' => Hash::make($plainSecret),
+                'redirect_uris' => [$redirectUri],
+                'frontchannel_logout_uri' => null,
+                'backchannel_logout_uri' => null,
+                'is_active' => true,
+                'scopes' => $assignedScopes,
+                'token_policy_id' => $tokenPolicy?->getKey(),
+                'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+                'is_first_party' => false,
+                'consent_bypass_allowed' => false,
+            ]);
+
+            $client->redirectUris()->create([
+                'uri' => $redirectUri,
+                'uri_hash' => hash('sha256', $redirectUri),
+                'is_primary' => true,
+            ]);
+
+            $client->scopes()->sync(
+                $scopeIds->mapWithKeys(fn (int $scopeId, string $code): array => [
+                    $scopeId => ['is_default' => \in_array($code, ['openid', 'profile'], true)],
+                ])->all(),
+            );
+
+            $client->secrets()->create([
+                'name' => 'C# ASP.NET Demo secret',
+                'secret_hash' => Hash::make($plainSecret),
+                'last_four' => substr($plainSecret, -4),
+                'is_active' => true,
+            ]);
+
+            $created = true;
+        });
+
+        $client = SsoClient::query()
+            ->where('client_id', $clientId)
+            ->with(['scopes'])
+            ->firstOrFail();
+
+        if ($created) {
+            $this->command?->line('========================================');
+            $this->command?->info('C# ASP.NET Demo Client Created');
+            $this->command?->line('========================================');
+            $this->command?->line('');
+            $this->command?->line('Client ID:');
+            $this->command?->line($client->client_id);
+            $this->command?->line('');
+            $this->command?->line('Client Secret:');
+            $this->command?->line((string) $plainSecret);
+            $this->command?->line('');
+            $this->command?->line('Redirect URI:');
+            $this->command?->line($redirectUri);
+            $this->command?->line('');
+            $this->command?->line('========================================');
+        }
+
+        $this->writeCsharpAspNetDemoClientSummary($client, $redirectUri, $assignedScopes);
+    }
+
+    private function defaultConfidentialTokenPolicy(): ?TokenPolicy
+    {
+        return TokenPolicy::query()
+            ->where('is_default', true)
+            ->where('is_active', true)
+            ->where('pkce_required', false)
+            ->orderBy('id')
+            ->first();
+    }
+
+    /**
+     * @param  array<int, string>  $scopeCodes
+     * @return array<int, string>
+     */
+    private function orderedDemoScopeCodes(array $scopeCodes): array
+    {
+        return collect(['openid', 'profile', 'email'])
+            ->filter(fn (string $scopeCode): bool => \in_array($scopeCode, $scopeCodes, true))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $assignedScopes
+     */
+    private function writeCsharpAspNetDemoClientSummary(SsoClient $client, string $redirectUri, array $assignedScopes): void
+    {
+        $this->command?->line('C# ASP.NET Demo Client');
+        $this->command?->line('Client ID: '.$client->client_id);
+        $this->command?->line('Redirect URI: '.$redirectUri);
+        $this->command?->line('Assigned scopes: '.(empty($assignedScopes) ? '(none)' : implode(', ', $assignedScopes)));
+        $this->command?->line('Client type: '.$client->client_type);
     }
 
     /**

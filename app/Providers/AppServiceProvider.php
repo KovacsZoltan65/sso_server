@@ -42,6 +42,8 @@ use App\Repositories\TokenRepository;
 use App\Repositories\UserClientConsentRepository;
 use App\Repositories\UserRepository;
 use App\Support\AuditLogPage;
+use App\Support\Laravel13PermissionRegistrar;
+use Illuminate\Cache\CacheManager;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -52,6 +54,7 @@ use Illuminate\Support\ServiceProvider;
 use Inertia\Inertia;
 use Spatie\Activitylog\Models\Activity;
 use Spatie\Permission\Models\Permission;
+use Spatie\Permission\PermissionRegistrar;
 use Spatie\Permission\Models\Role;
 
 class AppServiceProvider extends ServiceProvider
@@ -72,6 +75,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(AuthorizationCodeRepositoryInterface::class, AuthorizationCodeRepository::class);
         $this->app->bind(UserClientConsentRepositoryInterface::class, UserClientConsentRepository::class);
         $this->app->bind(AuditLogRepositoryInterface::class, AuditLogRepository::class);
+        $this->registerPermissionRegistrar();
     }
 
     /**
@@ -79,6 +83,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        $this->registerPermissionRegistrar();
+
         Gate::policy(User::class, UserPolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(Role::class, RolePolicy::class);
@@ -139,6 +145,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(120)
                 ->by('oauth-userinfo:'.$request->ip());
         });
+    }
+
+    private function registerPermissionRegistrar(): void
+    {
+        $this->app->forgetInstance(PermissionRegistrar::class);
+        $this->app->singleton(PermissionRegistrar::class, fn ($app) => new Laravel13PermissionRegistrar($app->make(CacheManager::class)));
     }
 
     private function clientAwareFingerprint(Request $request): string

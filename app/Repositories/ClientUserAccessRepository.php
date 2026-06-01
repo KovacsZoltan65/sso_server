@@ -16,6 +16,12 @@ use Prettus\Repository\Eloquent\Repository;
 class ClientUserAccessRepository extends Repository implements ClientUserAccessRepositoryInterface
 {
     /**
+     * Az admin lista által támogatott rendezési mezők leképezése.
+     *
+     * A frontend által küldött oszlopneveket explicit adatbázis oszlopokra
+     * fordítjuk, hogy elkerüljük a dinamikus orderBy használatát és a
+     * nem várt oszlopnevekből eredő hibákat.
+     *
      * @var array<string, string>
      */
     private array $sortableFields = [
@@ -43,12 +49,20 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
-     * @param array $filters
-     * @param mixed $sortField
-     * @param mixed $sortOrder
-     * @param int $perPage
-     * @param int $page
-     * @return LengthAwarePaginator
+     * Lekérdezi a kliens-felhasználó hozzáféréseket az admin lista számára.
+     *
+     * A metódus támogatja:
+     * - globális keresést
+     * - státusz alapú szűrést
+     * - kliens szerinti szűrést
+     * - felhasználó szerinti szűrést
+     * - biztonságos rendezést előre definiált oszlopokon
+     *
+     * A kapcsolódó modellek eager loadinggal kerülnek betöltésre,
+     * hogy elkerüljük az N+1 lekérdezési problémát.
+     * 
+     * @param  mixed  $sortField
+     * @param  mixed  $sortOrder
      */
     public function paginateForAdmin(
         array $filters,
@@ -89,10 +103,6 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
             ->withQueryString();
     }
 
-    /**
-     * @param int $id
-     * @return ClientUserAccess|null
-     */
     public function findById(int $id): ?ClientUserAccess
     {
         /** @var ClientUserAccess|null $access */
@@ -104,11 +114,6 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $access;
     }
 
-    /**
-     * @param int $clientId
-     * @param int $userId
-     * @return ClientUserAccess|null
-     */
     public function findAccessForClientAndUser(int $clientId, int $userId): ?ClientUserAccess
     {
         /** @var ClientUserAccess|null $access */
@@ -123,6 +128,11 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
+     * Megkeresi egy adott kliens és felhasználó aktív hozzáférési rekordját.
+     *
+     * Ez a metódus tipikusan OAuth autorizáció során használható annak
+     * eldöntésére, hogy a felhasználó jogosult-e az adott kliens használatára.
+     * 
      * @param int $clientId
      * @param int $userId
      * @return ClientUserAccess|null
@@ -142,6 +152,12 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
+     * Ellenőrzi, hogy a klienshez tartozik-e legalább egy aktív
+     * felhasználói hozzáférési rekord.
+     *
+     * Az eredmény felhasználható annak eldöntésére, hogy a kliens
+     * hozzáférései korlátozott üzemmódban működnek-e.
+     * 
      * @param int $clientId
      * @return bool
      */
@@ -155,6 +171,12 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
+     * Létrehoz egy új kliens-felhasználó hozzáférési kapcsolatot.
+     *
+     * A visszatérő modell a kapcsolódó kliens és felhasználó adataival
+     * együtt kerül visszaadásra, hogy további lekérdezés nélkül
+     * felhasználható legyen API válaszokban.
+     * 
      * @param array $attributes
      * @return ClientUserAccess
      */
@@ -167,9 +189,11 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
-     * @param ClientUserAccess $access
-     * @param array $attributes
-     * @return ClientUserAccess
+     * Frissíti a meglévő hozzáférési rekordot és visszatölti annak
+     * aktuális állapotát az adatbázisból.
+     *
+     * A refresh biztosítja, hogy minden adatbázis által módosított
+     * mező (cast, trigger, timestamp stb.) naprakész legyen.
      */
     public function updateAccess(ClientUserAccess $access, array $attributes): ClientUserAccess
     {
@@ -179,17 +203,12 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $access->refresh()->load(['client', 'user']);
     }
 
-    /**
-     * @param ClientUserAccess $access
-     * @return void
-     */
     public function deleteAccess(ClientUserAccess $access): void
     {
         $access->delete();
     }
 
     /**
-     * @param array $ids
      * @return Collection<int, ClientUserAccess>
      */
     public function getByIds(array $ids): Collection
@@ -204,10 +223,6 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         return $accesses;
     }
 
-    /**
-     * @param array $ids
-     * @return void
-     */
     public function deleteByIds(array $ids): void
     {
         $this->getModel()
@@ -217,7 +232,10 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
-     * @param int $clientId
+     * Visszaadja a klienshez rendelt felhasználókat hozzáférési rekordokkal együtt.
+     *
+     * Az eredmény admin felületeken és jogosultságkezelő nézeteken
+     * használható a klienshez rendelt felhasználók megjelenítésére.
      * @return Collection<int, ClientUserAccess>
      */
     public function listUsersForClient(int $clientId): Collection
@@ -225,7 +243,7 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         /** @var Collection<int, ClientUserAccess> $accesses */
         $accesses = $this->getModel()
             ->newQuery()
-            ->with('user')
+            ->with(['user'])
             ->where('client_id', $clientId)
             ->latest('id')
             ->get();
@@ -234,7 +252,11 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
-     * @param int $userId
+     * Visszaadja az adott felhasználóhoz rendelt klienseket.
+     *
+     * Az eredmény alkalmas felhasználói hozzáférések áttekintésére,
+     * audit célokra és admin kezelőfelületek kiszolgálására.
+     * 
      * @return Collection<int, ClientUserAccess>
      */
     public function listClientsForUser(int $userId): Collection
@@ -242,7 +264,7 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
         /** @var Collection<int, ClientUserAccess> $accesses */
         $accesses = $this->getModel()
             ->newQuery()
-            ->with('client')
+            ->with(['client'])
             ->where('user_id', $userId)
             ->latest('id')
             ->get();
@@ -251,6 +273,12 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
+     * @return array<int, array{
+     *     id:int,
+     *     name:string,
+     *     clientId:string
+     * }>
+     * 
      * @return array<int, string, int>
      */
     public function clientOptions(): array
@@ -268,7 +296,15 @@ class ClientUserAccessRepository extends Repository implements ClientUserAccessR
     }
 
     /**
-     * Summary of userOptions
+     * Felhasználóválasztó listához szükséges adatok.
+     *
+     * @return array<int, array{
+     *     id:int,
+     *     name:string,
+     *     email:string,
+     *     isActive:bool
+     * }>
+     * 
      * @return array<int, string, string, bool>
      */
     public function userOptions(): array

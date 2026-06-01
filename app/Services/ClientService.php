@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\ClientSummaryData;
 use App\Models\ClientSecret;
 use App\Models\SsoClient;
+use App\Models\TokenPolicy;
 use App\Repositories\Contracts\ClientRepositoryInterface;
 use App\Services\Audit\AuditLogService;
 use App\Services\OAuth\RememberedConsentInvalidationService;
@@ -25,6 +26,7 @@ use Illuminate\Validation\ValidationException;
  * }
  * @phpstan-type ClientWritePayload array{
  *     name: string,
+ *     client_type?: string,
  *     is_active: bool,
  *     token_policy_id?: int|null,
  *     trust_tier: string,
@@ -41,6 +43,7 @@ use Illuminate\Validation\ValidationException;
  *     id: int,
  *     name: string,
  *     clientId: string,
+ *     clientType: string,
  *     redirectUris: array<int, string>,
  *     redirectUriCount: int,
  *     isActive: bool,
@@ -68,6 +71,7 @@ use Illuminate\Validation\ValidationException;
  *     id: int,
  *     name: string,
  *     clientId: string,
+ *     clientType: string,
  *     redirectUris: array<int, string>,
  *     isActive: bool,
  *     scopes: array<int, string>,
@@ -93,7 +97,8 @@ class ClientService
      * @return array{
      *     rows: array<int, ClientSummaryData>,
      *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
-     *     tokenPolicies: array<int, array{id: int, name: string}>,
+     *     tokenPolicies: array<int, array{id: int, name: string, pkceRequired: bool}>,
+     *     clientTypeOptions: array<int, array{label: string, value: string, helper: string}>,
      *     canManageClients: bool,
      *     filters: AdminClientFilters,
      *     sorting: array{field: string, order: int},
@@ -144,7 +149,7 @@ class ClientService
     /**
      * @return array{
      *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
-     *     tokenPolicies: array<int, array{id: int, name: string}>,
+     *     tokenPolicies: array<int, array{id: int, name: string, pkceRequired: bool}>,
      *     trustTierOptions: array<int, array{label: string, value: string, helper: string}>,
      *     defaults: array{trustTier: string, isFirstParty: bool, consentBypassAllowed: bool}
      * }
@@ -154,8 +159,10 @@ class ClientService
         return [
             'scopeOptions' => ClientOptions::scopeOptions(),
             'tokenPolicies' => ClientOptions::tokenPolicies(),
+            'clientTypeOptions' => ClientOptions::clientTypeOptions(),
             'trustTierOptions' => ClientOptions::trustTierOptions(),
             'defaults' => [
+                'clientType' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
                 'trustTier' => SsoClient::TRUST_TIER_THIRD_PARTY,
                 'isFirstParty' => false,
                 'consentBypassAllowed' => false,
@@ -167,7 +174,8 @@ class ClientService
      * @return array{
      *     client: EditableClient,
      *     scopeOptions: array<int, array{label: string, value: string, groupKey: string, groupLabel: string, action: string, itemLabel: string, helper: string}>,
-     *     tokenPolicies: array<int, array{id: int, name: string}>,
+     *     tokenPolicies: array<int, array{id: int, name: string, pkceRequired: bool}>,
+     *     clientTypeOptions: array<int, array{label: string, value: string, helper: string}>,
      *     trustTierOptions: array<int, array{label: string, value: string, helper: string}>,
      *     canManageSecrets: bool
      * }
@@ -180,6 +188,7 @@ class ClientService
             'client' => $this->editableClient($client),
             'scopeOptions' => ClientOptions::scopeOptions(),
             'tokenPolicies' => ClientOptions::tokenPolicies(),
+            'clientTypeOptions' => ClientOptions::clientTypeOptions(),
             'trustTierOptions' => ClientOptions::trustTierOptions(),
             'canManageSecrets' => auth()->user()?->can(ClientPermissions::MANAGE_SECRETS)
                 || auth()->user()?->can(ClientPermissions::ROTATE_SECRET)
@@ -192,12 +201,17 @@ class ClientService
      * Persist a new SSO client and return the one-time plain secret for secure display.
      *
      * @param  ClientWritePayload  $payload
-     * @return array{client: SsoClient, plainSecret: string}
+     * @return array{client: SsoClient, plainSecret: string|null}
      */
     public function createClient(array $payload): array
     {
         return DB::transaction(function () use ($payload): array {
-            $plainSecret = Str::random(48);
+            $clientType = $this->normalizeClientType($payload['client_type'] ?? null);
+            $this->assertTokenPolicyAllowedForClientType($clientType, $payload['token_policy_id'] ?? null);
+
+            $plainSecret = $clientType === SsoClient::CLIENT_TYPE_CONFIDENTIAL
+                ? Str::random(48)
+                : null;
             $redirectUris = $this->sanitizeUris($payload['redirect_uris'] ?? []);
             $scopeCodes = $this->sanitizeScopes($payload['scopes'] ?? []);
             $defaultScopeCodes = $this->sanitizeDefaultScopes($payload['default_scopes'] ?? [], $scopeCodes);
@@ -205,19 +219,23 @@ class ClientService
             $client = $this->clients->createClient([
                 ...Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed']),
                 'client_id' => $this->generateClientId(),
-                'client_secret_hash' => Hash::make($plainSecret),
+                'client_type' => $clientType,
+                'client_secret_hash' => $plainSecret !== null ? Hash::make($plainSecret) : '',
                 'redirect_uris' => $redirectUris,
                 'scopes' => $scopeCodes,
             ]);
 
             $this->clients->syncRedirectUris($client, $redirectUris);
             $this->clients->syncScopes($client, $scopeCodes, $defaultScopeCodes);
-            $this->clients->createSecret($client, [
-                'name' => 'Initial secret',
-                'secret_hash' => Hash::make($plainSecret),
-                'last_four' => Str::substr($plainSecret, -4),
-                'is_active' => true,
-            ]);
+
+            if ($plainSecret !== null) {
+                $this->clients->createSecret($client, [
+                    'name' => 'Initial secret',
+                    'secret_hash' => Hash::make($plainSecret),
+                    'last_four' => Str::substr($plainSecret, -4),
+                    'is_active' => true,
+                ]);
+            }
 
             $this->auditLogService->logSuccess(
                 logName: AuditLogService::LOG_ADMIN_CLIENT,
@@ -228,6 +246,7 @@ class ClientService
                 properties: [
                     'client_id' => $client->id,
                     'client_public_id' => $client->client_id,
+                    'client_type' => $client->client_type,
                     'redirect_uri_count' => \count($redirectUris),
                     'scope_codes' => $scopeCodes,
                     'default_scopes' => $defaultScopeCodes,
@@ -239,18 +258,20 @@ class ClientService
                 ],
             );
 
-            $this->auditLogService->logSuccess(
-                logName: AuditLogService::LOG_ADMIN_CLIENT,
-                event: 'admin.client_secret.created',
-                description: 'Initial client secret created.',
-                subject: $client,
-                causer: auth()->user(),
-                properties: [
-                    'client_id' => $client->id,
-                    'client_public_id' => $client->client_id,
-                    'secret_last_four' => Str::substr($plainSecret, -4),
-                ],
-            );
+            if ($plainSecret !== null) {
+                $this->auditLogService->logSuccess(
+                    logName: AuditLogService::LOG_ADMIN_CLIENT,
+                    event: 'admin.client_secret.created',
+                    description: 'Initial client secret created.',
+                    subject: $client,
+                    causer: auth()->user(),
+                    properties: [
+                        'client_id' => $client->id,
+                        'client_public_id' => $client->client_id,
+                        'secret_last_four' => Str::substr($plainSecret, -4),
+                    ],
+                );
+            }
 
             $this->logRedirectUriChanges($client, [], $redirectUris);
             $this->logClientScopeChanges($client, [], $scopeCodes);
@@ -273,12 +294,16 @@ class ClientService
             $redirectUris = $this->sanitizeUris($payload['redirect_uris'] ?? []);
             $scopeCodes = $this->sanitizeScopes($payload['scopes'] ?? []);
             $defaultScopeCodes = $this->sanitizeDefaultScopes($payload['default_scopes'] ?? [], $scopeCodes);
+            $clientType = $this->normalizeClientType($payload['client_type'] ?? $client->client_type);
+            $this->assertTokenPolicyAllowedForClientType($clientType, $payload['token_policy_id'] ?? null);
             $previousRedirectUris = $client->normalizedRedirectUris();
             $previousScopeCodes = $client->normalizedScopeCodes();
+            $previousClientType = $client->client_type;
             $trustFieldChanges = $this->resolveRememberedConsentTrustChanges($client, $payload);
 
             $updatedClient = $this->clients->updateClient($client, [
                 ...Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed']),
+                'client_type' => $clientType,
                 'redirect_uris' => $redirectUris,
                 'scopes' => $scopeCodes,
             ]);
@@ -295,7 +320,8 @@ class ClientService
                 properties: [
                     'client_id' => $updatedClient->id,
                     'client_public_id' => $updatedClient->client_id,
-                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed', 'redirect_uris', 'scopes', 'default_scopes']))),
+                    'client_type' => $updatedClient->client_type,
+                    'updated_fields' => array_values(array_keys(Arr::only($payload, ['name', 'client_type', 'is_active', 'token_policy_id', 'trust_tier', 'is_first_party', 'consent_bypass_allowed', 'redirect_uris', 'scopes', 'default_scopes']))),
                     'redirect_uri_count' => \count($redirectUris),
                     'scope_codes' => $scopeCodes,
                     'default_scopes' => $defaultScopeCodes,
@@ -309,6 +335,7 @@ class ClientService
 
             $this->logRedirectUriChanges($updatedClient, $previousRedirectUris, $redirectUris);
             $this->logClientScopeChanges($updatedClient, $previousScopeCodes, $scopeCodes);
+            $this->logClientTypeChange($updatedClient, $previousClientType, $clientType);
 
             if ($trustFieldChanges !== []) {
                 $this->rememberedConsentInvalidationService->invalidateForClientTrustChange(
@@ -330,6 +357,12 @@ class ClientService
     public function rotateSecret(SsoClient $client, array $payload = []): array
     {
         return DB::transaction(function () use ($client, $payload): array {
+            if ($client->isPublic()) {
+                throw ValidationException::withMessages([
+                    'client_type' => 'Public clients cannot safely store secrets.',
+                ]);
+            }
+
             $plainSecret = Str::random(48);
             $secretName = trim((string) ($payload['name'] ?? '')) ?: 'Rotated secret '.now()->format('Y-m-d H:i');
 
@@ -440,6 +473,7 @@ class ClientService
             'id' => $client->id,
             'name' => $client->name,
             'clientId' => $client->client_id,
+            'clientType' => $client->client_type,
             'redirectUris' => $client->normalizedRedirectUris(),
             'isActive' => (bool) $client->is_active,
             'scopes' => $client->normalizedScopeCodes(),
@@ -479,6 +513,35 @@ class ClientService
             ->unique()
             ->values()
             ->all();
+    }
+
+    private function normalizeClientType(mixed $clientType): string
+    {
+        $normalized = trim((string) $clientType);
+
+        return \in_array($normalized, SsoClient::supportedClientTypes(), true)
+            ? $normalized
+            : SsoClient::CLIENT_TYPE_CONFIDENTIAL;
+    }
+
+    private function assertTokenPolicyAllowedForClientType(string $clientType, mixed $policyId): void
+    {
+        if ($clientType !== SsoClient::CLIENT_TYPE_PUBLIC) {
+            return;
+        }
+
+        $pkceRequired = TokenPolicy::query()
+            ->when($policyId !== null && $policyId !== '', fn ($query) => $query->whereKey((int) $policyId))
+            ->when($policyId === null || $policyId === '', fn ($query) => $query->where('is_default', true))
+            ->where('is_active', true)
+            ->where('pkce_required', true)
+            ->exists();
+
+        if (! $pkceRequired) {
+            throw ValidationException::withMessages([
+                'token_policy_id' => 'Public clients must use a token policy where PKCE is required.',
+            ]);
+        }
     }
 
     /**
@@ -632,5 +695,26 @@ class ClientService
                 ],
             );
         }
+    }
+
+    private function logClientTypeChange(SsoClient $client, string $before, string $after): void
+    {
+        if ($before === $after) {
+            return;
+        }
+
+        $this->auditLogService->logSuccess(
+            logName: AuditLogService::LOG_ADMIN_CLIENT,
+            event: 'admin.client_type.changed',
+            description: 'SSO client type changed.',
+            subject: $client,
+            causer: auth()->user(),
+            properties: [
+                'client_id' => $client->id,
+                'client_public_id' => $client->client_id,
+                'old_client_type' => $before,
+                'new_client_type' => $after,
+            ],
+        );
     }
 }

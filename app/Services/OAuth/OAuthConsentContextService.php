@@ -13,6 +13,13 @@ use Illuminate\Contracts\Session\Session;
 use Illuminate\Validation\ValidationException;
 
 /**
+ * OAuth consent contextek szerveroldali kezeléséért felelős szolgáltatás.
+ *
+ * A consent context célja, hogy a felhasználói jóváhagyás idejére
+ * biztonságosan megőrizzük az authorization request eredeti állapotát.
+ * Így a kliensoldali consent képernyő nem tudja utólag módosítani
+ * a redirect URI-t, scope-okat, nonce-t vagy PKCE paramétereket.
+ *
  * @phpstan-type AuthorizationPayload array{
  *     response_type: string,
  *     client_id: string,
@@ -26,6 +33,9 @@ use Illuminate\Validation\ValidationException;
  */
 class OAuthConsentContextService
 {
+    /**
+     * Session kulcs, amely alatt az aktív OAuth consent contextek tárolódnak.
+     */
     private const SESSION_KEY = 'oauth.consent_contexts';
 
     public function __construct(
@@ -34,6 +44,12 @@ class OAuthConsentContextService
     ) {}
 
     /**
+     * Létrehoz egy új consent contextet egy authorization request alapján.
+     *
+     * A metódus újraellenőrzi a klienst, redirect URI-t, scope-okat és PKCE
+     * követelményeket, mielőtt a jóváhagyási állapotot sessionbe mentené.
+     * Ez védi a consent folyamatot a manipulált vagy elavult request adatoktól.
+     *
      * @param  AuthorizationPayload  $payload
      */
     public function createContext(User $user, array $payload): OAuthConsentContextData
@@ -51,7 +67,7 @@ class OAuthConsentContextService
             ]);
         }
 
-        $redirectUri = trim((string) $payload['redirect_uri']);
+        $redirectUri = (string) $payload['redirect_uri'];
 
         if (! $this->redirectUriMatcher->matches($client, $redirectUri)) {
             throw ValidationException::withMessages([
@@ -74,6 +90,12 @@ class OAuthConsentContextService
     }
 
     /**
+     * Eltárolja a consent döntéshez szükséges authorization állapotot.
+     *
+     * A context rövid életű, tokennel azonosított szerveroldali snapshot.
+     * A consent képernyő később csak erre a tokenre hivatkozik, nem küldi
+     * újra szabadon módosítható OAuth paraméterként a teljes requestet.
+     *
      * @param  AuthorizationPayload  $payload
      * @param  array<int, string>  $requestedScopes
      */
@@ -86,13 +108,14 @@ class OAuthConsentContextService
     ): OAuthConsentContextData {
         $createdAt ??= CarbonImmutable::now();
         $expiresAt = $createdAt->addMinutes($this->ttlMinutes());
+
         $context = new OAuthConsentContextData(
             consentToken: bin2hex(random_bytes(32)),
             clientId: $client->client_id,
             clientDbId: $client->id,
             clientDisplayName: $client->name,
             clientDescription: $this->normalizeNullableString($client->getAttribute('description')),
-            redirectUri: trim((string) $payload['redirect_uri']),
+            redirectUri: (string) $payload['redirect_uri'],
             requestedScopes: $requestedScopes,
             state: $this->normalizeNullableString($payload['state'] ?? null),
             nonce: $this->normalizeNullableString($payload['nonce'] ?? null),
@@ -112,6 +135,12 @@ class OAuthConsentContextService
         return $context;
     }
 
+    /**
+     * Consent token alapján visszaadja a még érvényes szerveroldali contextet.
+     *
+     * Lejárt vagy hiányzó context esetén ugyanúgy hibát dobunk, hogy a hívó
+     * réteg ne különböztesse meg feleslegesen az invalid és expired állapotokat.
+     */
     public function getContextByToken(string $token): OAuthConsentContextData
     {
         $payload = $this->allContexts()[trim($token)] ?? null;
@@ -131,6 +160,12 @@ class OAuthConsentContextService
         return $context;
     }
 
+    /**
+     * Érvényteleníti a consent contextet.
+     *
+     * Ezt jóváhagyás, elutasítás, lejárat vagy felhasználói eltérés esetén
+     * használjuk, hogy ugyanaz a consent token ne legyen újra felhasználható.
+     */
     public function invalidateContext(string $token): void
     {
         $normalizedToken = trim($token);
@@ -144,6 +179,12 @@ class OAuthConsentContextService
         $this->session->put(self::SESSION_KEY, $contexts);
     }
 
+    /**
+     * Eldönti, hogy egy consent token jelenleg még használható-e.
+     *
+     * Kényelmi ellenőrző metódus olyan UI vagy flow pontokra, ahol nem a
+     * context tartalma kell, csak annak eldöntése, hogy folytatható-e a consent.
+     */
     public function hasValidContext(string $token): bool
     {
         try {
@@ -156,6 +197,11 @@ class OAuthConsentContextService
     }
 
     /**
+     * Visszaadja a sessionben tárolt összes consent contextet.
+     *
+     * Ha a session értéke sérült vagy nem tömb, üres listával térünk vissza,
+     * hogy a hibás session állapot ne okozzon authorization folyamat közbeni hibát.
+     *
      * @return array<string, array<string, mixed>>
      */
     private function allContexts(): array
@@ -166,6 +212,12 @@ class OAuthConsentContextService
     }
 
     /**
+     * Feloldja az authorization requestben kért scope-okat.
+     *
+     * Explicit scope kérés esetén minden scope-nak szerepelnie kell a klienshez
+     * rendelt engedélyezett scope-listában. Scope nélküli kérésnél kizárólag
+     * a kliens default scope-jai alkalmazhatók.
+     *
      * @return array<int, string>
      */
     private function resolveScopes(SsoClient $client, string $scopeString): array
@@ -202,6 +254,13 @@ class OAuthConsentContextService
     }
 
     /**
+     * Ellenőrzi a consent contexthez kapcsolódó PKCE követelményeket.
+     *
+     * Ha a kliens token policy-ja PKCE-t ír elő, nem engedünk consent contextet
+     * létrehozni code challenge nélkül. Challenge megadása esetén csak S256
+     * elfogadott, hogy a jóváhagyott request később biztonságosan cserélhető
+     * legyen tokenre.
+     *
      * @param  AuthorizationPayload  $payload
      */
     private function assertPkceRequirements(SsoClient $client, array $payload): void
@@ -223,6 +282,13 @@ class OAuthConsentContextService
         }
     }
 
+    /**
+     * Meghatározza a kliensre érvényes aktív token policy-t.
+     *
+     * Konkrét kliens policy esetén azt használjuk, egyébként az aktív default
+     * policy-t keressük. Ez biztosítja, hogy a consent context ugyanazokra
+     * a tokenkiadási szabályokra épüljön, mint az authorization flow.
+     */
     private function resolvePolicy(SsoClient $client): ?TokenPolicy
     {
         if ($client->relationLoaded('tokenPolicy') && $client->tokenPolicy !== null) {
@@ -236,11 +302,23 @@ class OAuthConsentContextService
             ->first();
     }
 
+    /**
+     * Visszaadja a consent context élettartamát percekben.
+     *
+     * Az alsó korlát megakadályozza, hogy hibás konfiguráció miatt azonnal
+     * lejáró vagy használhatatlan consent context jöjjön létre.
+     */
     private function ttlMinutes(): int
     {
         return max(1, (int) config('services.oauth.consent_context_ttl_minutes', 5));
     }
 
+    /**
+     * Egységesen normalizálja az opcionális szöveges mezőket.
+     *
+     * Az üres stringeket nullként kezeljük, hogy a session payload,
+     * összehasonlítások és későbbi OAuth döntések konzisztensen működjenek.
+     */
     private function normalizeNullableString(mixed $value): ?string
     {
         $normalized = trim((string) ($value ?? ''));

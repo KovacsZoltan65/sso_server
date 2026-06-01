@@ -70,13 +70,18 @@ class ClientController extends Controller
 
         $result = $this->clientService->createClient($request->validated());
 
-        return redirect()
+        $response = redirect()
             ->route('admin.sso-clients.index')
-            ->with('success', Localization::translate('api.clients.created'))
-            ->with('clientSecret', [
+            ->with('success', Localization::translate('api.clients.created'));
+
+        if ($result['plainSecret'] !== null) {
+            $response->with('clientSecret', [
                 'clientId' => $result['client']->client_id,
                 'secret' => $result['plainSecret'],
             ]);
+        }
+
+        return $response;
     }
 
     /**

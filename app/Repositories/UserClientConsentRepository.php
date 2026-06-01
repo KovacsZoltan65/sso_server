@@ -10,9 +10,22 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
 use Prettus\Repository\Eloquent\Repository;
 
+/**
+ * Felhasználói OAuth consent rekordok adatkezeléséért felelős repository.
+ *
+ * A consent rekordok azt dokumentálják, hogy egy felhasználó mikor,
+ * mely kliens számára, milyen feltételek mellett adott hozzáférést.
+ * A repository adminisztrációs listázási, szűrési és karbantartási
+ * műveleteket biztosít ezekhez az adatokhoz.
+ */
 class UserClientConsentRepository extends Repository implements UserClientConsentRepositoryInterface
 {
     /**
+     * Az admin lista által támogatott rendezési mezők explicit leképezése.
+     *
+     * A frontendből érkező oszlopnevek nem kerülnek közvetlenül SQL-be,
+     * így a rendezés kontrollált és biztonságos marad.
+     *
      * @var array<string, string>
      */
     private array $sortableFields = [
@@ -27,11 +40,26 @@ class UserClientConsentRepository extends Repository implements UserClientConsen
         parent::__construct($model);
     }
 
+    /**
+     * Meghatározza a repository által kezelt modellt.
+     *
+     * A Prettus Repository infrastruktúra ezt használja az alap
+     * modellfeloldáshoz és a generikus repository működéshez.
+     */
     public function model(): string
     {
         return UserClientConsent::class;
     }
 
+    /**
+     * Visszaadja egy kliens jelenleg érvényes consentjeit.
+     *
+     * Az eredmény csak olyan jóváhagyásokat tartalmaz, amelyek nem kerültek
+     * visszavonásra és még nem jártak le. Ez tipikusan audit, riport vagy
+     * consent újraellenőrzési folyamatok alapja lehet.
+     *
+     * @return Collection<int, UserClientConsent>
+     */
     public function activeForClient(int $clientId): Collection
     {
         /** @var Collection<int, UserClientConsent> $consents */
@@ -47,6 +75,16 @@ class UserClientConsentRepository extends Repository implements UserClientConsen
         return $consents;
     }
 
+    /**
+     * Visszaadja azokat az aktív consent rekordokat, amelyek eltérő
+     * consent policy verzióval rendelkeznek.
+     *
+     * Ez lehetővé teszi tömeges újrahozzájárulás (re-consent) folyamatok
+     * indítását, amikor a rendszer jogi vagy adatkezelési feltételei
+     * megváltoznak.
+     *
+     * @return Collection<int, UserClientConsent>
+     */
     public function activeForPolicyVersionMismatch(string $currentVersion, ?string $oldVersion = null): Collection
     {
         /** @var Collection<int, UserClientConsent> $consents */
@@ -66,6 +104,13 @@ class UserClientConsentRepository extends Repository implements UserClientConsen
         return $consents;
     }
 
+    /**
+     * Lekérdezi az admin consent listát kereséssel, szűréssel és rendezéssel.
+     *
+     * A lista támogatja a felhasználó, kliens és consent állapot szerinti
+     * szűrést, így egyszerre használható auditálási, ügyfélszolgálati és
+     * compliance célokra.
+     */
     public function paginateForAdmin(
         array $filters,
         ?string $sortField,
@@ -101,9 +146,14 @@ class UserClientConsentRepository extends Repository implements UserClientConsen
             ->when($userId !== null, fn ($query) => $query->where('user_client_consents.user_id', (int) $userId))
             ->when($status !== null && $status !== '', function ($query) use ($status): void {
                 match ($status) {
-                    'active' => $query->whereNull('user_client_consents.revoked_at')->where('user_client_consents.expires_at', '>', now()),
+                    'active' => $query->whereNull('user_client_consents.revoked_at')
+                        ->where('user_client_consents.expires_at', '>', now()),
+
                     'revoked' => $query->whereNotNull('user_client_consents.revoked_at'),
-                    'expired' => $query->whereNull('user_client_consents.revoked_at')->where('user_client_consents.expires_at', '<=', now()),
+
+                    'expired' => $query->whereNull('user_client_consents.revoked_at')
+                        ->where('user_client_consents.expires_at', '<=', now()),
+
                     default => null,
                 };
             })
@@ -112,6 +162,14 @@ class UserClientConsentRepository extends Repository implements UserClientConsen
             ->withQueryString();
     }
 
+    /**
+     * Visszaadja azokat a felhasználókat, akikhez legalább egy consent tartozik.
+     *
+     * Az admin szűrőlisták számára optimalizált adatforrás, hogy a kezelőfelület
+     * csak ténylegesen érintett felhasználókat ajánljon fel.
+     *
+     * @return Collection<int, array{id: int, name: string, email: string}>
+     */
     public function userOptionsForAdmin(): Collection
     {
         /** @var Collection<int, array{id: int, name: string, email: string}> $users */
@@ -131,6 +189,14 @@ class UserClientConsentRepository extends Repository implements UserClientConsen
         return $users;
     }
 
+    /**
+     * Visszaadja azokat az OAuth klienseket, amelyekhez consent rekord tartozik.
+     *
+     * Az admin szűrők és riportok számára biztosít adatforrást úgy,
+     * hogy csak ténylegesen használt kliensek jelenjenek meg.
+     *
+     * @return Collection<int, array{id: int, name: string, clientId: string}>
+     */
     public function clientOptionsForAdmin(): Collection
     {
         /** @var Collection<int, array{id: int, name: string, clientId: string}> $clients */
@@ -150,6 +216,12 @@ class UserClientConsentRepository extends Repository implements UserClientConsen
         return $clients;
     }
 
+    /**
+     * Frissíti egy consent rekord állapotát vagy metaadatait.
+     *
+     * Tipikusan visszavonási folyamatok, lejárati módosítások vagy
+     * adminisztratív helyesbítések során használható.
+     */
     public function updateConsent(UserClientConsent $consent, array $attributes): UserClientConsent
     {
         $consent->forceFill($attributes)->save();

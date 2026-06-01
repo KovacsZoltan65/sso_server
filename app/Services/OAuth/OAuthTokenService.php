@@ -20,6 +20,19 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
+ * OAuth token endpoint üzleti logikáját kezelő szolgáltatás.
+ *
+ * Ez az osztály felel az authorization code és refresh token grant
+ * feldolgozásáért, tokenpárok kiadásáért, token visszavonásért,
+ * introspection válaszokért és OIDC userinfo kiszolgálásért.
+ *
+ * Biztonsági fókusz:
+ * - authorization code egyszer használható
+ * - refresh token rotation és reuse detection támogatott
+ * - scope escalation tiltott token endpointon
+ * - tokenek csak hash alapján kereshetők
+ * - tokenkiadás és visszavonás auditálható
+ *
  * @phpstan-type OAuthTokenPayload array{
  *     client_id: string,
  *     client_secret?: string|null,
@@ -75,7 +88,12 @@ class OAuthTokenService
     ) {}
 
     /**
-     * Exchange a validated authorization code for an access and refresh token pair.
+     * Authorization code grant alapján access/refresh token párt ad ki.
+     *
+     * A code egyszer használható, klienshez kötött és redirect URI-hoz kötött.
+     * A tokenkiadás csak akkor történhet meg, ha a code aktív, a PKCE verifier
+     * érvényes, és a code-ban tárolt scope-ok továbbra is engedélyezettek
+     * a kliens számára.
      *
      * @param  OAuthTokenPayload  $payload
      * @return TokenPair
@@ -84,9 +102,10 @@ class OAuthTokenService
     {
         $client = $this->resolveClient((string) $payload['client_id']);
         $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), 'authorization_code', $ipAddress, $userAgent);
+        $this->assertNoTokenScopeParameter($client, $payload, 'authorization_code');
 
         $codeHash = hash('sha256', (string) $payload['code']);
-        $redirectUri = trim((string) $payload['redirect_uri']);
+        $redirectUri = (string) $payload['redirect_uri'];
         $verifier = trim((string) ($payload['code_verifier'] ?? ''));
         $grantFailureReason = null;
         $grantFailureMessages = null;
@@ -156,6 +175,13 @@ class OAuthTokenService
             }
 
             $policy = $this->resolvePolicy($client, $authorizationCode->tokenPolicy);
+            if ($this->deniedStoredScopeCodes($client, $authorizationCode->scopes ?? []) !== []) {
+                $grantFailureReason = 'scope_grant_no_longer_allowed';
+                $grantFailureMessages = ['scope' => 'The requested scope is not allowed for this client.'];
+
+                return null;
+            }
+
             $authorizationCode = $this->authorizationCodeRepository->consume($authorizationCode);
 
             $issued = $this->issueTokenPair(
@@ -227,13 +253,13 @@ class OAuthTokenService
         }
 
         if ($grantFailureReason !== null && \is_array($grantFailureMessages)) {
-            $this->logGrantFailure($client, $grantFailureReason);
+            $this->logGrantFailure($client, $grantFailureReason, ['grant_type' => 'authorization_code']);
 
             throw ValidationException::withMessages($grantFailureMessages);
         }
 
         if ($issuedPayload === null) {
-            $this->logGrantFailure($client, 'invalid_authorization_code');
+            $this->logGrantFailure($client, 'invalid_authorization_code', ['grant_type' => 'authorization_code']);
 
             throw ValidationException::withMessages([
                 'code' => 'The provided authorization code is invalid.',
@@ -244,7 +270,12 @@ class OAuthTokenService
     }
 
     /**
-     * Refresh an access token using a validated refresh token grant payload.
+     * Refresh token grant alapján új access/refresh token párt ad ki.
+     *
+     * A grant az eredeti refresh token scope-jait örökíti tovább, ezért
+     * token endpointon nem engedünk új scope paramétert. Rotáció esetén
+     * a régi refresh token lezárásra kerül, reuse gyanú esetén pedig a
+     * teljes tokencsalád incidenskezelés alá kerülhet.
      *
      * @param  OAuthTokenPayload  $payload
      * @return TokenPair
@@ -253,6 +284,7 @@ class OAuthTokenService
     {
         $client = $this->resolveClient((string) $payload['client_id']);
         $this->assertClientAuthentication($client, (string) ($payload['client_secret'] ?? ''), 'refresh_token', $ipAddress, $userAgent);
+        $this->assertNoTokenScopeParameter($client, $payload, 'refresh_token');
 
         $refreshTokenHash = hash('sha256', (string) $payload['refresh_token']);
         $reusedToken = null;
@@ -280,6 +312,13 @@ class OAuthTokenService
 
             if (! $token->isRefreshTokenActive()) {
                 $reusedToken = $token;
+
+                return null;
+            }
+
+            if ($this->deniedStoredScopeCodes($client, $token->scopes ?? []) !== []) {
+                $grantFailureReason = 'scope_grant_no_longer_allowed';
+                $grantFailureMessages = ['scope' => 'The requested scope is not allowed for this client.'];
 
                 return null;
             }
@@ -351,13 +390,13 @@ class OAuthTokenService
         }
 
         if ($grantFailureReason !== null && \is_array($grantFailureMessages)) {
-            $this->logGrantFailure($client, $grantFailureReason);
+            $this->logGrantFailure($client, $grantFailureReason, ['grant_type' => 'refresh_token']);
 
             throw ValidationException::withMessages($grantFailureMessages);
         }
 
         if ($issuedPayload === null) {
-            $this->logGrantFailure($client, 'invalid_refresh_token');
+            $this->logGrantFailure($client, 'invalid_refresh_token', ['grant_type' => 'refresh_token']);
 
             throw ValidationException::withMessages([
                 'refresh_token' => 'The refresh token is invalid.',
@@ -368,7 +407,88 @@ class OAuthTokenService
     }
 
     /**
-     * Resolve an active confidential or public client by OAuth client identifier.
+     * Megakadályozza a scope paraméter használatát token endpointon.
+     *
+     * Authorization code grantnél a scope a felhasznált code-ból,
+     * refresh token grantnél pedig a tárolt refresh tokenből származik.
+     * Itt új scope elfogadása scope escalation vagy félreérthető
+     * jogosultsági döntés lenne.
+     *
+     * @param  OAuthTokenPayload  $payload
+     */
+    private function assertNoTokenScopeParameter(SsoClient $client, array $payload, string $grantType): void
+    {
+        $requestedScope = trim((string) ($payload['scope'] ?? ''));
+
+        if ($requestedScope === '') {
+            return;
+        }
+
+        $this->logGrantFailure($client, 'scope_parameter_not_allowed', [
+            'grant_type' => $grantType,
+            'affected_count' => \count($this->parseScopeCodes($requestedScope)),
+        ]);
+
+        throw ValidationException::withMessages([
+            'scope' => 'The scope parameter is not supported for this grant type.',
+        ]);
+    }
+
+    /**
+     * Megkeresi azokat a tárolt scope-okat, amelyek már nem engedélyezettek a klienshez.
+     *
+     * Tokenkiadás előtt újraellenőrizzük a korábban eltárolt scope-listát,
+     * hogy egy időközben visszavont kliens-scope kapcsolatból ne lehessen
+     * új tokenpárt kiadni.
+     *
+     * @param  array<int, string>  $scopeCodes
+     * @return array<int, string>
+     */
+    private function deniedStoredScopeCodes(SsoClient $client, array $scopeCodes): array
+    {
+        $normalizedScopes = $this->normalizeScopeCodes($scopeCodes);
+        $allowedScopes = $client->fresh(['scopes'])?->normalizedScopeCodes() ?? [];
+
+        return array_values(array_diff($normalizedScopes, $allowedScopes));
+    }
+
+    /**
+     * Space-delimited OAuth scope stringből normalizált scope listát készít.
+     *
+     * A helper audit és hibakezelési célokra is használható, hogy ne nyers,
+     * duplikált vagy üres scope részletekkel dolgozzunk.
+     *
+     * @return array<int, string>
+     */
+    private function parseScopeCodes(string $scopeString): array
+    {
+        return $this->normalizeScopeCodes(preg_split('/\s+/', $scopeString) ?: []);
+    }
+
+    /**
+     * Egységesíti a scope kódokat tokenkiadási és audit döntésekhez.
+     *
+     * A scope-okból eltávolítja az üres értékeket és a duplikációkat,
+     * így a jogosultsági összehasonlítások determinisztikusak maradnak.
+     *
+     * @param  array<int, mixed>  $scopeCodes
+     * @return array<int, string>
+     */
+    private function normalizeScopeCodes(array $scopeCodes): array
+    {
+        return collect($scopeCodes)
+            ->map(static fn (mixed $scope): string => trim((string) $scope))
+            ->filter(static fn (string $scope): bool => $scope !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * Aktív OAuth klienst keres a publikus client_id alapján.
+     *
+     * A kliensfeloldás minden token endpoint művelet belépési pontja.
+     * Inaktív vagy ismeretlen kliens esetén auditált grant megszakítás történik.
      */
     private function resolveClient(string $clientId): SsoClient
     {
@@ -393,7 +513,11 @@ class OAuthTokenService
     }
 
     /**
-     * Validate the provided client secret against the currently active secret set.
+     * Ellenőrzi a klienshitelesítést a kliens típusának megfelelően.
+     *
+     * Public kliensnél nincs secret elvárás. Confidential kliensnél viszont
+     * aktív secret szükséges, és csak a jelenleg érvényes secret készlet
+     * valamelyikével hitelesíthető a token endpoint művelet.
      *
      * @throws AuthenticationException
      */
@@ -426,7 +550,11 @@ class OAuthTokenService
     }
 
     /**
-     * Summary of verifyActiveClientSecret
+     * Ellenőrzi a beküldött kliens secretet az aktív secret készlettel szemben.
+     *
+     * A secret nyers értéke nincs tárolva, ezért kizárólag hash ellenőrzés
+     * történik. Több aktív secret támogatása lehetővé teszi a biztonságos
+     * secret rotációt átmeneti leállás nélkül.
      */
     private function verifyActiveClientSecret(SsoClient $client, string $providedSecret): bool
     {
@@ -440,9 +568,11 @@ class OAuthTokenService
     }
 
     /**
-     * Handle the detection of a refresh token reuse event by revoking the entire token family and logging an appropriate security incident.
+     * Elutasítja a sikertelen confidential client hitelesítést.
      *
-     * @return void
+     * A hiba auditálva van grant, IP és user agent kontextussal,
+     * de a kliens felé egységes hitelesítési hiba tér vissza, hogy
+     * ne szivárogjon ki, melyik hitelesítési feltétel bukott el.
      */
     private function rejectClientAuthentication(
         SsoClient $client,
@@ -472,15 +602,18 @@ class OAuthTokenService
     }
 
     /**
-     * Resolve the token policy explicitly attached to the request client or fall back to the active default.
+     * Meghatározza a klienshez érvényes aktív token policy-t.
+     *
+     * Először a granthez már betöltött policy-t használja, ha az aktív.
+     * Ennek hiányában a klienshez rendelt policy vagy az aktív default policy
+     * alapján dől el a tokenek élettartama, rotációja és egyéb szabálya.
      *
      * @return TokenPolicy
-     *                     Throws ValidationException
      */
     private function resolvePolicy(SsoClient $client, ?TokenPolicy $policy = null): TokenPolicy
     {
         if ($policy instanceof TokenPolicy && $policy->is_active) {
-            return $policy;
+            return $this->assertPolicyAllowedForClientType($client, $policy);
         }
 
         $resolved = TokenPolicy::query()
@@ -493,11 +626,31 @@ class OAuthTokenService
             throw ValidationException::withMessages(['client_id' => 'No active token policy is available for this client.']);
         }
 
-        return $resolved;
+        return $this->assertPolicyAllowedForClientType($client, $resolved);
+    }
+
+    private function assertPolicyAllowedForClientType(SsoClient $client, TokenPolicy $policy): TokenPolicy
+    {
+        if ($client->isPublic() && ! $policy->pkce_required) {
+            $this->logGrantFailure($client, 'public_client_policy_requires_pkce', [
+                'policy_id' => $policy->id,
+                'client_type' => $client->client_type,
+            ]);
+
+            throw ValidationException::withMessages([
+                'client_id' => 'Public clients must use a token policy where PKCE is required.',
+            ]);
+        }
+
+        return $policy;
     }
 
     /**
-     * Issue and persist a fresh token pair for the given client and user context.
+     * Új access/refresh token párt állít elő és ment el.
+     *
+     * A nyers tokenek csak a válasz payloadban jelennek meg, adatbázisban
+     * kizárólag hash formában tárolódnak. A family_id és parent_token_id
+     * biztosítja a refresh token lánc auditálhatóságát.
      *
      * @param  array<int, string>  $scopes
      * @return IssuedTokenPair
@@ -551,6 +704,12 @@ class OAuthTokenService
         ];
     }
 
+    /**
+     * OIDC kérés esetén ID tokent állít elő.
+     *
+     * ID token csak akkor jár a tokenválaszhoz, ha az authorization code
+     * olyan OIDC folyamatból származik, amely nonce validációt igényel.
+     */
     private function issueIdTokenIfRequired(AuthorizationCode $authorizationCode): ?string
     {
         if (! $authorizationCode->requiresIdentityNonceValidation()) {
@@ -561,7 +720,11 @@ class OAuthTokenService
     }
 
     /**
-     * Revoke an OAuth access or refresh token owned by the requesting client.
+     * Visszavon egy klienshez tartozó access vagy refresh tokent.
+     *
+     * A művelet idempotens: ha a token nem található, nem aktív, vagy nem
+     * a kérő klienshez tartozik, nem szivárogtatunk információt a token
+     * létezéséről. Találat esetén a visszavonás auditálva történik.
      *
      * @param  OAuthTokenPayload  $payload
      */
@@ -687,7 +850,11 @@ class OAuthTokenService
     }
 
     /**
-     * Introspect an OAuth access or refresh token for the requesting client.
+     * Token introspection választ ad a kérő kliens számára.
+     *
+     * Csak a saját klienshez tartozó aktív token adatait tekinti aktívnak.
+     * Ismeretlen, lejárt, visszavont vagy más klienshez tartozó token esetén
+     * szabványos inaktív választ ad vissza.
      *
      * @param  OAuthTokenPayload  $payload
      * @return IntrospectionResponse
@@ -718,7 +885,11 @@ class OAuthTokenService
     }
 
     /**
-     * Resolve OIDC-compatible user info claims for a valid Bearer access token.
+     * OIDC userinfo claim-eket ad vissza érvényes Bearer access token alapján.
+     *
+     * A userinfo endpoint csak openid scope-pal használható. Sikeres lekéréskor
+     * frissül a token használati metaadata, és audit esemény rögzíti, melyik
+     * kliens mely scope-okkal kért felhasználói adatokat.
      *
      * @return UserInfoClaims
      */
@@ -755,7 +926,11 @@ class OAuthTokenService
     }
 
     /**
-     * Normalize the optional token hint to the supported OAuth token type values.
+     * Normalizálja az opcionális token type hint értéket.
+     *
+     * A hint csak keresési optimalizáció és nem bizalmi forrás:
+     * ha ismeretlen vagy hiányzik, a rendszer mindkét támogatott token
+     * típust megpróbálhatja biztonságosan feloldani.
      */
     private function normalizeTokenTypeHint(mixed $hint): ?string
     {
@@ -773,6 +948,12 @@ class OAuthTokenService
     }
 
     /**
+     * Eldönti, hogy a token introspection melyik token típus alapján történjen.
+     *
+     * Ha a kliens küld type hintet, azt használjuk elsődlegesen.
+     * Hint nélkül access tokenként próbáljuk először, majd refresh tokenként,
+     * miközben csak aktív és klienshez tartozó token adhat aktív választ.
+     *
      * @return IntrospectionResponse
      */
     private function resolveIntrospectionResponse(SsoClient $client, string $tokenHash, ?string $tokenTypeHint): array
@@ -795,6 +976,11 @@ class OAuthTokenService
     }
 
     /**
+     * Access token introspection belső feloldása.
+     *
+     * Más klienshez tartozó, ismeretlen vagy inaktív access tokenről nem adunk
+     * részletes információt, csak szabványos inactive választ.
+     *
      * @return IntrospectionResponse
      */
     private function introspectAccessToken(SsoClient $client, string $tokenHash): array
@@ -813,6 +999,11 @@ class OAuthTokenService
     }
 
     /**
+     * Refresh token introspection belső feloldása.
+     *
+     * Refresh token esetén is csak a tulajdonos kliens kap aktív választ,
+     * így az endpoint nem használható tokenlétezés felderítésére más kliensekhez.
+     *
      * @return IntrospectionResponse
      */
     private function introspectRefreshToken(SsoClient $client, string $tokenHash): array
@@ -831,7 +1022,10 @@ class OAuthTokenService
     }
 
     /**
-     * Determine whether the stored access token is still active and usable.
+     * Eldönti, hogy a tárolt access token még használható-e.
+     *
+     * Az aktív állapot a token modell központi életciklus-szabályaira épül,
+     * így az introspection és userinfo ugyanazt az érvényességi logikát használja.
      */
     private function isAccessTokenActive(Token $token): bool
     {
@@ -839,7 +1033,10 @@ class OAuthTokenService
     }
 
     /**
-     * Determine whether the stored refresh token is still active and usable.
+     * Eldönti, hogy a tárolt refresh token még használható-e.
+     *
+     * A refresh token aktív állapota figyelembe veszi a lejáratot,
+     * visszavonást, rotációt, tokencsalád visszavonást és incidensjelölést.
      */
     private function isRefreshTokenActive(Token $token): bool
     {
@@ -847,7 +1044,10 @@ class OAuthTokenService
     }
 
     /**
-     * Format a standards-aligned token introspection payload.
+     * OAuth introspection kompatibilis aktív token választ formáz.
+     *
+     * Csak olyan adatok kerülnek visszaadásra, amelyekre a kérő kliens
+     * jogosult és amelyek szükségesek az erőforrás-szerver döntéséhez.
      *
      * @return IntrospectionResponse
      */
@@ -868,6 +1068,11 @@ class OAuthTokenService
     }
 
     /**
+     * Szabványos inaktív introspection választ ad.
+     *
+     * Ugyanazt a választ használjuk ismeretlen, más klienshez tartozó,
+     * lejárt vagy visszavont tokenre, hogy ne szivárogjon tokenállapot.
+     *
      * @return IntrospectionResponse
      */
     private function inactiveIntrospectionResponse(): array
@@ -876,7 +1081,11 @@ class OAuthTokenService
     }
 
     /**
-     * Resolve a Bearer access token to the persisted token model with client and user context.
+     * Bearer access tokent felold userinfo használathoz.
+     *
+     * A nyers token csak hash-elés után kerül keresésre. A metódus kizárólag
+     * aktív access tokent fogad el, és betölti a kliens/felhasználó kontextust
+     * a claim előállításhoz és auditáláshoz.
      */
     private function resolveUserInfoAccessToken(?string $plainAccessToken): Token
     {
@@ -896,7 +1105,11 @@ class OAuthTokenService
     }
 
     /**
-     * Record a token grant failure event for auditing and abuse investigation.
+     * Authorization code újrafelhasználási kísérletet auditál.
+     *
+     * Az authorization code egyszer használható credential. Újrafelhasználása
+     * klienshibára, race conditionre vagy visszaélési kísérletre utalhat,
+     * ezért külön biztonsági eseményként kerül rögzítésre.
      */
     private function logAuthorizationCodeReuse(AuthorizationCode $authorizationCode, SsoClient $client): void
     {
@@ -917,7 +1130,15 @@ class OAuthTokenService
         );
     }
 
-    private function logGrantFailure(SsoClient $client, string $reason): void
+    /**
+     * Token grant sikertelenséget rögzít audit és visszaélésvizsgálat céljából.
+     *
+     * A helper egységesíti a grant hibák eseménynevét és alap property-it,
+     * miközben a hívó metódus grant-specifikus részleteket is hozzáadhat.
+     *
+     * @param  array<string, mixed>  $properties
+     */
+    private function logGrantFailure(SsoClient $client, string $reason, array $properties = []): void
     {
         $this->auditLogService->logFailure(
             logName: AuditLogService::LOG_OAUTH,
@@ -927,12 +1148,19 @@ class OAuthTokenService
             properties: [
                 'client_id' => $client->id,
                 'client_public_id' => $client->client_id,
+                'client_type' => $client->client_type,
                 'reason' => $reason,
+                ...$properties,
             ],
         );
     }
 
     /**
+     * Külön audit eseményeket rögzít az access és refresh token kiadásáról.
+     *
+     * A tokenpár egy válaszban keletkezik, de audit szempontból hasznos
+     * külön látni az access token és refresh token életciklusának kezdetét.
+     *
      * @param  array<int, string>  $scopeCodes
      */
     private function logIssuedTokens(Token $token, SsoClient $client, string $grantType, array $scopeCodes, ?User $causer): void
@@ -973,6 +1201,13 @@ class OAuthTokenService
         );
     }
 
+    /**
+     * Refresh token reuse észlelésekor incidenskezelést indít.
+     *
+     * Ha a refresh token tokencsaládhoz tartozik, a család gyanúsnak jelölhető
+     * és visszavonható. A kliens felé szándékosan általános invalid token hiba
+     * tér vissza, hogy ne legyen kihasználható tokenállapot-felderítésre.
+     */
     private function handleRefreshTokenReuse(Token $token, SsoClient $client): never
     {
         if ($token->family_id !== null) {

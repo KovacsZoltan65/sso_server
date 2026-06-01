@@ -27,6 +27,10 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    clientTypeOptions: {
+        type: Array,
+        default: () => [],
+    },
     canManageSecrets: {
         type: Boolean,
         default: false,
@@ -41,6 +45,7 @@ const formId = 'client-edit-form';
 const form = useForm({
     name: props.client.name ?? '',
     client_id: props.client.clientId ?? '',
+    client_type: props.client.clientType ?? 'confidential',
     redirect_uris: [...(props.client.redirectUris ?? [''])],
     scopes: [...(props.client.scopes ?? [])],
     default_scopes: [...(props.client.defaultScopes ?? [])],
@@ -54,6 +59,7 @@ const rotateForm = useForm({
 
 const flashClientSecret = computed(() => page.props.flash?.clientSecret ?? null);
 const secrets = computed(() => props.client.secrets ?? []);
+const isPublicClient = computed(() => form.client_type === 'public');
 
 watch(
     () => page.props.flash?.success,
@@ -177,6 +183,7 @@ const confirmRevoke = (secret) => {
                             :loading="form.processing"
                             :scopeOptions="scopeOptions"
                             :tokenPolicies="tokenPolicies"
+                            :clientTypeOptions="clientTypeOptions"
                             @submit="submit"
                         />
 
@@ -203,7 +210,7 @@ const confirmRevoke = (secret) => {
                     </AdminFormCard>
                 </div>
 
-                <div v-if="canManageSecrets" class="flex flex-col">
+                <div v-if="canManageSecrets && !isPublicClient" class="flex flex-col">
                     <AdminFormCard>
                         <template #header>
                             <div class="space-y-1">

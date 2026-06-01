@@ -524,7 +524,63 @@ it('rejects authorize requests when the redirect uri does not strictly match the
         ]);
 
     expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.authorization.denied')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'redirect_uri_mismatch',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'access_token', 'refresh_token', 'client_secret', 'secret']);
 });
+
+it('rejects authorize requests when redirect uri differs from the registered value', function (string $redirectUri): void {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => $redirectUri,
+        'scope' => 'openid profile',
+        'state' => 'strict-redirect-variant-state',
+        'nonce' => 'strict-redirect-variant-nonce',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'redirect_uri' => 'The redirect URI does not match the registered client redirect URIs.',
+        ]);
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.authorization.denied')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'redirect_uri_mismatch',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'access_token', 'refresh_token', 'client_secret', 'secret']);
+})->with([
+    'query parameter mismatch' => ['https://portal.example.com/callback?x=1'],
+    'fragment mismatch' => ['https://portal.example.com/callback#fragment'],
+    'path extension mismatch' => ['https://portal.example.com/callback/anything'],
+    'host mismatch' => ['https://evil-client.test/callback'],
+    'host suffix trick' => ['https://portal.example.com.evil.com/callback'],
+    'scheme mismatch' => ['http://portal.example.com/callback'],
+    'protocol-relative URI' => ['//portal.example.com/callback'],
+]);
 
 it('rejects authorize requests when openid scope is present but nonce is missing', function () {
     [$client] = oauthClient();
@@ -725,6 +781,43 @@ it('rejects authorize requests when the client requests a scope it is not allowe
 
     expect(AuthorizationCode::query()->count())->toBe(0);
     expect(app(OidcFrontChannelLogoutService::class)->participatingClients(app('session.store')))->toBe([]);
+});
+
+it('rejects authorize requests with an unknown scope and audits the denial safely', function () {
+    [$client] = oauthClient();
+    $user = User::factory()->create();
+    $verifier = 'plain-test-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $this->actingAs($user)->get(route('oauth.authorize', [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'openid admin',
+        'state' => 'unknown-scope-state',
+        'nonce' => 'unknown-scope-nonce',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]))
+        ->assertStatus(302)
+        ->assertSessionHasErrors([
+            'scope' => 'The requested scope [admin] is not allowed for this client.',
+        ]);
+
+    expect(AuthorizationCode::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.authorization.denied')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'scope_not_allowed',
+        'scope_codes' => ['admin'],
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'access_token', 'refresh_token', 'client_secret', 'secret']);
 });
 
 it('rejects authorize requests when the client is invalid with a validation error instead of 404', function () {
@@ -951,6 +1044,120 @@ it('exchanges authorization code for tokens with valid pkce verifier', function 
     expect($issueActivity->properties->toArray())->not->toHaveKeys(['access_token', 'refresh_token', 'authorization_code']);
 });
 
+it('rejects authorization code token requests that try to add scope', function () {
+    [$client, , $plainSecret] = oauthClient();
+    $user = User::factory()->create();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client, [
+        'scope' => 'openid',
+    ]);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+        'scope' => 'openid profile',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.scope.0', 'The scope parameter is not supported for this grant type.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $authorizationCode = AuthorizationCode::query()
+        ->where('code_hash', hash('sha256', (string) $code))
+        ->firstOrFail();
+
+    expect($authorizationCode->consumed_at)->toBeNull();
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'scope_parameter_not_allowed',
+        'grant_type' => 'authorization_code',
+        'affected_count' => 2,
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'code', 'access_token', 'refresh_token', 'client_secret', 'secret']);
+});
+
+it('issues token scopes exactly from the authorization code scope set', function () {
+    [$client, , $plainSecret] = oauthClient();
+    $user = User::factory()->create();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client, [
+        'scope' => 'openid',
+    ]);
+
+    $tokenResponse = $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])->assertOk();
+
+    $data = $tokenResponse->json('data');
+    $token = Token::query()
+        ->where('access_token_hash', hash('sha256', $data['access_token']))
+        ->firstOrFail();
+
+    expect($data['scope'])->toBe('openid')
+        ->and($token->scopes)->toBe(['openid']);
+});
+
+it('rejects authorization code exchange when the code scope is no longer assigned to the client', function () {
+    [$client, , $plainSecret] = oauthClient();
+    $user = User::factory()->create();
+
+    [$code, $verifier] = issueAuthorizationCodeForOauthClient($user, $client, [
+        'scope' => 'openid profile',
+    ]);
+
+    $client->scopes()->sync(Scope::query()->where('code', 'openid')->pluck('id')->all());
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.scope.0', 'The requested scope is not allowed for this client.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $authorizationCode = AuthorizationCode::query()
+        ->where('code_hash', hash('sha256', (string) $code))
+        ->firstOrFail();
+
+    expect($authorizationCode->consumed_at)->toBeNull();
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'reason' => 'scope_grant_no_longer_allowed',
+        'grant_type' => 'authorization_code',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['authorization_code', 'code', 'access_token', 'refresh_token', 'client_secret', 'secret']);
+});
+
 it('rejects confidential token exchange when the client has no active secret', function () {
     [$client, , $plainSecret] = oauthClient([
         'client' => [
@@ -1118,6 +1325,45 @@ it('exchanges authorization code for a public client without a client secret whe
         ]);
 
     expect(Token::query()->count())->toBe(1);
+});
+
+it('rejects public client token exchange without pkce verifier', function () {
+    [$client] = oauthClient([
+        'client' => [
+            'client_type' => SsoClient::CLIENT_TYPE_PUBLIC,
+        ],
+    ]);
+    $user = User::factory()->create();
+
+    $client->secrets()->delete();
+
+    [$code] = issueAuthorizationCodeForOauthClient($user, $client);
+
+    $this->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+    ])
+        ->assertStatus(422)
+        ->assertJsonPath('message', 'OAuth token request failed.')
+        ->assertJsonPath('errors.code_verifier.0', 'The code verifier field is required.');
+
+    expect(Token::query()->count())->toBe(0);
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.grant_failed')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())->toMatchArray([
+        'client_id' => $client->id,
+        'client_public_id' => $client->client_id,
+        'client_type' => SsoClient::CLIENT_TYPE_PUBLIC,
+        'grant_type' => 'authorization_code',
+        'reason' => 'missing_code_verifier',
+        'result' => 'failure',
+    ])->not->toHaveKeys(['code_verifier', 'code_challenge', 'access_token', 'refresh_token', 'client_secret', 'secret']);
 });
 
 it('does not include id token in token response when openid scope is not granted', function () {

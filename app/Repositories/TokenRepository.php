@@ -14,6 +14,11 @@ use Prettus\Repository\Eloquent\Repository;
 class TokenRepository extends Repository implements TokenRepositoryInterface
 {
     /**
+     * Az admin lista által támogatott rendezési mezők explicit leképezése.
+     *
+     * A frontend által küldött oszlopnevek nem kerülnek közvetlenül SQL-be,
+     * így a rendezés kontrollált és biztonságos marad.
+     *
      * @var array<string, string>
      */
     private array $sortableFields = [
@@ -28,11 +33,20 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         parent::__construct($model);
     }
 
+    /**
+     * @return class-string<Token>
+     */
     public function model(): string
     {
         return Token::class;
     }
 
+    /**
+     * Access token alapján betölti a tokenhez tartozó felhasználót és klienst.
+     *
+     * Olyan ellenőrzési pontokon hasznos, ahol a token érvényessége mellett
+     * szükség van a kapcsolódó szereplők adataira is.
+     */
     public function findAccessTokenWithUserAndClientByHash(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
@@ -45,30 +59,49 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token;
     }
 
+    /**
+     * Access token hash alapján megkeresi a token rekordot.
+     *
+     * A token nyers értéke nem kerül tárolásra, ezért minden keresés
+     * a biztonságosan eltárolt hash alapján történik.
+     */
     public function findAccessTokenByHash(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
         $token = $this->getModel()
             ->newQuery()
-            ->with('client')
+            ->with(['client'])
             ->where('access_token_hash', $tokenHash)
             ->first();
 
         return $token;
     }
 
+    /**
+     * Refresh token hash alapján megkeresi a token rekordot.
+     *
+     * A refresh token hosszabb életciklusa miatt ez a lekérdezés
+     * a tokenrotáció és visszavonási folyamatok alapja.
+     */
     public function findRefreshTokenByHash(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
         $token = $this->getModel()
             ->newQuery()
-            ->with('client')
+            ->with(['client'])
             ->where('refresh_token_hash', $tokenHash)
             ->first();
 
         return $token;
     }
 
+    /**
+     * Megkeresi az aktuálisan használható access tokent.
+     *
+     * Az access token csak akkor tekinthető aktívnak, ha nincs visszavonva,
+     * nem érintett családszintű tiltásban, nem kapcsolódik incidenshez,
+     * és még nem járt le.
+     */
     public function findActiveAccessTokenByHash(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
@@ -76,11 +109,21 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
             ->newQuery()
             ->where('access_token_hash', $tokenHash)
             ->whereNull('access_token_revoked_at')
+            ->whereNull('family_revoked_at')
+            ->whereNull('security_incident_at')
+            ->where('access_token_expires_at', '>', now())
             ->first();
 
         return $token;
     }
 
+    /**
+     * Megkeresi az aktuálisan felhasználható refresh tokent.
+     *
+     * Refresh tokenből csak akkor adható ki új tokenpár, ha az még nem lett
+     * visszavonva, rotálva, incidenssel jelölve, családszinten tiltva,
+     * és az érvényességi ideje sem járt le.
+     */
     public function findActiveRefreshTokenByHash(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
@@ -88,11 +131,21 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
             ->newQuery()
             ->where('refresh_token_hash', $tokenHash)
             ->whereNull('refresh_token_revoked_at')
+            ->whereNull('family_revoked_at')
+            ->whereNull('security_incident_at')
+            ->whereNull('replaced_by_token_id')
+            ->where('refresh_token_expires_at', '>', now())
             ->first();
 
         return $token;
     }
 
+    /**
+     * Refresh token alapján betölti a teljes tokenkontextust.
+     *
+     * A kapcsolódó kliens, felhasználó, token policy és rotációs lánc
+     * szükséges lehet tokenfrissítéshez, auditáláshoz vagy incidenselemzéshez.
+     */
     public function findTokenWithRelationsByRefreshHash(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
@@ -105,6 +158,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token;
     }
 
+    /**
+     * Refresh token rotációhoz zároltan tölti be a token rekordot.
+     *
+     * A sorzár megakadályozza, hogy párhuzamos kérések ugyanazt
+     * a refresh tokent egyszerre használják fel tokenkiadásra.
+     */
     public function findTokenWithRelationsByRefreshHashForUpdate(string $tokenHash): ?Token
     {
         /** @var Token|null $token */
@@ -118,6 +177,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token;
     }
 
+    /**
+     * Létrehoz egy új access/refresh token párt.
+     *
+     * A tokenpár az OAuth munkamenet aktuális állapotát képviseli,
+     * beleértve a kliens-, felhasználó-, scope- és policy adatokat.
+     */
     public function createTokenPair(array $attributes): Token
     {
         /** @var Token $token */
@@ -126,6 +191,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token->refresh();
     }
 
+    /**
+     * Frissíti a token rekordot és visszatölti az aktuális adatbázisállapotot.
+     *
+     * Force fill használata indokolt, mert a repository belső domain műveleteket
+     * végez, nem közvetlen felhasználói tömeges kitöltést.
+     */
     public function updateToken(Token $token, array $attributes): Token
     {
         $token->forceFill($attributes)->save();
@@ -133,6 +204,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token->refresh();
     }
 
+    /**
+     * Visszavonja az access tokent.
+     *
+     * A visszavonás oka audit és incidenskezelési célból eltárolható.
+     * A refresh token állapota ettől önmagában még nem változik.
+     */
     public function revokeAccessToken(Token $token, ?string $reason = null): void
     {
         $token->forceFill([
@@ -141,6 +218,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         ])->save();
     }
 
+    /**
+     * Visszavonja a refresh tokent.
+     *
+     * A művelet megakadályozza, hogy az adott OAuth munkamenetből
+     * további access tokenek legyenek kiadhatók.
+     */
     public function revokeRefreshToken(Token $token, ?string $reason = null): void
     {
         $token->forceFill([
@@ -149,6 +232,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         ])->save();
     }
 
+    /**
+     * Lezárja a régi refresh tokent sikeres rotáció után.
+     *
+     * A régi token visszavonásra kerül, és kapcsolat jön létre az új
+     * utód tokennel, így a teljes refresh token lánc auditálható marad.
+     */
     public function markRefreshTokenRotated(Token $token, Token $replacement): Token
     {
         $token->forceFill([
@@ -161,6 +250,13 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token->refresh();
     }
 
+    /**
+     * Biztonsági incidensként rögzíti egy már felhasznált refresh token
+     * újbóli használatának kísérletét.
+     *
+     * Ez tokenlopásra, párhuzamos felhasználásra vagy hibás kliensoldali
+     * tokenkezelésre utalhat, ezért külön incidensmezőkben is megőrződik.
+     */
     public function markRefreshReuseDetected(Token $token, ?string $reason = null, ?string $incidentDetectedAt = null): Token
     {
         $detectedAt = $incidentDetectedAt ? Carbon::parse($incidentDetectedAt) : now();
@@ -179,6 +275,12 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token->refresh();
     }
 
+    /**
+     * Visszavonja egy tokencsalád tagjait.
+     *
+     * Refresh token rotáció során az egymásból származó tokenek egy közös
+     * családot alkotnak. Incidens esetén a teljes család érvényteleníthető.
+     */
     public function revokeTokenFamily(string $familyId, ?string $reason = null, ?int $exceptTokenId = null): void
     {
         $query = $this->getModel()
@@ -203,6 +305,14 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         });
     }
 
+    /**
+     * Betölti egy tokencsalád teljes történetét.
+     *
+     * Az eredmény alkalmas auditálásra, incidenselemzésre és
+     * refresh token rotációs láncok vizsgálatára.
+     *
+     * @return Collection<int, Token>
+     */
     public function findFamilyTokens(string $familyId): Collection
     {
         /** @var Collection<int, Token> $tokens */
@@ -216,6 +326,14 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $tokens;
     }
 
+    /**
+     * Visszaadja a tokencsalád jelenleg még használható tagjait.
+     *
+     * A történeti rekordok megmaradnak audit célra, de ebből a listából
+     * csak az aktív access vagy refresh tokenek kerülnek vissza.
+     *
+     * @return Collection<int, Token>
+     */
     public function findActiveFamilyTokens(string $familyId): Collection
     {
         /** @var Collection<int, Token> $tokens */
@@ -226,6 +344,15 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $tokens;
     }
 
+    /**
+     * Biztonsági incidens vagy rendszerszintű tiltás esetén lezárja
+     * a teljes tokencsaládot.
+     *
+     * A művelet visszavonja az aktív tokeneket, rögzíti az incidensadatokat,
+     * és metaadatokkal segíti a későbbi auditot.
+     *
+     * @return int Az aktív állapotból visszavont tokenek száma.
+     */
     public function revokeFamilyTokens(
         string $familyId,
         string $reason,
@@ -269,12 +396,25 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $count;
     }
 
+    /**
+     * Ellenőrzi, hogy a tokencsaládban maradt-e még használható token.
+     *
+     * Hasznos incidenskezelés, családszintű visszavonás és takarítási
+     * folyamatok ellenőrző lépéseként.
+     */
     public function familyHasActiveTokens(string $familyId): bool
     {
         return $this->findFamilyTokens($familyId)
             ->contains(fn (Token $token): bool => $token->isAccessTokenActive() || $token->isRefreshTokenActive());
     }
 
+    /**
+     * Tokenek admin listázása szűréssel, kereséssel és rendezéssel.
+     *
+     * Az admin nézet célja nem a nyers tokenértékek megjelenítése, hanem
+     * a tokenéletciklus, klienshasználat, felhasználói kapcsolatok és
+     * biztonsági állapotok áttekintése.
+     */
     public function paginateForAdmin(
         array $filters,
         ?string $sortField,
@@ -313,6 +453,8 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
             ->when($state !== null && $state !== '', function ($query) use ($state, $tokenType): void {
                 $now = now();
 
+                // Az access token állapotai más mezőkön alapulnak, mint a refresh tokené,
+                // ezért külön életciklus-logikával szűrjük őket.
                 if ($tokenType === 'access_token') {
                     match ($state) {
                         'active' => $query->whereNull('tokens.access_token_revoked_at')->whereNull('tokens.family_revoked_at')->whereNull('tokens.security_incident_at')->where('tokens.access_token_expires_at', '>', $now),
@@ -341,6 +483,9 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
             ->withQueryString();
     }
 
+    /**
+     * Betölti a token részletes admin nézetéhez szükséges kapcsolódó adatokat.
+     */
     public function findById(int $id): ?Token
     {
         /** @var Token|null $token */
@@ -352,6 +497,14 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $token;
     }
 
+    /**
+     * Visszaadja egy kliens tokenjeit admin áttekintéshez.
+     *
+     * A lista segít megérteni, hogy az adott kliens mely felhasználókhoz
+     * és milyen token policy-k mellett rendelkezik aktív vagy történeti tokenekkel.
+     *
+     * @return Collection<int, Token>
+     */
     public function listForClient(int $clientId): Collection
     {
         /** @var Collection<int, Token> $tokens */
@@ -365,6 +518,14 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $tokens;
     }
 
+    /**
+     * Visszaadja egy felhasználó tokenjeit admin áttekintéshez.
+     *
+     * Hasznos fiókszintű auditnál, token visszavonásnál és gyanús
+     * aktivitás vizsgálatakor.
+     *
+     * @return Collection<int, Token>
+     */
     public function listForUser(int $userId): Collection
     {
         /** @var Collection<int, Token> $tokens */
@@ -378,6 +539,14 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $tokens;
     }
 
+    /**
+     * Az admin tokenlista kliens szűrőjéhez ad választási lehetőségeket.
+     *
+     * Csak olyan kliensek jelennek meg, amelyekhez ténylegesen tartozik token,
+     * így a szűrő nem kínál üres találatot adó opciókat.
+     *
+     * @return Collection<int, array{id: int, name: string, clientId: string}>
+     */
     public function clientOptionsForAdmin(): Collection
     {
         /** @var Collection<int, array{id: int, name: string, clientId: string}> $clients */
@@ -397,6 +566,14 @@ class TokenRepository extends Repository implements TokenRepositoryInterface
         return $clients;
     }
 
+    /**
+     * Az admin tokenlista felhasználó szűrőjéhez ad választási lehetőségeket.
+     *
+     * Csak tokennel rendelkező felhasználók kerülnek visszaadásra,
+     * ezért az admin gyorsabban szűkítheti a releváns tokenállományt.
+     *
+     * @return Collection<int, array{id: int, name: string, email: string}>
+     */
     public function userOptionsForAdmin(): Collection
     {
         /** @var Collection<int, array{id: int, name: string, email: string}> $users */

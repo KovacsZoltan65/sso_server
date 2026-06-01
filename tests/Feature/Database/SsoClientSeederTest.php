@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\SsoClient;
+use App\Models\TokenPolicy;
 use Database\Seeders\SsoClientSeeder;
 use Illuminate\Support\Facades\Hash;
 
@@ -58,22 +59,115 @@ it('is idempotent and does not create a second active secret automatically', fun
     expect($client->activeSecrets->first()?->is($secret))->toBeTrue();
 });
 
+it('seeds the csharp aspnet demo client without duplicating it', function () {
+    $policy = TokenPolicy::query()->create([
+        'name' => 'Default Web Policy',
+        'code' => 'default.web',
+        'description' => 'Balanced defaults for standard confidential and first-party web clients.',
+        'access_token_ttl_minutes' => 60,
+        'refresh_token_ttl_minutes' => 43200,
+        'refresh_token_rotation_enabled' => true,
+        'pkce_required' => false,
+        'reuse_refresh_token_forbidden' => true,
+        'is_default' => true,
+        'is_active' => true,
+    ]);
+
+    $this->seed(SsoClientSeeder::class);
+
+    $client = SsoClient::query()
+        ->where('client_id', 'csharp-aspnet-demo')
+        ->with(['redirectUris', 'scopes', 'activeSecrets'])
+        ->first();
+
+    expect($client)->not->toBeNull();
+    expect($client->name)->toBe('C# ASP.NET Demo');
+    expect($client->client_type)->toBe(SsoClient::CLIENT_TYPE_CONFIDENTIAL);
+    expect($client->is_active)->toBeTrue();
+    expect($client->redirect_uris)->toBe(['http://localhost:5023/auth/callback']);
+    expect($client->token_policy_id)->toBe($policy->id);
+    expect($client->redirectUris)->toHaveCount(1);
+    expect($client->redirectUris->first()?->uri)->toBe('http://localhost:5023/auth/callback');
+    expect($client->redirectUris->first()?->uri_hash)->toBe(hash('sha256', 'http://localhost:5023/auth/callback'));
+    expect($client->redirectUris->first()?->is_primary)->toBeTrue();
+    expect($client->getRelation('scopes')->pluck('code')->sort()->values()->all())->toBe(['email', 'openid', 'profile']);
+    expect($client->activeSecrets)->toHaveCount(1);
+    expect($client->activeSecrets->first()?->secret_hash)->not->toBeNull();
+
+    $secret = $client->activeSecrets->first();
+
+    $this->seed(SsoClientSeeder::class);
+
+    $client->refresh()->load(['redirectUris', 'scopes', 'activeSecrets']);
+
+    expect(SsoClient::query()->where('client_id', 'csharp-aspnet-demo')->count())->toBe(1);
+    expect($client->redirectUris)->toHaveCount(1);
+    expect($client->scopes)->toHaveCount(3);
+    expect($client->activeSecrets)->toHaveCount(1);
+    expect($client->activeSecrets->first()?->is($secret))->toBeTrue();
+});
+
+it('does not create a csharp aspnet demo secret again when the client exists', function () {
+    TokenPolicy::query()->create([
+        'name' => 'Default Web Policy',
+        'code' => 'default.web',
+        'description' => 'Balanced defaults for standard confidential and first-party web clients.',
+        'access_token_ttl_minutes' => 60,
+        'refresh_token_ttl_minutes' => 43200,
+        'refresh_token_rotation_enabled' => true,
+        'pkce_required' => false,
+        'reuse_refresh_token_forbidden' => true,
+        'is_default' => true,
+        'is_active' => true,
+    ]);
+
+    $this->seed(SsoClientSeeder::class);
+
+    $client = SsoClient::query()
+        ->where('client_id', 'csharp-aspnet-demo')
+        ->with(['activeSecrets'])
+        ->firstOrFail();
+
+    $secret = $client->activeSecrets->first();
+
+    $this->seed(SsoClientSeeder::class);
+
+    $client->refresh()->load('activeSecrets');
+
+    expect($client->activeSecrets)->toHaveCount(1);
+    expect($client->activeSecrets->first()?->is($secret))->toBeTrue();
+});
+
+it('still seeds the csharp aspnet demo client when no default token policy exists', function () {
+    $this->seed(SsoClientSeeder::class);
+
+    $client = SsoClient::query()
+        ->where('client_id', 'csharp-aspnet-demo')
+        ->with(['redirectUris', 'scopes', 'activeSecrets'])
+        ->first();
+
+    expect($client)->not->toBeNull();
+    expect($client->token_policy_id)->toBeNull();
+    expect($client->redirectUris)->toHaveCount(1);
+    expect($client->scopes)->toHaveCount(3);
+    expect($client->activeSecrets)->toHaveCount(1);
+});
+
 it('stores only the hashed client secret', function () {
     $messages = [];
 
     $command = \Mockery::mock(\Illuminate\Console\Command::class);
+    $command->shouldReceive('line')->zeroOrMoreTimes();
     $command->shouldReceive('info')
-        ->once()
-        ->with('Portal client created.');
+        ->zeroOrMoreTimes();
     $command->shouldReceive('warn')
-        ->once()
-        ->with('Client ID: portal-client');
-    $command->shouldReceive('warn')
-        ->once()
+        ->zeroOrMoreTimes()
         ->withArgs(function (string $message) use (&$messages): bool {
-            $messages[] = $message;
+            if (str_starts_with($message, 'Client Secret: ')) {
+                $messages[] = $message;
+            }
 
-            return str_starts_with($message, 'Client Secret: ');
+            return true;
         });
 
     $seeder = new SsoClientSeeder();

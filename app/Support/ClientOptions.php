@@ -82,7 +82,7 @@ class ClientOptions
     }
 
     /**
-     * @return array<int, array{id: int, name: string}>
+     * @return array<int, array{id: int, name: string, pkceRequired: bool}>
      */
     public static function tokenPolicies(): array
     {
@@ -94,13 +94,33 @@ class ClientOptions
             ->where('is_active', true)
             ->orderByDesc('is_default')
             ->orderBy('name')
-            ->get(['id', 'name'])
+            ->get(['id', 'name', 'pkce_required'])
             ->map(fn (TokenPolicy $tokenPolicy) => [
                 'id' => $tokenPolicy->id,
                 'name' => $tokenPolicy->name,
+                'pkceRequired' => (bool) $tokenPolicy->pkce_required,
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<int, array{label: string, value: string, helper: string}>
+     */
+    public static function clientTypeOptions(): array
+    {
+        return [
+            [
+                'label' => 'Confidential',
+                'value' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
+                'helper' => 'Server-side client that can safely use a client secret.',
+            ],
+            [
+                'label' => 'Public',
+                'value' => SsoClient::CLIENT_TYPE_PUBLIC,
+                'helper' => 'Browser, mobile, or desktop client. PKCE is required and no secret is generated.',
+            ],
+        ];
     }
 
     /**

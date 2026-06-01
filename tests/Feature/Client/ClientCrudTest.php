@@ -2,7 +2,10 @@
 
 use App\Models\Scope;
 use App\Models\SsoClient;
+use App\Models\Token;
+use App\Models\TokenPolicy;
 use App\Models\User;
+use App\Services\OAuth\OAuthAuthorizationService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -48,10 +51,102 @@ function clientManager(array $abilities = []): User
     return $user;
 }
 
+function prepareClientForSecretTokenExchange(SsoClient $client): SsoClient
+{
+    $policy = TokenPolicy::query()->create([
+        'name' => 'Client Secret Token Exchange Policy',
+        'code' => 'client.secret.exchange.'.fake()->unique()->numerify('###'),
+        'description' => 'Policy for client secret hardening tests.',
+        'access_token_ttl_minutes' => 60,
+        'refresh_token_ttl_minutes' => 1440,
+        'refresh_token_rotation_enabled' => true,
+        'pkce_required' => true,
+        'reuse_refresh_token_forbidden' => true,
+        'is_default' => false,
+        'is_active' => true,
+    ]);
+
+    $client->forceFill([
+        'token_policy_id' => $policy->id,
+        'is_active' => true,
+        'client_type' => SsoClient::CLIENT_TYPE_CONFIDENTIAL,
+    ])->save();
+
+    $client->redirectUris()->updateOrCreate(
+        ['uri_hash' => hash('sha256', 'https://portal.example.com/callback')],
+        [
+            'uri' => 'https://portal.example.com/callback',
+            'is_primary' => true,
+        ],
+    );
+
+    $client->scopes()->sync(
+        Scope::query()
+            ->whereIn('code', ['profile'])
+            ->get(['id', 'code'])
+            ->mapWithKeys(fn (Scope $scope): array => [$scope->id => ['is_default' => $scope->code === 'profile']])
+            ->all()
+    );
+
+    return $client->fresh(['redirectUris', 'scopes', 'tokenPolicy']);
+}
+
+function issueClientCrudAuthorizationCode(SsoClient $client, User $user): array
+{
+    $verifier = 'client-secret-verifier-123456789';
+    $challenge = rtrim(strtr(base64_encode(hash('sha256', $verifier, true)), '+/', '-_'), '=');
+
+    $result = app(OAuthAuthorizationService::class)->approve($user, [
+        'response_type' => 'code',
+        'client_id' => $client->client_id,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'scope' => 'profile',
+        'state' => 'client-secret-hardening-state',
+        'code_challenge' => $challenge,
+        'code_challenge_method' => 'S256',
+    ]);
+
+    return [$result['code'], $verifier];
+}
+
+function assertClientSecretCanExchangeAuthorizationCode(SsoClient $client, string $plainSecret): void
+{
+    $oauthUser = User::factory()->create();
+    [$code, $verifier] = issueClientCrudAuthorizationCode($client, $oauthUser);
+
+    test()->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])->assertOk();
+}
+
+function assertClientSecretCannotExchangeAuthorizationCode(SsoClient $client, string $plainSecret): void
+{
+    $oauthUser = User::factory()->create();
+    [$code, $verifier] = issueClientCrudAuthorizationCode($client, $oauthUser);
+
+    test()->postJson(route('oauth.token'), [
+        'grant_type' => 'authorization_code',
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'code' => $code,
+        'redirect_uri' => 'https://portal.example.com/callback',
+        'code_verifier' => $verifier,
+    ])
+        ->assertUnauthorized()
+        ->assertJsonPath('message', 'Invalid client credentials.');
+}
+
 it('authorized user can view client index', function () {
+    $plainSecret = 'index-visible-secret';
     $client = SsoClient::factory()->create([
         'name' => 'Portal Client',
         'client_id' => 'client_portal',
+        'client_secret_hash' => Hash::make($plainSecret),
         'redirect_uris' => ['https://portal.example.com/callback'],
         'scopes' => ['openid', 'profile'],
         'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
@@ -64,11 +159,19 @@ it('authorized user can view client index', function () {
         'is_primary' => true,
     ]);
     $client->scopes()->sync(Scope::query()->whereIn('code', ['openid', 'profile'])->pluck('id')->all());
+    $client->secrets()->create([
+        'name' => 'Index secret',
+        'secret_hash' => Hash::make($plainSecret),
+        'last_four' => 'cret',
+        'is_active' => true,
+    ]);
 
     $user = clientManager(['clients.viewAny']);
 
-    $this->actingAs($user)
-        ->get(route('admin.sso-clients.index', ['global' => 'Portal']))
+    $response = $this->actingAs($user)
+        ->get(route('admin.sso-clients.index', ['global' => 'Portal']));
+
+    $response
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Clients/Index')
@@ -83,6 +186,10 @@ it('authorized user can view client index', function () {
             ->where('filters.global', 'Portal')
             ->where('canManageClients', false)
             ->has('scopeOptions'));
+
+    $response->assertDontSee($plainSecret);
+    $response->assertDontSee('secret_hash');
+    $response->assertDontSee('client_secret_hash');
 });
 
 it('unauthorized user is forbidden from client index', function () {
@@ -155,6 +262,7 @@ it('authorized user can store client and receives secret once', function () {
 
     expect($client->name)->toBe('Portal Client');
     expect($client->client_id)->not->toBe('');
+    expect($client->client_type)->toBe(SsoClient::CLIENT_TYPE_CONFIDENTIAL);
     expect($client->client_secret_hash)->not->toBe('');
     expect(Hash::check($clientSecret['secret'], $client->client_secret_hash))->toBeTrue();
     expect($client->normalizedRedirectUris())->toBe(['https://portal.example.com/callback']);
@@ -165,6 +273,8 @@ it('authorized user can store client and receives secret once', function () {
     expect($client->consent_bypass_allowed)->toBeFalse();
     expect($storedSecret)->not->toBeNull();
     expect(Hash::check($clientSecret['secret'], $storedSecret->secret_hash))->toBeTrue();
+    expect(DB::table('client_secrets')->where('secret_hash', $clientSecret['secret'])->exists())->toBeFalse();
+    expect(DB::table('sso_clients')->where('client_secret_hash', $clientSecret['secret'])->exists())->toBeFalse();
 
     $this->assertDatabaseHas('redirect_uris', [
         'sso_client_id' => $client->id,
@@ -191,6 +301,70 @@ it('authorized user can store client and receives secret once', function () {
         ->and($secretActivity->properties->toArray())->not->toHaveKeys(['secret', 'client_secret']);
 });
 
+it('authorized user can store public client without generating a secret', function () {
+    $user = clientManager(['clients.create']);
+    $policy = TokenPolicy::factory()->create([
+        'pkce_required' => true,
+        'is_active' => true,
+    ]);
+
+    $response = $this->actingAs($user)
+        ->post(route('admin.sso-clients.store'), [
+            'name' => 'Desktop Public Client',
+            'client_type' => SsoClient::CLIENT_TYPE_PUBLIC,
+            'redirect_uris' => ['http://127.0.0.1:3978/callback'],
+            'scopes' => ['openid', 'profile'],
+            'default_scopes' => ['openid'],
+            'is_active' => true,
+            'token_policy_id' => $policy->id,
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ]);
+
+    $response
+        ->assertRedirect(route('admin.sso-clients.index'))
+        ->assertSessionHas('success')
+        ->assertSessionMissing('clientSecret');
+
+    $client = SsoClient::query()->with(['redirectUris', 'secrets'])->firstOrFail();
+
+    expect($client->client_type)->toBe(SsoClient::CLIENT_TYPE_PUBLIC);
+    expect($client->client_secret_hash)->toBe('');
+    expect($client->secrets)->toHaveCount(0);
+    expect($client->normalizedRedirectUris())->toBe(['http://127.0.0.1:3978/callback']);
+
+    $this->assertDatabaseMissing('activity_log', [
+        'log_name' => 'admin.client',
+        'event' => 'admin.client_secret.created',
+    ]);
+});
+
+it('rejects public client creation with a token policy that does not require pkce', function () {
+    $user = clientManager(['clients.create']);
+    $policy = TokenPolicy::factory()->create([
+        'pkce_required' => false,
+        'is_active' => true,
+    ]);
+
+    $this->actingAs($user)
+        ->from(route('admin.sso-clients.create'))
+        ->post(route('admin.sso-clients.store'), [
+            'name' => 'Unsafe Public Client',
+            'client_type' => SsoClient::CLIENT_TYPE_PUBLIC,
+            'redirect_uris' => ['https://portal.example.com/callback'],
+            'scopes' => ['openid'],
+            'default_scopes' => ['openid'],
+            'is_active' => true,
+            'token_policy_id' => $policy->id,
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ])
+        ->assertRedirect(route('admin.sso-clients.create'))
+        ->assertSessionHasErrors(['token_policy_id']);
+});
+
 it('store validation fails when default scopes are not assigned to the client', function () {
     $user = clientManager(['clients.create']);
 
@@ -209,6 +383,54 @@ it('store validation fails when default scopes are not assigned to the client', 
         ])
         ->assertRedirect(route('admin.sso-clients.create'))
         ->assertSessionHasErrors(['default_scopes']);
+});
+
+it('store validation rejects redirect uri fragments and duplicates', function () {
+    $user = clientManager(['clients.create']);
+
+    $this->actingAs($user)
+        ->from(route('admin.sso-clients.create'))
+        ->post(route('admin.sso-clients.store'), [
+            'name' => 'Portal Client',
+            'redirect_uris' => [
+                'https://portal.example.com/callback#fragment',
+                'https://portal.example.com/callback#fragment',
+            ],
+            'scopes' => ['openid'],
+            'default_scopes' => ['openid'],
+            'is_active' => true,
+            'token_policy_id' => null,
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ])
+        ->assertRedirect(route('admin.sso-clients.create'))
+        ->assertSessionHasErrors(['redirect_uris.0', 'redirect_uris.1']);
+});
+
+it('update validation rejects redirect uri fragments and duplicates', function () {
+    $client = SsoClient::factory()->create();
+    $user = clientManager(['clients.update']);
+
+    $this->actingAs($user)
+        ->from(route('admin.sso-clients.edit', $client))
+        ->put(route('admin.sso-clients.update', $client), [
+            'name' => 'Portal Client',
+            'redirect_uris' => [
+                'https://portal.example.com/callback',
+                'https://portal.example.com/callback',
+                'https://portal.example.com/fragment#bad',
+            ],
+            'scopes' => ['openid'],
+            'default_scopes' => ['openid'],
+            'is_active' => true,
+            'token_policy_id' => null,
+            'trust_tier' => SsoClient::TRUST_TIER_THIRD_PARTY,
+            'is_first_party' => false,
+            'consent_bypass_allowed' => false,
+        ])
+        ->assertRedirect(route('admin.sso-clients.edit', $client))
+        ->assertSessionHasErrors(['redirect_uris.1', 'redirect_uris.2']);
 });
 
 it('store validation fails for invalid client payload', function () {
@@ -230,16 +452,18 @@ it('store validation fails for invalid client payload', function () {
 });
 
 it('authorized user can view client edit page without leaking secret', function () {
+    $plainSecret = 'very-secret-value';
     $client = SsoClient::factory()->create([
         'name' => 'Portal Client',
         'client_id' => 'client_portal',
+        'client_secret_hash' => Hash::make($plainSecret),
         'trust_tier' => SsoClient::TRUST_TIER_FIRST_PARTY_UNTRUSTED,
         'is_first_party' => true,
         'consent_bypass_allowed' => false,
     ]);
     $client->secrets()->create([
         'name' => 'Initial secret',
-        'secret_hash' => Hash::make('very-secret-value'),
+        'secret_hash' => Hash::make($plainSecret),
         'last_four' => '1234',
         'is_active' => true,
     ]);
@@ -253,8 +477,10 @@ it('authorized user can view client edit page without leaking secret', function 
             ->all()
     );
 
-    $this->actingAs($user)
-        ->get(route('admin.sso-clients.edit', $client))
+    $response = $this->actingAs($user)
+        ->get(route('admin.sso-clients.edit', $client));
+
+    $response
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('Clients/Edit')
@@ -270,6 +496,10 @@ it('authorized user can view client edit page without leaking secret', function 
             ->missing('client.clientSecret')
             ->missing('client.client_secret')
             ->has('trustTierOptions', 4));
+
+    $response->assertDontSee($plainSecret);
+    $response->assertDontSee('secret_hash');
+    $response->assertDontSee('client_secret_hash');
 });
 
 it('authorized user can update client', function () {
@@ -371,13 +601,16 @@ it('update validation fails for invalid client payload', function () {
 });
 
 it('authorized user can rotate client secret and old one becomes revoked', function () {
+    $oldPlainSecret = 'old-secret-value';
     $client = SsoClient::factory()->create([
         'name' => 'Portal Client',
         'client_id' => 'client_portal',
+        'client_secret_hash' => Hash::make($oldPlainSecret),
     ]);
+    $client = prepareClientForSecretTokenExchange($client);
     $oldSecret = $client->secrets()->create([
         'name' => 'Initial secret',
-        'secret_hash' => Hash::make('old-secret-value'),
+        'secret_hash' => Hash::make($oldPlainSecret),
         'last_four' => '1111',
         'is_active' => true,
     ]);
@@ -405,6 +638,14 @@ it('authorized user can rotate client secret and old one becomes revoked', funct
     $newSecret = $client->secrets()->where('name', 'Rotation before deploy')->firstOrFail();
     expect(Hash::check($sessionSecret, $newSecret->secret_hash))->toBeTrue();
     expect(Hash::check($sessionSecret, $client->fresh()->client_secret_hash))->toBeTrue();
+    expect(DB::table('client_secrets')->where('secret_hash', $sessionSecret)->exists())->toBeFalse();
+    expect(DB::table('sso_clients')->where('client_secret_hash', $sessionSecret)->exists())->toBeFalse();
+
+    $tokenCountBeforeOldSecretAttempt = Token::query()->count();
+    assertClientSecretCannotExchangeAuthorizationCode($client->fresh(['redirectUris', 'scopes', 'tokenPolicy']), $oldPlainSecret);
+    expect(Token::query()->count())->toBe($tokenCountBeforeOldSecretAttempt);
+
+    assertClientSecretCanExchangeAuthorizationCode($client->fresh(['redirectUris', 'scopes', 'tokenPolicy']), $sessionSecret);
 
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'admin.client',
@@ -421,16 +662,21 @@ it('authorized user can rotate client secret and old one becomes revoked', funct
 });
 
 it('authorized user can revoke a non-last secret', function () {
-    $client = SsoClient::factory()->create();
+    $olderPlainSecret = 'older-secret';
+    $revokedPlainSecret = 'newest-secret';
+    $client = SsoClient::factory()->create([
+        'client_secret_hash' => Hash::make($olderPlainSecret),
+    ]);
+    $client = prepareClientForSecretTokenExchange($client);
     $client->secrets()->create([
         'name' => 'Older secret',
-        'secret_hash' => Hash::make('older-secret'),
+        'secret_hash' => Hash::make($olderPlainSecret),
         'last_four' => '1111',
         'is_active' => true,
     ]);
     $secretToRevoke = $client->secrets()->create([
         'name' => 'Newest secret',
-        'secret_hash' => Hash::make('newest-secret'),
+        'secret_hash' => Hash::make($revokedPlainSecret),
         'last_four' => '2222',
         'is_active' => true,
     ]);
@@ -445,10 +691,24 @@ it('authorized user can revoke a non-last secret', function () {
     expect($secretToRevoke->fresh()->revoked_at)->not->toBeNull();
     expect($secretToRevoke->fresh()->is_active)->toBeFalse();
 
+    $tokenCountBeforeRevokedSecretAttempt = Token::query()->count();
+    assertClientSecretCannotExchangeAuthorizationCode($client->fresh(['redirectUris', 'scopes', 'tokenPolicy']), $revokedPlainSecret);
+    expect(Token::query()->count())->toBe($tokenCountBeforeRevokedSecretAttempt);
+
+    assertClientSecretCanExchangeAuthorizationCode($client->fresh(['redirectUris', 'scopes', 'tokenPolicy']), $olderPlainSecret);
+
     $this->assertDatabaseHas('activity_log', [
         'log_name' => 'admin.client',
         'event' => 'admin.client_secret.revoked',
     ]);
+
+    $revokeActivity = Activity::query()
+        ->where('event', 'admin.client_secret.revoked')
+        ->latest()
+        ->firstOrFail();
+
+    expect($revokeActivity->properties->toArray())->toHaveKey('secret_last_four')
+        ->and($revokeActivity->properties->toArray())->not->toHaveKeys(['secret', 'client_secret']);
 });
 
 it('cannot revoke the last active client secret', function () {

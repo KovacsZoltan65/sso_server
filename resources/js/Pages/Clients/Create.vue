@@ -15,12 +15,21 @@ const props = defineProps({
         type: Array,
         default: () => [],
     },
+    clientTypeOptions: {
+        type: Array,
+        default: () => [],
+    },
+    defaults: {
+        type: Object,
+        default: () => ({}),
+    },
 });
 
 const formId = 'client-create-form';
 
 const form = useForm({
     name: '',
+    client_type: props.defaults.clientType ?? 'confidential',
     redirect_uris: [''],
     scopes: [],
     default_scopes: [],
@@ -56,7 +65,7 @@ const cancel = () => {
                             <div class="space-y-1">
                                 <div class="text-sm font-semibold text-slate-900">Client Configuration</div>
                                 <p class="text-sm text-slate-500">
-                                    The client ID and client secret are generated automatically during creation.
+                                    The client ID is generated automatically. Confidential clients receive a one-time secret during creation.
                                 </p>
                             </div>
                         </template>
@@ -68,6 +77,7 @@ const cancel = () => {
                             :loading="form.processing"
                             :scopeOptions="scopeOptions"
                             :tokenPolicies="tokenPolicies"
+                            :clientTypeOptions="clientTypeOptions"
                             @submit="submit"
                         />
 

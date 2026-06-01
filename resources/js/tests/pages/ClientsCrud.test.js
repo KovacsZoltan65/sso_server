@@ -106,6 +106,48 @@ describe('Clients CRUD frontend', () => {
         expect(form.post).toHaveBeenCalledTimes(1);
     });
 
+    it('shows public client pkce guidance and omits secret lifecycle panel for public clients', async () => {
+        const wrapper = mount(Edit, {
+            props: {
+                client: {
+                    id: 4,
+                    name: 'Desktop Client',
+                    clientId: 'client_desktop',
+                    clientType: 'public',
+                    redirectUris: ['http://127.0.0.1:3978/callback'],
+                    scopes: ['openid'],
+                    defaultScopes: ['openid'],
+                    isActive: true,
+                    tokenPolicyId: 2,
+                    secrets: [],
+                },
+                scopeOptions,
+                tokenPolicies: [{ id: 2, name: 'Public PKCE', pkceRequired: true }],
+                clientTypeOptions: [
+                    { label: 'Confidential', value: 'confidential' },
+                    { label: 'Public', value: 'public' },
+                ],
+                canManageSecrets: true,
+            },
+            global: {
+                stubs: {
+                    AuthenticatedLayout: {
+                        template: '<div><slot /></div>',
+                    },
+                    PageHeader: {
+                        template: '<div />',
+                    },
+                },
+            },
+        });
+
+        const [form] = getForms();
+
+        expect(form.client_type).toBe('public');
+        expect(wrapper.text()).toContain('Public clients cannot safely store secrets. PKCE is required.');
+        expect(wrapper.text()).not.toContain('Secret lifecycle');
+    });
+
     it('prefills and submits the edit page form and renders secret metadata only', async () => {
         const wrapper = mount(Edit, {
             props: {

@@ -12,6 +12,7 @@ use App\Models\Token;
 use App\Models\TokenPolicy;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Spatie\Activitylog\Models\Activity;
 
 uses(RefreshDatabase::class);
 
@@ -505,4 +506,117 @@ it('returns inactive for a rotated refresh token', function (): void {
     ])
         ->assertOk()
         ->assertJsonPath('data.active', false);
+});
+
+it('returns inactive for access and refresh tokens revoked at the family level', function (): void {
+    $user = User::factory()->create();
+    $policy = TokenPolicy::factory()->create(['is_active' => true]);
+
+    $client = SsoClient::factory()->create([
+        'client_id' => 'portal-client',
+        'is_active' => true,
+        'token_policy_id' => $policy->id,
+    ]);
+
+    $plainSecret = 'super-secret-value-123';
+    ClientSecret::query()->create([
+        'sso_client_id' => $client->id,
+        'name' => 'Initial secret',
+        'secret_hash' => bcrypt($plainSecret),
+        'last_four' => substr($plainSecret, -4),
+        'is_active' => true,
+    ]);
+
+    $plainAccessToken = str_repeat('a', 40);
+    $plainRefreshToken = str_repeat('b', 40);
+
+    Token::query()->create([
+        'sso_client_id' => $client->id,
+        'user_id' => $user->id,
+        'token_policy_id' => $policy->id,
+        'family_id' => fake()->uuid(),
+        'access_token_hash' => hash('sha256', $plainAccessToken),
+        'refresh_token_hash' => hash('sha256', $plainRefreshToken),
+        'scopes' => ['openid'],
+        'access_token_expires_at' => now()->addHour(),
+        'refresh_token_expires_at' => now()->addDay(),
+        'family_revoked_at' => now(),
+        'family_revoked_reason' => 'family_revoked_due_to_reuse',
+    ]);
+
+    $this->postJson(route('oauth.introspect'), [
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'token' => $plainAccessToken,
+        'token_type_hint' => 'access_token',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.active', false);
+
+    $this->postJson(route('oauth.introspect'), [
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'token' => $plainRefreshToken,
+        'token_type_hint' => 'refresh_token',
+    ])
+        ->assertOk()
+        ->assertJsonPath('data.active', false);
+});
+
+it('audits introspection without logging raw token values', function (): void {
+    $user = User::factory()->create();
+    $policy = TokenPolicy::factory()->create(['is_active' => true]);
+
+    $client = SsoClient::factory()->create([
+        'client_id' => 'portal-client',
+        'is_active' => true,
+        'token_policy_id' => $policy->id,
+    ]);
+
+    $plainSecret = 'super-secret-value-123';
+    ClientSecret::query()->create([
+        'sso_client_id' => $client->id,
+        'name' => 'Initial secret',
+        'secret_hash' => bcrypt($plainSecret),
+        'last_four' => substr($plainSecret, -4),
+        'is_active' => true,
+    ]);
+
+    $plainAccessToken = str_repeat('a', 40);
+
+    Token::query()->create([
+        'sso_client_id' => $client->id,
+        'user_id' => $user->id,
+        'token_policy_id' => $policy->id,
+        'access_token_hash' => hash('sha256', $plainAccessToken),
+        'refresh_token_hash' => hash('sha256', str_repeat('r', 40)),
+        'scopes' => ['openid'],
+        'access_token_expires_at' => now()->addHour(),
+        'refresh_token_expires_at' => now()->addDay(),
+    ]);
+
+    $this->postJson(route('oauth.introspect'), [
+        'client_id' => $client->client_id,
+        'client_secret' => $plainSecret,
+        'token' => $plainAccessToken,
+        'token_type_hint' => 'access_token',
+    ])->assertOk();
+
+    $activity = Activity::query()
+        ->where('event', 'oauth.token.introspected')
+        ->latest()
+        ->firstOrFail();
+
+    expect($activity->properties->toArray())
+        ->toMatchArray([
+            'client_id' => $client->id,
+            'client_public_id' => $client->client_id,
+            'token_kind' => 'access_token',
+            'status' => 'active',
+            'result' => 'success',
+        ])
+        ->not->toHaveKeys(['token', 'access_token', 'refresh_token', 'client_secret', 'secret'])
+        ->and($activity->properties->toArray())
+        ->not->toContain($plainAccessToken)
+        ->not->toContain($plainSecret);
 });

@@ -12,6 +12,11 @@ use Spatie\Permission\Models\Role;
 class UserRepository extends Repository implements UserRepositoryInterface
 {
     /**
+     * Az admin felhasználólista által támogatott rendezési mezők explicit leképezése.
+     *
+     * A frontendből érkező mezőnevek nem kerülnek közvetlenül SQL rendezésbe,
+     * így a lista rendezése kontrollált és biztonságos marad.
+     *
      * @var array<string, string>
      */
     private array $sortableFields = [
@@ -27,6 +32,15 @@ class UserRepository extends Repository implements UserRepositoryInterface
         parent::__construct($model);
     }
 
+    /**
+     * Lekérdezi az admin felhasználólistát kereséssel, szűréssel és rendezéssel.
+     *
+     * A lista célja, hogy az admin gyorsan áttekintse:
+     * - kik használhatják a rendszert
+     * - aktív vagy inaktív-e a fiókjuk
+     * - megtörtént-e az email-verifikáció
+     * - milyen szerepkörökkel rendelkeznek
+     */
     public function paginateForAdminIndex(
         array $filters,
         ?string $sortField,
@@ -45,7 +59,7 @@ class UserRepository extends Repository implements UserRepositoryInterface
 
         return $this->getModel()
             ->newQuery()
-            ->with('roles')
+            ->with(['roles'])
             ->when($global !== '', function ($query) use ($global): void {
                 $query->where(function ($innerQuery) use ($global): void {
                     $innerQuery
@@ -64,6 +78,14 @@ class UserRepository extends Repository implements UserRepositoryInterface
             ->withQueryString();
     }
 
+    /**
+     * Visszaadja a rendszerben elérhető szerepkörök neveit.
+     *
+     * A lista felhasználó létrehozásakor és szerkesztésekor használható,
+     * hogy az admin csak létező szerepkörök közül választhasson.
+     *
+     * @return Collection<int, string>
+     */
     public function getRoleNames(): Collection
     {
         /** @var Collection<int, string> $roles */
@@ -74,6 +96,12 @@ class UserRepository extends Repository implements UserRepositoryInterface
         return $roles;
     }
 
+    /**
+     * Létrehoz egy új felhasználót és hozzárendeli a kiválasztott szerepköröket.
+     *
+     * A felhasználó és a jogosultsági kontextus egy műveletben áll elő,
+     * így az admin felületen azonnal a tényleges szerepkörökkel jeleníthető meg.
+     */
     public function createWithRoles(array $attributes, array $roles = []): User
     {
         /** @var User $user */
@@ -83,6 +111,12 @@ class UserRepository extends Repository implements UserRepositoryInterface
         return $user->load('roles');
     }
 
+    /**
+     * Frissíti a felhasználó alapadatait és szerepköreit.
+     *
+     * A szerepkörök szinkronizálása teljes állapotként kezeli a beküldött listát,
+     * ezért eltávolítja a már nem kijelölt szerepeket is.
+     */
     public function updateWithRoles(User $user, array $attributes, array $roles = []): User
     {
         $user->fill($attributes);
@@ -92,6 +126,12 @@ class UserRepository extends Repository implements UserRepositoryInterface
         return $user->load('roles');
     }
 
+    /**
+     * Frissíti a felhasználó saját profiladatait.
+     *
+     * Ez elkülönül az admin szerepkörkezeléstől, mert a profilfrissítés
+     * nem módosíthat jogosultsági vagy biztonsági szerepkör adatokat.
+     */
     public function updateProfile(User $user, array $attributes): User
     {
         $user->fill($attributes);
@@ -100,6 +140,12 @@ class UserRepository extends Repository implements UserRepositoryInterface
         return $user->refresh();
     }
 
+    /**
+     * Frissíti a felhasználó jelszavát előre hash-elt értékkel.
+     *
+     * A repository nem végez jelszóhash-elést, mert az validációs vagy
+     * szolgáltatási rétegbeli felelősség; itt csak a tárolás történik.
+     */
     public function updatePassword(User $user, string $hashedPassword): User
     {
         $user->forceFill([
@@ -109,28 +155,55 @@ class UserRepository extends Repository implements UserRepositoryInterface
         return $user->refresh();
     }
 
+    /**
+     * Visszatölti a felhasználó aktuális adatbázisállapotát.
+     *
+     * Hasznos olyan műveletek után, ahol timestamp, cast, observer vagy
+     * adatbázisoldali változás miatt friss modellállapotra van szükség.
+     */
     public function refreshUser(User $user): User
     {
         return $user->refresh();
     }
 
+    /**
+     * Tömeges műveletekhez betölti a megadott felhasználókat szerepköreikkel együtt.
+     *
+     * Az eager loading biztosítja, hogy admin megerősítő nézetekben vagy audit
+     * folyamatokban ne keletkezzen N+1 lekérdezés.
+     *
+     * @return Collection<int, User>
+     */
     public function getByIds(array $ids): Collection
     {
         /** @var Collection<int, User> $users */
         $users = $this->getModel()
             ->newQuery()
-            ->with('roles')
+            ->with(['roles'])
             ->whereIn('id', $ids)
             ->get();
 
         return $users;
     }
 
+    /**
+     * Töröl egy felhasználói fiókot.
+     *
+     * A tényleges törlési szabályokat — például saját fiók védelme,
+     * utolsó admin tiltása vagy kapcsolódó rekordok kezelése —
+     * a hívó szolgáltatási/policy rétegnek kell érvényesítenie.
+     */
     public function deleteUser(User $user): void
     {
         $user->delete();
     }
 
+    /**
+     * Tömegesen törli a megadott felhasználói fiókokat.
+     *
+     * A metódus feltételezi, hogy a hívó réteg már ellenőrizte,
+     * mely felhasználók törölhetők biztonságosan.
+     */
     public function deleteByIds(array $ids): void
     {
         $this->getModel()
